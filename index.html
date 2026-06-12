@@ -120,7 +120,7 @@
 
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
 
-  /* 版面：摘要卡片在左，帳戶資訊固定上移到右上角 */
+  /* 版面：手機優先看到圖表；摘要卡片與帳戶資訊放在總覽圖表下方 */
   .dashboard-top {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 360px;
@@ -128,6 +128,7 @@
     align-items: start;
     margin-bottom: 18px;
   }
+  .summary-after-charts { margin-top: 4px; }
   .dashboard-top .cards {
     margin-bottom: 0;
     grid-template-columns: repeat(3, minmax(160px, 1fr));
@@ -364,14 +365,6 @@
 
     <div id="edit-banner">編輯模式:可修改標題、持股、年度與帳戶欄位,數值會即時重算。完成後按「💾 儲存 JSON」寫回 data.json。</div>
 
-    <div class="dashboard-top">
-      <div class="cards" id="cards"></div>
-      <div class="panel account-panel">
-        <h2>帳戶資訊</h2>
-        <div class="tbl-wrap"><table id="account"></table></div>
-      </div>
-    </div>
-
     <div class="view-tabs" aria-label="儀表板頁籤">
       <button class="tab-btn active" type="button" data-tab="overview" onclick="switchTab('overview')">📊 總覽</button>
       <button class="tab-btn" type="button" data-tab="holdings" onclick="switchTab('holdings')">📋 持股明細</button>
@@ -382,6 +375,14 @@
       <div class="charts">
         <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
         <div class="panel"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
+      </div>
+
+      <div class="dashboard-top summary-after-charts">
+        <div class="cards" id="cards"></div>
+        <div class="panel account-panel">
+          <h2>帳戶資訊</h2>
+          <div class="tbl-wrap"><table id="account"></table></div>
+        </div>
       </div>
     </section>
 
@@ -412,6 +413,9 @@ let DATA = null;
 let editMode = false;
 let fsHandle = null;
 const DEFAULT_TITLE = '我的股票庫存儀表板';
+// 編輯密碼：預設 4 碼密碼 3968 的 SHA-256。純前端只能防誤觸，不能當真正資安保護。
+const EDIT_PASSWORD_SHA256 = 'dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d';
+const EDIT_UNLOCK_MINUTES = 30;
 
 const fmt = n => Math.round(n).toLocaleString('zh-TW');
 const fmt2 = n => n.toLocaleString('zh-TW', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -991,7 +995,40 @@ function restoreActiveTab() {
 }
 
 /* ---------- 編輯 ---------- */
-function toggleEdit() {
+async function sha256Text(text) {
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifyEditPassword() {
+  try {
+    const unlockedUntil = Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0);
+    if (Date.now() < unlockedUntil) return true;
+  } catch (e) {}
+
+  const pwd = prompt('請輸入編輯密碼');
+  if (pwd === null) return false;
+
+  try {
+    const hashed = await sha256Text(pwd);
+    if (hashed === EDIT_PASSWORD_SHA256) {
+      try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) {}
+      return true;
+    }
+  } catch (e) {
+    // 若瀏覽器不支援 Web Crypto，退回不啟用編輯。
+  }
+
+  alert('密碼錯誤，暫不開啟編輯模式。');
+  return false;
+}
+
+async function toggleEdit() {
+  if (!editMode) {
+    const ok = await verifyEditPassword();
+    if (!ok) return;
+  }
   editMode = !editMode;
   document.getElementById('edit-btn').textContent = editMode ? '👁 檢視' : '✏️ 編輯';
   document.getElementById('save-btn').classList.toggle('hidden', !editMode);
