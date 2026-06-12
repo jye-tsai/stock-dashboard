@@ -314,6 +314,16 @@
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--total-bg); color: var(--accent); }
   [data-theme="agent"] .tag { border: 1px solid rgba(34,211,238,.25); color: #67e8f9; background: rgba(34,211,238,.08); }
 
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 90;
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-bg.hidden { display: none; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; width: 100%; max-width: 420px; box-shadow: var(--shadow); }
+  .modal h3 { font-size: 16px; margin-bottom: 8px; color: var(--title); }
+  .modal label { display: block; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .modal label input { display: block; width: 100%; margin-top: 4px; }
+  .modal-hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff;
     padding: 10px 22px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99; }
   #toast.show { opacity: 1; }
@@ -357,9 +367,11 @@
             <option value="agent">🧬 Agent Neon</option>
           </select>
         </div>
-        <button class="btn" id="edit-btn" onclick="toggleEdit()">✏️ 編輯</button>
+        <button class="btn" id="unlock-btn" onclick="unlockUI()">🔒 解鎖</button>
+        <button class="btn hidden auth-only" id="edit-btn" onclick="toggleEdit()">✏️ 編輯</button>
         <button class="btn primary hidden" id="save-btn" onclick="saveFile()">💾 儲存 JSON</button>
-        <button class="btn" onclick="pickFile()">載入 JSON</button>
+        <button class="btn hidden auth-only" id="load-btn" onclick="pickFile()">載入 JSON</button>
+        <button class="btn hidden auth-only" id="gh-btn" onclick="openGhModal()">⚙️ GitHub</button>
       </div>
     </header>
 
@@ -406,14 +418,32 @@
     </section>
   </div>
 </div>
+
+<!-- GitHub 設定視窗 -->
+<div id="gh-modal" class="modal-bg hidden" onclick="if(event.target===this)closeGhModal()">
+  <div class="modal">
+    <h3>⚙️ GitHub 同步設定</h3>
+    <p class="modal-hint">設定後,「💾 儲存 JSON」會直接 commit 到你的 repo,開啟頁面也會優先讀取 repo 最新的 data.json。</p>
+    <label>帳號 (owner)<input class="ed" id="gh-owner" placeholder="例:jye123"></label>
+    <label>Repo 名稱<input class="ed" id="gh-repo" placeholder="例:stock-dashboard"></label>
+    <label>分支<input class="ed" id="gh-branch" placeholder="main" value="main"></label>
+    <label>檔案路徑<input class="ed" id="gh-path" placeholder="data.json" value="data.json"></label>
+    <label>Personal Access Token<input class="ed" id="gh-token" type="password" placeholder="github_pat_… 或 ghp_…"></label>
+    <p class="modal-hint">Token 只存在這台裝置的瀏覽器(localStorage),不會傳到其他地方。建議用 Fine-grained token,只勾選這個 repo 的 Contents 讀寫權限。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn danger" onclick="clearGh()">清除設定</button>
+      <button class="btn" onclick="closeGhModal()">取消</button>
+      <button class="btn primary" onclick="saveGh()">儲存設定</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
 let DATA = null;
 let editMode = false;
 let fsHandle = null;
-const DEFAULT_TITLE = '我的股票庫存儀表板';
-// 編輯密碼：預設 4 碼密碼 3968 的 SHA-256。純前端只能防誤觸，不能當真正資安保護。
+const DEFAULT_TITLE = '股票庫存儀表板';
 const EDIT_PASSWORD_SHA256 = 'dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d';
 const EDIT_UNLOCK_MINUTES = 30;
 
@@ -1012,16 +1042,33 @@ async function verifyEditPassword() {
 
   try {
     const hashed = await sha256Text(pwd);
-    if (hashed === EDIT_PASSWORD_SHA256) {
+    // 優先用 data.json 的 passwordHash,沒有才用上面的預設值
+    const expected = (DATA && DATA.passwordHash) || EDIT_PASSWORD_SHA256;
+    if (hashed === expected) {
       try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) {}
+      updateAuthUI();
       return true;
     }
   } catch (e) {
     // 若瀏覽器不支援 Web Crypto，退回不啟用編輯。
   }
 
-  alert('密碼錯誤，暫不開啟編輯模式。');
+  alert('密碼錯誤。');
   return false;
+}
+
+/* ---------- 解鎖後才顯示 編輯/載入/GitHub 按鈕 ---------- */
+function isUnlocked() {
+  try { return Date.now() < Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0); }
+  catch (e) { return false; }
+}
+function updateAuthUI() {
+  const ok = isUnlocked();
+  document.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !ok));
+  document.getElementById('unlock-btn').classList.toggle('hidden', ok);
+}
+async function unlockUI() {
+  if (await verifyEditPassword()) toast('🔓 已解鎖');
 }
 
 async function toggleEdit() {
@@ -1084,10 +1131,99 @@ const idb = {
     tx.objectStore('kv').put(v, k); tx.oncomplete = res; }); }
 };
 
+/* ---------- GitHub 同步 ---------- */
+function ghCfg() { try { return JSON.parse(localStorage.getItem('pf-gh')) || null; } catch (e) { return null; } }
+function ghReady(c) { return c && c.owner && c.repo && c.token; }
+function ghUrl(c) {
+  return `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${encodeURIComponent(c.path || 'data.json')}`;
+}
+function ghHeaders(c) {
+  return { 'Authorization': 'Bearer ' + c.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+}
+async function ghLoad(c) {
+  const r = await fetch(`${ghUrl(c)}?ref=${c.branch || 'main'}&_=${Date.now()}`,
+    { headers: { ...ghHeaders(c), 'Accept': 'application/vnd.github.raw+json' }, cache: 'no-store' });
+  if (!r.ok) throw new Error('讀取失敗 ' + r.status);
+  return r.json();
+}
+async function ghSave(c, json) {
+  let sha;
+  const g = await fetch(`${ghUrl(c)}?ref=${c.branch || 'main'}&_=${Date.now()}`, { headers: ghHeaders(c), cache: 'no-store' });
+  if (g.ok) sha = (await g.json()).sha;
+  else if (g.status !== 404) throw new Error('讀取 sha 失敗 ' + g.status);
+  const body = {
+    message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
+    content: btoa(unescape(encodeURIComponent(json))),
+    branch: c.branch || 'main'
+  };
+  if (sha) body.sha = sha;
+  const r = await fetch(ghUrl(c), { method: 'PUT', headers: ghHeaders(c), body: JSON.stringify(body) });
+  if (!r.ok) {
+    const msg = (await r.json().catch(() => ({}))).message || r.status;
+    throw new Error(msg);
+  }
+}
+
+async function openGhModal() {
+  if (!await verifyEditPassword()) return;
+  const c = ghCfg() || {};
+  // 在 GitHub Pages 上自動帶入 owner/repo
+  let owner = c.owner || '', repo = c.repo || '';
+  if (!owner && location.hostname.endsWith('.github.io')) {
+    owner = location.hostname.split('.')[0];
+    repo = location.pathname.split('/')[1] || '';
+  }
+  document.getElementById('gh-owner').value = owner;
+  document.getElementById('gh-repo').value = repo;
+  document.getElementById('gh-branch').value = c.branch || 'main';
+  document.getElementById('gh-path').value = c.path || 'data.json';
+  document.getElementById('gh-token').value = c.token || '';
+  document.getElementById('gh-modal').classList.remove('hidden');
+}
+function closeGhModal() { document.getElementById('gh-modal').classList.add('hidden'); }
+function saveGh() {
+  const c = {
+    owner: document.getElementById('gh-owner').value.trim(),
+    repo: document.getElementById('gh-repo').value.trim(),
+    branch: document.getElementById('gh-branch').value.trim() || 'main',
+    path: document.getElementById('gh-path').value.trim() || 'data.json',
+    token: document.getElementById('gh-token').value.trim()
+  };
+  if (!ghReady(c)) { alert('帳號、Repo、Token 為必填'); return; }
+  localStorage.setItem('pf-gh', JSON.stringify(c));
+  updateGhBtn();
+  closeGhModal();
+  toast('✅ GitHub 設定已儲存');
+}
+function clearGh() {
+  if (confirm('確定清除 GitHub 設定(含 Token)?')) {
+    localStorage.removeItem('pf-gh');
+    updateGhBtn();
+    closeGhModal();
+  }
+}
+function updateGhBtn() {
+  document.getElementById('gh-btn').textContent = ghReady(ghCfg()) ? '🔗 GitHub' : '⚙️ GitHub';
+}
+
 async function saveFile() {
   DATA.updated = new Date().toISOString().slice(0, 10);
   cache();
   const json = JSON.stringify(DATA, null, 2);
+
+  // 已設定 GitHub → 直接 commit 回 repo
+  const c = ghCfg();
+  if (ghReady(c)) {
+    try {
+      toast('上傳到 GitHub 中…');
+      await ghSave(c, json);
+      render();
+      toast(`✅ 已 commit 到 ${c.owner}/${c.repo}`);
+      return;
+    } catch (err) {
+      if (!confirm('GitHub 儲存失敗:' + err.message + '\n\n改存到本機檔案?')) return;
+    }
+  }
   try {
     let h = fsHandle || await idb.get('handle');
     if (!h && window.showSaveFilePicker) {
@@ -1119,6 +1255,7 @@ async function saveFile() {
 }
 
 async function pickFile() {
+  if (!await verifyEditPassword()) return;
   try {
     if (window.showOpenFilePicker) {
       const [h] = await showOpenFilePicker({ types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
@@ -1144,10 +1281,13 @@ document.getElementById('file-input').addEventListener('change', e => {
   if (file) file.text().then(t => load(JSON.parse(t)));
 });
 document.addEventListener('dragover', e => e.preventDefault());
-document.addEventListener('drop', e => {
+document.addEventListener('drop', async e => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file && file.name.endsWith('.json')) file.text().then(t => load(JSON.parse(t)));
+  if (file && file.name.endsWith('.json')) {
+    if (!await verifyEditPassword()) return;
+    load(JSON.parse(await file.text()));
+  }
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
 
@@ -1176,6 +1316,8 @@ applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
    3. localStorage 快取
    4. 請使用者選檔 */
 (async function init() {
+  updateAuthUI();
+  updateGhBtn();
   const showPickHint = () => {
     const hint = document.getElementById('loader-hint');
     const p = document.querySelector('#loader p');
@@ -1183,6 +1325,12 @@ applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
     if (p) p.textContent = '請選擇 data.json 或拖曳檔案到此頁面';
   };
   setTimeout(() => { if (!DATA) showPickHint(); }, 800);
+  // 已設定 GitHub → 優先讀 repo 最新版(不受 Pages 部署延遲影響)
+  const ghc = ghCfg();
+  if (ghReady(ghc)) {
+    try { load(await ghLoad(ghc)); return; }
+    catch (e) { toast('GitHub 讀取失敗,改用其他來源'); }
+  }
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);

@@ -1,5 +1,6 @@
 {
   "updated": "2026-06-12",
+  "passwordHash": "dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d",
   "fees": {
     "feeRate": 0.001425,
     "feeDiscount": 0.4,
@@ -10,22 +11,14 @@
     }
   },
   "holdings": [
-    {
-      "type": "個股",
-      "code": "2330",
-      "name": "台積電",
-      "cost": 1707.96,
-      "price": 2300,
-      "lots": 2.33
-    },
-    {
-      "type": "ETF",
-      "code": "00981A",
-      "name": "主動統一台股增長",
-      "cost": 16.18,
-      "price": 30.72,
-      "lots": 160
-    }
+    { "type": "個股", "code": "2330", "name": "台積電", "cost": 1707.96, "price": 2300.00, "lots": 2.330 },
+    { "type": "個股", "code": "2002", "name": "中鋼", "cost": 0, "price": 18.85, "lots": 0 },
+    { "type": "ETF", "code": "00631L", "name": "元大台灣50正2", "cost": 0, "price": 34.94, "lots": 0 },
+    { "type": "ETF", "code": "00981A", "name": "主動統一台股增長", "cost": 16.18, "price": 30.72, "lots": 160.000 },
+    { "type": "ETF", "code": "00891", "name": "中信關鍵半導體", "cost": 0, "price": 35.06, "lots": 0 },
+    { "type": "ETF", "code": "0056", "name": "元大高股息", "cost": 0, "price": 50.80, "lots": 0 },
+    { "type": "ETF", "code": "00713", "name": "元大台灣高息低波", "cost": 0, "price": 59.95, "lots": 0 },
+    { "type": "債券ETF-高收益", "code": "00953B", "name": "群益優選非投等債", "cost": 0, "price": 9.59, "lots": 0 }
   ],
   "account": {
     "餘額": 0,
@@ -35,36 +28,10 @@
   "已實現損益": 465709,
   "股息收入": 116490,
   "yearly": [
-    {
-      "year": "2023",
-      "capitalGain": 254145,
-      "dividend": 0,
-      "note": ""
-    },
-    {
-      "year": "2024",
-      "capitalGain": 499098,
-      "dividend": 208467,
-      "note": ""
-    },
-    {
-      "year": "2024",
-      "capitalGain": 763842,
-      "dividend": 0,
-      "note": "PRU"
-    },
-    {
-      "year": "2025",
-      "capitalGain": -1071205,
-      "dividend": 253815,
-      "note": ""
-    },
-    {
-      "year": "2026",
-      "capitalGain": 4144713,
-      "dividend": 116490,
-      "note": ""
-    }
-  ],
-  "title": "胖虎的小財庫"
+    { "year": "2023", "capitalGain": 254145, "dividend": 0, "note": "" },
+    { "year": "2024", "capitalGain": 499098, "dividend": 208467, "note": "" },
+    { "year": "2024", "capitalGain": 763842, "dividend": 0, "note": "PRU" },
+    { "year": "2025", "capitalGain": -1071205, "dividend": 253815, "note": "" },
+    { "year": "2026", "capitalGain": 4261203, "dividend": 116490, "note": "" }
+  ]
 }
