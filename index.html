@@ -286,8 +286,12 @@
   input.ed.wide { width: 140px; } input.ed.narrow { width: 70px; }
   body.editing .card .value input.ed { width: 130px; font-size: 16px; }
 
-  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-bottom: 20px; }
   @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+
+  /* 未解鎖時隱藏的區塊(年度損益圖、年度紀錄頁籤、帳戶資訊) */
+  body.locked .sec-protected { display: none !important; }
+  body.locked .dashboard-top { grid-template-columns: 1fr; }
   .chart-box { position: relative; height: 300px; }
   [data-theme="agent"] .chart-box { filter: drop-shadow(0 0 12px rgba(139,92,246,.09)); }
   .toolbar-label { color: var(--muted); font-size: 12px; }
@@ -380,18 +384,19 @@
     <div class="view-tabs" aria-label="儀表板頁籤">
       <button class="tab-btn active" type="button" data-tab="overview" onclick="switchTab('overview')">📊 總覽</button>
       <button class="tab-btn" type="button" data-tab="holdings" onclick="switchTab('holdings')">📋 持股明細</button>
-      <button class="tab-btn" type="button" data-tab="yearly" onclick="switchTab('yearly')">🗓 年度紀錄</button>
+      <button class="tab-btn sec-protected" type="button" data-tab="yearly" onclick="switchTab('yearly')">🗓 年度紀錄</button>
     </div>
 
     <section id="tab-overview" class="tab-page active">
       <div class="charts">
         <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
-        <div class="panel"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
+        <div class="panel"><h2>持股損益</h2><div class="chart-subtitle">各持股未實現損益（已扣賣出稅費）</div><div class="chart-box"><canvas id="pl"></canvas></div></div>
+        <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
       <div class="dashboard-top summary-after-charts">
         <div class="cards" id="cards"></div>
-        <div class="panel account-panel">
+        <div class="panel account-panel sec-protected">
           <h2>帳戶資訊</h2>
           <div class="tbl-wrap"><table id="account"></table></div>
         </div>
@@ -583,7 +588,7 @@ function render() {
   restoreActiveTab();
 }
 
-let pieChart, barChart;
+let pieChart, barChart, plChart;
 const THEME_KEYS = ['report-navy', 'report', 'report-green', 'report-warm', 'agent'];
 const CHART_PALETTES = {
   'report-navy': {
@@ -718,6 +723,39 @@ const barTotalLabelPlugin = {
   }
 };
 
+// 持股損益水平條:在條尾顯示 金額(損益比例)
+const plLabelPlugin = {
+  id: 'plLabel',
+  afterDatasetsDraw(chart, args, opts) {
+    const rows = opts.rows || [];
+    if (!rows.length) return;
+    const meta = chart.getDatasetMeta(0);
+    const xScale = chart.scales.x;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    ctx.font = `${opts.weight || 800} ${opts.fontSize || 11}px ${opts.fontFamily || 'Segoe UI, Microsoft JhengHei, sans-serif'}`;
+    rows.forEach((r, i) => {
+      const el = meta.data[i];
+      if (!el) return;
+      const y = el.getProps(['y'], true).y;
+      const xEnd = xScale.getPixelForValue(r.unrealized);
+      const positive = r.unrealized >= 0;
+      let tx = positive ? xEnd + 8 : xEnd - 8;
+      ctx.textAlign = positive ? 'left' : 'right';
+      // 不超出畫布
+      const limR = chart.width - 4, limL = 4;
+      if (positive && tx > limR - 120) { tx = xEnd - 8; ctx.textAlign = 'right'; }
+      if (!positive && tx < limL + 120) { tx = xEnd + 8; ctx.textAlign = 'left'; }
+      ctx.fillStyle = positive ? (opts.gainColor || '#b42318') : (opts.lossColor || '#027a48');
+      ctx.shadowColor = opts.shadowColor || 'transparent';
+      ctx.shadowBlur = opts.shadowBlur || 0;
+      ctx.fillText(`${sign(r.unrealized)}${fmt(r.unrealized)} (${pct(r.plRatio)})`, tx, y);
+    });
+    ctx.restore();
+  }
+};
+
 // 圓餅圖 tooltip 專用定位：把浮動資料推到甜甜圈外側，避免遮住中間總市值。
 if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners && !Chart.Tooltip.positioners.pieOuter) {
   Chart.Tooltip.positioners.pieOuter = function(elements) {
@@ -846,6 +884,100 @@ function drawCharts(held, ys) {
       }
     },
     plugins: [centerTextPlugin]
+  });
+
+  // 持股損益(水平條,依損益排序)
+  const plRows = [...held].sort((a, b) => b.unrealized - a.unrealized);
+  if (plChart) plChart.destroy();
+  plChart = new Chart(document.getElementById('pl'), {
+    type: 'bar',
+    data: {
+      labels: plRows.map(r => `${r.name} (${r.code})`),
+      datasets: [{
+        label: '未實現損益',
+        data: plRows.map(r => r.unrealized),
+        backgroundColor: plRows.map(r => r.unrealized >= 0 ? palette.gain : palette.loss),
+        hoverBackgroundColor: plRows.map(r => r.unrealized >= 0 ? palette.gain : palette.loss),
+        borderColor: isAgentChart ? 'rgba(255,255,255,.34)' : 'rgba(255,255,255,.72)',
+        hoverBorderColor: isAgentChart ? '#f8e7ff' : text,
+        borderWidth: isAgentChart ? 2 : 1.5,
+        hoverBorderWidth: isAgentChart ? 3 : 2.5,
+        borderRadius: 12,
+        borderSkipped: false,
+        minBarLength: 6,
+        maxBarThickness: 40
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 4, right: 12, bottom: 2, left: 2 } },
+      animation: { duration: 820, easing: 'easeOutBack' },
+      scales: {
+        x: {
+          border: { display: false },
+          grid: {
+            color: ctx => ctx.tick.value === 0
+              ? (isAgentChart ? 'rgba(200,184,255,.52)' : 'rgba(102,112,133,.34)')
+              : palette.grid,
+            lineWidth: ctx => ctx.tick.value === 0 ? 1.7 : 1,
+            drawTicks: false
+          },
+          ticks: {
+            color: isAgentChart ? '#aebbf0' : muted,
+            padding: 8,
+            font: { family: chartFont, size: isAgentChart ? 12 : 11.5, weight: '800' },
+            callback: val => (val / 10000) + '萬'
+          }
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: isAgentChart ? '#b9c4ee' : muted,
+            font: { family: chartFont, size: isAgentChart ? 12 : 11.5, weight: '800' }
+          }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        plLabel: {
+          rows: plRows,
+          gainColor: palette.gain,
+          lossColor: palette.loss,
+          shadowColor: isAgentChart ? 'rgba(255,79,184,.32)' : 'transparent',
+          shadowBlur: isAgentChart ? 8 : 0,
+          fontFamily: chartFont,
+          fontSize: isAgentChart ? 11.5 : 11,
+          weight: 850
+        },
+        tooltip: {
+          backgroundColor: tooltipBg,
+          titleColor: isAgentChart ? '#67e8f9' : text,
+          bodyColor: isAgentChart ? '#eef4ff' : text,
+          borderColor: tooltipBorder,
+          borderWidth: 1.5,
+          cornerRadius: 12,
+          padding: 12,
+          bodySpacing: 6,
+          displayColors: false,
+          titleFont: { family: chartFont, size: 13, weight: '700' },
+          bodyFont: { family: chartFont, size: 12, weight: '600' },
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: c => {
+              const r = plRows[c.dataIndex] || {};
+              return [
+                `未實現損益：${sign(r.unrealized)}${fmt(r.unrealized || 0)}`,
+                `損益比例：${pct(r.plRatio || 0)}`,
+                `成本：${fmt(r.costAmt || 0)}　市值：${fmt(r.mv || 0)}`
+              ];
+            }
+          }
+        }
+      }
+    },
+    plugins: [plLabelPlugin]
   });
 
   const years = [...ys]
@@ -1013,6 +1145,7 @@ function switchTab(tab) {
     setTimeout(() => {
       if (pieChart) pieChart.resize();
       if (barChart) barChart.resize();
+      if (plChart) plChart.resize();
     }, 60);
   }
 }
@@ -1021,6 +1154,7 @@ function restoreActiveTab() {
   let tab = 'overview';
   try { tab = localStorage.getItem('pf-active-tab') || 'overview'; } catch (e) {}
   if (!document.getElementById('tab-' + tab)) tab = 'overview';
+  if (tab === 'yearly' && !isUnlocked()) tab = 'overview';  // 年度紀錄需解鎖
   switchTab(tab);
 }
 
@@ -1066,6 +1200,10 @@ function updateAuthUI() {
   const ok = isUnlocked();
   document.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !ok));
   document.getElementById('unlock-btn').classList.toggle('hidden', ok);
+  const wasLocked = document.body.classList.contains('locked');
+  document.body.classList.toggle('locked', !ok);
+  // 解鎖瞬間,隱藏的圖表(年度損益)需要重畫一次才能正確顯示尺寸
+  if (wasLocked && ok && DATA) render();
 }
 async function unlockUI() {
   if (await verifyEditPassword()) toast('🔓 已解鎖');
