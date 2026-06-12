@@ -308,6 +308,18 @@
   .pl-panel { margin-top: 18px; }
   .pl-panel .chart-box { height: 280px; }
 
+  /* 手機:持股明細改卡片式 */
+  .h-cards { display: none; }
+  .h-card { background: color-mix(in srgb, var(--card) 55%, var(--bg)); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .h-card.h-total { background: var(--total-bg); }
+  .h-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .h-name { font-weight: 800; font-size: 14.5px; color: var(--value, var(--text)); }
+  .h-ratio { margin-left: auto; font-weight: 850; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  .h-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px 16px; font-variant-numeric: tabular-nums; }
+  .h-stat { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .h-stat .k { color: var(--muted); white-space: nowrap; }
+  .h-stat .v { font-weight: 750; white-space: nowrap; }
+
   /* ===== 手機版面 ===== */
   @media (max-width: 600px) {
     body { padding: 10px; }
@@ -333,6 +345,11 @@
     .pl-panel .chart-box { height: 240px; }
     .panel { padding: 12px; margin-bottom: 12px; }
     th, td { padding: 6px 8px; }
+  }
+  /* 檢視模式 + 窄螢幕 → 表格換成卡片;編輯模式仍用表格(可左右捲動) */
+  @media (max-width: 700px) {
+    body:not(.editing) #holdings-wrap { display: none; }
+    body:not(.editing) .h-cards { display: grid; gap: 10px; }
   }
 
   #loader { text-align: center; padding: 60px 20px; }
@@ -443,7 +460,8 @@
             <label style="cursor:pointer"><input type="checkbox" id="hide-zero" checked> 隱藏零持股</label>
           </span>
         </h2>
-        <div class="tbl-wrap"><table id="holdings"></table></div>
+        <div class="tbl-wrap" id="holdings-wrap"><table id="holdings"></table></div>
+        <div class="h-cards" id="holdings-cards"></div>
       </div>
     </section>
 
@@ -577,6 +595,39 @@ function render() {
       <td class="${cls(t.unrealized)}">${sign(t.unrealized)}${fmt(t.unrealized)}</td>
       <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
       <td>100.00%</td><td>100.00%</td>${E ? '<td></td>' : ''}</tr>`;
+
+  // 持股卡片(手機檢視模式)
+  const stat = (k, v, c2) => `<div class="h-stat"><span class="k">${k}</span><span class="v ${c2 || ''}">${v}</span></div>`;
+  document.getElementById('holdings-cards').innerHTML =
+    rows.filter(r => !(hideZero && r.lots <= 0)).map(r => `
+    <div class="h-card">
+      <div class="h-top">
+        <span class="tag">${esc(r.type)}</span>
+        <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
+        <span class="h-name">${esc(r.name)}</span>
+        <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
+      </div>
+      <div class="h-stats">
+        ${stat('市價', fmt2(r.price))}
+        ${stat('成本', fmt2(r.cost))}
+        ${stat('張數', r.lots.toLocaleString('zh-TW', { minimumFractionDigits: 3 }))}
+        ${stat('市值', fmt(r.mv))}
+        ${stat('未實現損益', sign(r.unrealized) + fmt(r.unrealized), cls(r.unrealized))}
+        ${stat('市值比例', pct(r.mvPctOfTotal))}
+      </div>
+    </div>`).join('') + `
+    <div class="h-card h-total">
+      <div class="h-top">
+        <span class="h-name">合計</span>
+        <span class="h-ratio ${cls(t.unrealized)}">${sign(t.unrealized)}${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</span>
+      </div>
+      <div class="h-stats">
+        ${stat('總市值', fmt(t.mv))}
+        ${stat('總成本', fmt(t.costAmt))}
+        ${stat('未實現損益', sign(t.unrealized) + fmt(t.unrealized), cls(t.unrealized))}
+        ${stat('賣出稅費', fmt(t.sellCost))}
+      </div>
+    </div>`;
 
   // 年度表
   const ys = d.yearly || [];
@@ -755,15 +806,30 @@ const barTotalLabelPlugin = {
   }
 };
 
-// 持股損益水平條:在條尾顯示 金額(損益比例)
+// 持股損益水平條:背景軌道 + 條尾標籤(放不下時改放條內白字)
 const plLabelPlugin = {
   id: 'plLabel',
+  beforeDatasetsDraw(chart, args, opts) {
+    const meta = chart.getDatasetMeta(0);
+    const { ctx, chartArea } = chart;
+    if (!meta.data.length) return;
+    ctx.save();
+    ctx.fillStyle = opts.trackColor || 'rgba(127,127,127,.09)';
+    meta.data.forEach(el => {
+      if (!el) return;
+      const p = el.getProps(['y', 'height'], true);
+      const h = Math.min(p.height || 24, 30);
+      roundedRectPath(ctx, chartArea.left, p.y - h / 2, chartArea.right - chartArea.left, h, h / 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  },
   afterDatasetsDraw(chart, args, opts) {
     const rows = opts.rows || [];
     if (!rows.length) return;
     const meta = chart.getDatasetMeta(0);
     const xScale = chart.scales.x;
-    const { ctx, chartArea } = chart;
+    const { ctx } = chart;
     ctx.save();
     ctx.textBaseline = 'middle';
     ctx.font = `${opts.weight || 800} ${opts.fontSize || 11}px ${opts.fontFamily || 'Segoe UI, Microsoft JhengHei, sans-serif'}`;
@@ -773,16 +839,31 @@ const plLabelPlugin = {
       const y = el.getProps(['y'], true).y;
       const xEnd = xScale.getPixelForValue(r.unrealized);
       const positive = r.unrealized >= 0;
-      let tx = positive ? xEnd + 8 : xEnd - 8;
-      ctx.textAlign = positive ? 'left' : 'right';
-      // 不超出畫布
-      const limR = chart.width - 4, limL = 4;
-      if (positive && tx > limR - 120) { tx = xEnd - 8; ctx.textAlign = 'right'; }
-      if (!positive && tx < limL + 120) { tx = xEnd + 8; ctx.textAlign = 'left'; }
-      ctx.fillStyle = positive ? (opts.gainColor || '#b42318') : (opts.lossColor || '#027a48');
+      const label = `${sign(r.unrealized)}${fmt(r.unrealized)} (${pct(r.plRatio)})`;
+      const w = ctx.measureText(label).width;
       ctx.shadowColor = opts.shadowColor || 'transparent';
       ctx.shadowBlur = opts.shadowBlur || 0;
-      ctx.fillText(`${sign(r.unrealized)}${fmt(r.unrealized)} (${pct(r.plRatio)})`, tx, y);
+      if (positive) {
+        if (xEnd + 10 + w <= chart.width - 4) {        // 條尾外側放得下
+          ctx.textAlign = 'left';
+          ctx.fillStyle = opts.gainColor || '#b42318';
+          ctx.fillText(label, xEnd + 10, y);
+        } else {                                        // 放不下 → 條內白字
+          ctx.textAlign = 'right';
+          ctx.fillStyle = 'rgba(255,255,255,.95)';
+          ctx.fillText(label, xEnd - 12, y);
+        }
+      } else {
+        if (xEnd - 10 - w >= 4) {
+          ctx.textAlign = 'right';
+          ctx.fillStyle = opts.lossColor || '#027a48';
+          ctx.fillText(label, xEnd - 10, y);
+        } else {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = 'rgba(255,255,255,.95)';
+          ctx.fillText(label, xEnd + 12, y);
+        }
+      }
     });
     ctx.restore();
   }
@@ -928,16 +1009,22 @@ function drawCharts(held, ys) {
       datasets: [{
         label: '未實現損益',
         data: plRows.map(r => r.unrealized),
-        backgroundColor: plRows.map(r => r.unrealized >= 0 ? palette.gain : palette.loss),
+        backgroundColor: c => {
+          const area = c.chart.chartArea;
+          const r = plRows[c.dataIndex] || {};
+          const base = r.unrealized >= 0 ? palette.gain : palette.loss;
+          if (!area) return base;
+          const g = c.chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
+          g.addColorStop(0, base + '88');
+          g.addColorStop(1, base);
+          return g;
+        },
         hoverBackgroundColor: plRows.map(r => r.unrealized >= 0 ? palette.gain : palette.loss),
-        borderColor: isAgentChart ? 'rgba(255,255,255,.34)' : 'rgba(255,255,255,.72)',
-        hoverBorderColor: isAgentChart ? '#f8e7ff' : text,
-        borderWidth: isAgentChart ? 2 : 1.5,
-        hoverBorderWidth: isAgentChart ? 3 : 2.5,
-        borderRadius: 12,
+        borderWidth: 0,
+        borderRadius: 14,
         borderSkipped: false,
-        minBarLength: 6,
-        maxBarThickness: 40
+        minBarLength: 8,
+        maxBarThickness: 28
       }]
     },
     options: {
@@ -952,7 +1039,7 @@ function drawCharts(held, ys) {
           grid: {
             color: ctx => ctx.tick.value === 0
               ? (isAgentChart ? 'rgba(200,184,255,.52)' : 'rgba(102,112,133,.34)')
-              : palette.grid,
+              : 'transparent',
             lineWidth: ctx => ctx.tick.value === 0 ? 1.7 : 1,
             drawTicks: false
           },
@@ -964,10 +1051,11 @@ function drawCharts(held, ys) {
           }
         },
         y: {
+          border: { display: false },
           grid: { display: false },
           ticks: {
             color: isAgentChart ? '#b9c4ee' : muted,
-            font: { family: chartFont, size: isAgentChart ? 12 : 11.5, weight: '800' }
+            font: { family: chartFont, size: isAgentChart ? 12.5 : 12, weight: '800' }
           }
         }
       },
@@ -1252,31 +1340,63 @@ function lockUI() {
   toast('🔒 已登出');
 }
 
-/* ---------- 市價查詢(證交所公開 API,當日收盤價) ---------- */
+/* ---------- 市價查詢(證交所資料,多重備援) ---------- */
+const corsProxy = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
+async function fetchJson(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+// 來源 1:證交所即時報價(經 CORS 代理),z=最新成交價,沒有就用 y=昨收
+async function priceFromMis(codes) {
+  const q = codes.map(c => `tse_${c}.tw`).join('|');
+  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
+  const j = await fetchJson(corsProxy(url));
+  if (!j || !j.msgArray || !j.msgArray.length) throw new Error('無資料');
+  const map = {};
+  j.msgArray.forEach(s => {
+    const p = parseFloat(s.z) || parseFloat(s.y);
+    if (p > 0) map[s.c] = p;
+  });
+  return map;
+}
+// 來源 2/3:證交所 OpenAPI 全市場收盤價(直連 → 失敗再走代理)
+async function priceFromOpenapi(viaProxy) {
+  const url = 'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL';
+  const list = await fetchJson(viaProxy ? corsProxy(url) : url);
+  const map = {};
+  list.forEach(s => {
+    const p = parseFloat(s.ClosingPrice);
+    if (p > 0) map[s.Code] = p;
+  });
+  return map;
+}
 async function updatePrices() {
+  if (!DATA) return;
   toast('查詢市價中…');
-  try {
-    const r = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const list = await r.json();
-    const map = {};
-    list.forEach(s => {
-      const p = parseFloat(s.ClosingPrice);
-      if (p > 0) map[s.Code] = p;
-    });
-    let n = 0;
-    const miss = [];
-    DATA.holdings.forEach(h => {
-      if (!h.code) return;
-      if (map[h.code]) { h.price = map[h.code]; n++; }
-      else miss.push(h.code);
-    });
-    cache();
-    render();
-    toast(`✅ 已更新 ${n} 檔市價(證交所收盤價)` + (miss.length ? `;查不到:${miss.join('、')}` : ''));
-  } catch (err) {
-    toast('❌ 市價查詢失敗:' + err.message);
+  const codes = DATA.holdings.map(h => h.code).filter(Boolean);
+  let map = null, src = '';
+  try { map = await priceFromMis(codes); src = '即時價'; } catch (e) {}
+  if (!map || !Object.keys(map).length) {
+    try { map = await priceFromOpenapi(false); src = '收盤價'; } catch (e) {}
   }
+  if (!map || !Object.keys(map).length) {
+    try { map = await priceFromOpenapi(true); src = '收盤價'; } catch (e) {}
+  }
+  if (!map || !Object.keys(map).length) {
+    toast('❌ 市價查詢失敗,請稍後再試');
+    return;
+  }
+  let n = 0;
+  const miss = [];
+  DATA.holdings.forEach(h => {
+    if (!h.code) return;
+    if (map[h.code]) { h.price = map[h.code]; n++; }
+    else miss.push(h.code);
+  });
+  cache();
+  render();
+  toast(`✅ 已更新 ${n} 檔市價(${src})` + (miss.length ? `;查不到:${miss.join('、')}` : ''));
 }
 
 async function toggleEdit() {
