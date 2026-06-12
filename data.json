@@ -26,6 +26,14 @@
       "cost": 16.18,
       "price": 30.6,
       "lots": 160
+    },
+    {
+      "type": "ETF",
+      "code": "0050",
+      "name": "元大台灣50",
+      "cost": 100,
+      "price": 0,
+      "lots": 1
     }
   ],
   "account": {
