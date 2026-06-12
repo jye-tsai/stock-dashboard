@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的股票庫存儀表板</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ===== 主題：Report 系 ===== */
+  :root,
+  [data-theme="report-navy"] {                 /* 藍灰月報：預設 */
+    --bg: #eef2f6; --card: #ffffff; --border: #d6dee8;
+    --text: #172033; --muted: #667085;
+    --title: #101828; --title-accent: #2563eb; --title-glow: none;
+    --label: #475467; --value: #101828;
+    --up: #b42318; --down: #027a48; --accent: #344054;
+    --row-hover: rgba(52,64,84,.055);
+    --total-bg: rgba(52,64,84,.05);
+    --shadow: 0 2px 10px rgba(16,24,40,.07);
+  }
+  [data-theme="report"] {                      /* 米白報告 */
+    --bg: #f4efe6; --card: #fffaf0; --border: #d8cbb7;
+    --text: #2b241b; --muted: #7a6a55;
+    --title: #3b2f22; --title-accent: #b54708; --title-glow: none;
+    --label: #5f4b32; --value: #20170f;
+    --up: #b42318; --down: #067647; --accent: #8b5e34;
+    --row-hover: rgba(139,94,52,.06);
+    --total-bg: rgba(139,94,52,.055);
+    --shadow: 0 2px 8px rgba(80,60,30,.08);
+  }
+  [data-theme="report-green"] {                /* 墨綠年報 */
+    --bg: #eef3ec; --card: #fbfdf8; --border: #cfdccc;
+    --text: #1f2a1f; --muted: #66785f;
+    --title: #14532d; --title-accent: #047857; --title-glow: none;
+    --label: #3f5f3a; --value: #132118;
+    --up: #b42318; --down: #047857; --accent: #3f6212;
+    --row-hover: rgba(63,98,18,.06);
+    --total-bg: rgba(63,98,18,.055);
+    --shadow: 0 2px 8px rgba(40,70,40,.08);
+  }
+  [data-theme="report-warm"] {                 /* 暖灰週報 */
+    --bg: #f5f1eb; --card: #fffdf8; --border: #ddd3c4;
+    --text: #292524; --muted: #78716c;
+    --title: #3f2e1f; --title-accent: #a16207; --title-glow: none;
+    --label: #5f5147; --value: #1c1917;
+    --up: #be123c; --down: #15803d; --accent: #a16207;
+    --row-hover: rgba(161,98,7,.06);
+    --total-bg: rgba(161,98,7,.055);
+    --shadow: 0 2px 8px rgba(80,60,40,.07);
+  }
+  [data-theme="agent"] {                       /* Agent Skills：霓虹網格 */
+    --bg: #030409; --card: rgba(13,16,24,.88); --border: rgba(139,92,246,.28);
+    --text: #dfe7ff; --muted: #9aa8d7;
+    --title: #f7f3ff; --title-accent: #35d5ff; --title-glow: 0 0 16px rgba(139,92,246,.72), 0 0 34px rgba(53,213,255,.24);
+    --label: #b9c4ee; --value: #f2f6ff;
+    --up: #ff4fa3; --down: #21d6a0; --accent: #9b6cff;
+    --row-hover: rgba(139,92,246,.11);
+    --total-bg: rgba(139,92,246,.12);
+    --shadow: 0 0 0 1px rgba(139,92,246,.08), 0 18px 42px rgba(0,0,0,.32);
+  }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; padding: 20px; min-height: 100vh; }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: 0; }
+  [data-theme="agent"] body::before {
+    opacity: 1;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(139,92,246,.22), transparent 26%),
+      radial-gradient(circle at 82% 18%, rgba(34,211,238,.13), transparent 28%),
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+  [data-theme="agent"] .container { max-width: 1320px; }
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  h1 { font-size: 22px; color: var(--title); display: flex; align-items: center; gap: 8px; min-width: 270px; line-height: 1.25; }
+  .brand-icon { color: var(--title-accent); filter: drop-shadow(0 0 8px rgba(47,111,237,.22)); }
+  .brand-title-text { color: var(--title); font-weight: 850; letter-spacing: .02em; text-shadow: var(--title-glow); }
+  .title-input {
+    width: min(420px, 62vw);
+    background: var(--card);
+    border: 1px solid var(--title-accent);
+    color: var(--title);
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 21px;
+    font-weight: 850;
+    box-shadow: var(--shadow);
+  }
+  .title-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(47,111,237,.14); }
+  [data-theme="agent"] h1 {
+    font-family: Consolas, "SFMono-Regular", "Cascadia Mono", monospace;
+    letter-spacing: .08em;
+  }
+  [data-theme="agent"] .brand-icon { filter: drop-shadow(0 0 10px rgba(53,213,255,.78)); }
+  [data-theme="agent"] .title-input {
+    font-family: Consolas, "SFMono-Regular", "Cascadia Mono", monospace;
+    background: rgba(3,4,9,.86);
+    border-color: rgba(53,213,255,.72);
+    text-shadow: var(--title-glow);
+    box-shadow: 0 0 0 1px rgba(139,92,246,.18), 0 0 22px rgba(53,213,255,.12);
+  }
+  .meta { color: var(--muted); font-size: 13px; }
+  .btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.danger { color: var(--up); }
+  .btn.sm { padding: 2px 8px; font-size: 12px; }
+  [data-theme="agent"] .btn {
+    background: rgba(16,18,27,.88);
+    border-color: rgba(139,92,246,.25);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+    backdrop-filter: blur(10px);
+  }
+  [data-theme="agent"] .btn:hover {
+    border-color: rgba(34,211,238,.62);
+    box-shadow: 0 0 18px rgba(34,211,238,.14);
+  }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+
+  /* 版面：摘要卡片在左，帳戶資訊固定上移到右上角 */
+  .dashboard-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 18px;
+  }
+  .dashboard-top .cards {
+    margin-bottom: 0;
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+    align-content: start;
+  }
+  .account-panel {
+    margin-bottom: 0;
+    min-height: 100%;
+  }
+  .account-panel h2 { margin-bottom: 14px; }
+  .account-panel .tbl-wrap { overflow-x: visible; }
+  #account th:first-child, #account td:first-child { text-align: left; }
+  #account th:last-child, #account td:last-child { text-align: right; }
+
+  .full-panel { margin-bottom: 20px; }
+
+  @media (max-width: 1100px) {
+    .dashboard-top { grid-template-columns: 1fr; }
+    .dashboard-top .cards { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 13px 18px;
+    min-height: 94px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  [data-theme="agent"] .card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    backdrop-filter: blur(14px);
+  }
+  [data-theme="agent"] .card::after {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(139,92,246,.9), rgba(34,211,238,.55), transparent);
+  }
+  .card .label { color: var(--label, var(--muted)); font-size: 13.5px; margin-bottom: 8px; font-weight: 750; }
+  .card .value { font-size: clamp(24px, 1.85vw, 29px); font-weight: 880; font-variant-numeric: tabular-nums; line-height: 1.08; letter-spacing: .01em; }
+  .card .value:not(.up):not(.down) { color: var(--value, var(--text)); }
+  [data-theme="agent"] .card .label {
+    color: var(--label);
+    font-weight: 850;
+    letter-spacing: .045em;
+    text-shadow: 0 0 10px rgba(139,92,246,.22);
+  }
+  [data-theme="agent"] .card .value {
+    font-family: Consolas, "SFMono-Regular", "Cascadia Mono", monospace;
+    letter-spacing: .035em;
+    text-shadow: 0 0 12px rgba(255,255,255,.08);
+  }
+  .card .sub { font-size: 13px; margin-top: 7px; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+  .up { color: var(--up); } .down { color: var(--down); }
+
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  [data-theme="agent"] .panel {
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.035), transparent 46%),
+      var(--card);
+    backdrop-filter: blur(14px);
+  }
+  .panel h2 { font-size: 15px; margin-bottom: 12px; color: var(--muted); font-weight: 600; }
+  [data-theme="agent"] .panel h2 {
+    color: #c8b8ff;
+    font-family: "Segoe UI", "Microsoft JhengHei", Consolas, monospace;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 800;
+    text-shadow: 0 0 16px rgba(155,108,255,.38);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { border-bottom: 1px solid rgba(42,52,65,.5); }
+  [data-theme="agent"] table { font-family: Consolas, "SFMono-Regular", "Cascadia Mono", "Microsoft JhengHei", monospace; }
+  [data-theme="agent"] th { color: #8ea0c7; border-bottom-color: rgba(139,92,246,.28); }
+  [data-theme="agent"] td { border-bottom-color: rgba(139,92,246,.12); }
+  th:nth-child(-n+3), td:nth-child(-n+3) { text-align: left; }
+  tr:hover td { background: var(--row-hover); }
+  tr.total td { font-weight: 700; border-top: 2px solid var(--border); background: var(--total-bg); }
+  tr.total td { text-align: right; }
+  tr.total td:first-child { text-align: left; }
+
+  /* 年度紀錄表：數字欄固定靠右，總計列才會跟明細對齊 */
+  #yearly th, #yearly td { text-align: right; }
+  #yearly th:nth-child(1), #yearly td:nth-child(1),
+  #yearly th:nth-child(4), #yearly td:nth-child(4) { text-align: left; }
+  #yearly tr.total td { text-align: right; }
+  #yearly tr.total td:first-child { text-align: left; }
+
+  /* 主內容頁籤：總覽 / 持股明細 / 年度紀錄 */
+  .view-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0 0 14px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 78%, var(--bg));
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .tab-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    padding: 9px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .tab-btn:hover { color: var(--text); border-color: var(--border); }
+  .tab-btn.active {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(16,24,40,.12);
+  }
+  [data-theme="agent"] .view-tabs {
+    background: rgba(13,16,24,.72);
+    border-color: rgba(139,92,246,.28);
+    backdrop-filter: blur(14px);
+  }
+  [data-theme="agent"] .tab-btn {
+    font-family: Consolas, "SFMono-Regular", "Cascadia Mono", "Microsoft JhengHei", monospace;
+    color: #aebbf2;
+    text-shadow: 0 0 12px rgba(139,92,246,.16);
+  }
+  [data-theme="agent"] .tab-btn.active {
+    color: #f7f3ff;
+    background: linear-gradient(135deg, rgba(155,108,255,.95), rgba(53,213,255,.55));
+    border-color: rgba(53,213,255,.65);
+    box-shadow: 0 0 24px rgba(139,92,246,.28), 0 0 16px rgba(53,213,255,.12);
+  }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  .tbl-wrap { overflow-x: auto; }
+
+  input.ed, select.ed { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 13px; width: 90px; }
+  input.ed.up { color: var(--up); font-weight: 800; }
+  input.ed.down { color: var(--down); font-weight: 800; }
+  [data-theme="agent"] input.ed, [data-theme="agent"] select.ed { background: rgba(3,4,9,.82); border-color: rgba(139,92,246,.32); }
+  input.ed:focus, select.ed:focus { border-color: var(--accent); outline: none; }
+  input.ed.wide { width: 140px; } input.ed.narrow { width: 70px; }
+  body.editing .card .value input.ed { width: 130px; font-size: 16px; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+  .chart-box { position: relative; height: 300px; }
+  [data-theme="agent"] .chart-box { filter: drop-shadow(0 0 12px rgba(139,92,246,.09)); }
+  .toolbar-label { color: var(--muted); font-size: 12px; }
+  .select-group { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .chart-subtitle { color: var(--muted); font-size: 12px; margin-top: -4px; margin-bottom: 8px; font-weight: 500; letter-spacing: .015em; }
+  [data-theme="agent"] .chart-subtitle {
+    color: #9aa8d7;
+    font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+    font-weight: 700;
+    letter-spacing: .045em;
+    text-shadow: 0 0 12px rgba(139,92,246,.18);
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    h1 { font-size: 17px; }
+    .card .value { font-size: 17px; }
+    th, td { padding: 6px 8px; }
+  }
+
+  #loader { text-align: center; padding: 60px 20px; }
+  #loader p { color: var(--muted); margin-bottom: 16px; }
+  .hidden { display: none; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--total-bg); color: var(--accent); }
+  [data-theme="agent"] .tag { border: 1px solid rgba(34,211,238,.25); color: #67e8f9; background: rgba(34,211,238,.08); }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff;
+    padding: 10px 22px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99; }
+  #toast.show { opacity: 1; }
+  #edit-banner { background: rgba(255,180,84,.12); border: 1px solid #ffb454; color: #ffb454; border-radius: 10px;
+    padding: 8px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
+  body.editing #edit-banner { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="loader">
+    <p>正在讀取 data.json… 若未自動載入，請點下方按鈕選檔。</p>
+    <p id="loader-hint" class="hidden">無法自動讀取(以 file:// 直接開啟時瀏覽器會阻擋)。<br>請選擇 data.json 檔案,或將檔案拖曳到此頁面。</p>
+    <button class="btn" onclick="pickFile()">選擇 data.json</button>
+    <input type="file" id="file-input" accept=".json" class="hidden">
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1 id="dashboard-title"></h1>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="meta" id="updated"></span>
+        <div class="select-group">
+          <span class="toolbar-label">頁面</span>
+          <select class="btn" id="theme-sel" title="切換頁面風格">
+            <option value="report-navy">📘 藍灰月報</option>
+            <option value="report">📄 米白報告</option>
+            <option value="report-green">📗 墨綠年報</option>
+            <option value="report-warm">☕ 暖灰週報</option>
+            <option value="agent">🧬 Agent Neon</option>
+          </select>
+        </div>
+        <div class="select-group">
+          <span class="toolbar-label">圖表</span>
+          <select class="btn" id="chart-style-sel" title="切換圖表風格">
+            <option value="match">跟隨頁面</option>
+            <option value="report-navy">📘 藍灰月報</option>
+            <option value="report">📄 米白報告</option>
+            <option value="report-green">📗 墨綠年報</option>
+            <option value="report-warm">☕ 暖灰週報</option>
+            <option value="agent">🧬 Agent Neon</option>
+          </select>
+        </div>
+        <button class="btn" id="edit-btn" onclick="toggleEdit()">✏️ 編輯</button>
+        <button class="btn primary hidden" id="save-btn" onclick="saveFile()">💾 儲存 JSON</button>
+        <button class="btn" onclick="pickFile()">載入 JSON</button>
+      </div>
+    </header>
+
+    <div id="edit-banner">編輯模式:可修改標題、持股、年度與帳戶欄位,數值會即時重算。完成後按「💾 儲存 JSON」寫回 data.json。</div>
+
+    <div class="dashboard-top">
+      <div class="cards" id="cards"></div>
+      <div class="panel account-panel">
+        <h2>帳戶資訊</h2>
+        <div class="tbl-wrap"><table id="account"></table></div>
+      </div>
+    </div>
+
+    <div class="view-tabs" aria-label="儀表板頁籤">
+      <button class="tab-btn active" type="button" data-tab="overview" onclick="switchTab('overview')">📊 總覽</button>
+      <button class="tab-btn" type="button" data-tab="holdings" onclick="switchTab('holdings')">📋 持股明細</button>
+      <button class="tab-btn" type="button" data-tab="yearly" onclick="switchTab('yearly')">🗓 年度紀錄</button>
+    </div>
+
+    <section id="tab-overview" class="tab-page active">
+      <div class="charts">
+        <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
+        <div class="panel"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
+      </div>
+    </section>
+
+    <section id="tab-holdings" class="tab-page">
+      <div class="panel full-panel">
+        <h2>持股明細
+          <span style="float:right;font-weight:400">
+            <button class="btn sm hidden edit-only" onclick="addHolding()">➕ 新增持股</button>
+            <label style="cursor:pointer"><input type="checkbox" id="hide-zero" checked> 隱藏零持股</label>
+          </span>
+        </h2>
+        <div class="tbl-wrap"><table id="holdings"></table></div>
+      </div>
+    </section>
+
+    <section id="tab-yearly" class="tab-page">
+      <div class="panel full-panel">
+        <h2>年度紀錄 <button class="btn sm hidden edit-only" style="float:right" onclick="addYear()">➕ 新增年度</button></h2>
+        <div class="tbl-wrap"><table id="yearly"></table></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+let DATA = null;
+let editMode = false;
+let fsHandle = null;
+const DEFAULT_TITLE = '我的股票庫存儀表板';
+
+const fmt = n => Math.round(n).toLocaleString('zh-TW');
+const fmt2 = n => n.toLocaleString('zh-TW', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const pct = n => (n * 100).toFixed(2) + '%';
+const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
+const sign = n => n > 0 ? '+' : '';
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+/* ---------- 計算 ---------- */
+function compute(d) {
+  const f = d.fees;
+  const rows = d.holdings.map(h => {
+    const costAmt = Math.round(h.cost * 1000 * h.lots);
+    const mv = Math.round(h.price * 1000 * h.lots);
+    const taxRate = f.taxRates[h.type] ?? 0.003;
+    const sellCost = Math.round(mv * (taxRate + f.feeRate * f.feeDiscount));
+    const unrealized = mv - costAmt - sellCost;
+    return { ...h, costAmt, mv, sellCost, unrealized, plRatio: costAmt ? unrealized / costAmt : 0 };
+  });
+  const t = rows.reduce((a, r) => ({
+    costAmt: a.costAmt + r.costAmt, mv: a.mv + r.mv,
+    sellCost: a.sellCost + r.sellCost, unrealized: a.unrealized + r.unrealized
+  }), { costAmt: 0, mv: 0, sellCost: 0, unrealized: 0 });
+  rows.forEach(r => { r.costPctOfTotal = t.costAmt ? r.costAmt / t.costAmt : 0; r.mvPctOfTotal = t.mv ? r.mv / t.mv : 0; });
+  return { rows, t };
+}
+
+/* ---------- 畫面 ---------- */
+function render() {
+  const d = DATA;
+  const { rows, t } = compute(d);
+  const realized = d['已實現損益'] || 0;
+  const dividend = d['股息收入'] || 0;
+  const totalPL = realized + t.unrealized + dividend;
+  const E = editMode;
+  const title = d.title || DEFAULT_TITLE;
+  d.title = title;
+  document.title = title;
+  document.getElementById('dashboard-title').innerHTML = E
+    ? `<span class="brand-icon">📊</span><input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
+    : `<span class="brand-icon">📊</span><span class="brand-title-text">${esc(title)}</span>`;
+
+  document.getElementById('updated').textContent = '更新日期:' + (d.updated || '-');
+  document.body.classList.toggle('editing', E);
+  document.querySelectorAll('.edit-only').forEach(el => el.classList.toggle('hidden', !E));
+
+  // 摘要卡片(編輯模式下 已實現損益/股息收入 可改)
+  const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
+  const cards = [
+    ['總市值', fmt(t.mv), null, null],
+    ['總成本', fmt(t.costAmt), null, null],
+    ['未實現損益', sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0)],
+    ['已實現損益', E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null],
+    ['股息收入', E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null],
+    ['總損益', sign(totalPL) + fmt(totalPL), totalPL, null]
+  ];
+  document.getElementById('cards').innerHTML = cards.map(([label, val, colorVal, sub]) => `
+    <div class="card">
+      <div class="label">${label}</div>
+      <div class="value ${colorVal === null ? '' : cls(colorVal)}">${val}</div>
+      ${sub ? `<div class="sub ${cls(colorVal)}">${sub}</div>` : ''}
+    </div>`).join('');
+
+  // 持股表
+  const hideZero = document.getElementById('hide-zero').checked && !E;
+  const types = Object.keys(d.fees.taxRates);
+  const head = ['類型','代號','名稱','成本','市價','張數','成本金額','市值','賣出(稅+費)','未實現損益','損益比例','成本比例','市值比例'];
+  if (E) head.push('');
+  document.getElementById('holdings').innerHTML =
+    '<tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr>' +
+    rows.map((r, i) => {
+      if (hideZero && r.lots <= 0) return '';
+      const cells = E ? `
+        <td><select class="ed narrow" data-path="holdings.${i}.type">${types.map(tp => `<option ${tp===r.type?'selected':''}>${tp}</option>`).join('')}</select></td>
+        <td><input class="ed narrow" data-path="holdings.${i}.code" value="${esc(r.code)}"></td>
+        <td><input class="ed wide" data-path="holdings.${i}.name" value="${esc(r.name)}"></td>
+        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.cost" value="${r.cost}"></td>
+        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
+        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
+        <td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.code)}</td><td>${esc(r.name)}</td>
+        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
+      return `<tr>${cells}
+        <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td>${fmt(r.sellCost)}</td>
+        <td class="${cls(r.unrealized)}">${sign(r.unrealized)}${fmt(r.unrealized)}</td>
+        <td class="${cls(r.unrealized)}">${pct(r.plRatio)}</td>
+        <td>${pct(r.costPctOfTotal)}</td><td>${pct(r.mvPctOfTotal)}</td>
+        ${E ? `<td><button class="btn sm danger" onclick="delHolding(${i})">🗑</button></td>` : ''}
+      </tr>`;
+    }).join('') +
+    `<tr class="total"><td colspan="6">合計</td>
+      <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td>${fmt(t.sellCost)}</td>
+      <td class="${cls(t.unrealized)}">${sign(t.unrealized)}${fmt(t.unrealized)}</td>
+      <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
+      <td>100.00%</td><td>100.00%</td>${E ? '<td></td>' : ''}</tr>`;
+
+  // 年度表
+  const ys = d.yearly || [];
+  document.getElementById('yearly').innerHTML =
+    `<tr><th>年度</th><th>資本利得</th><th>股息收入</th><th>備註</th>${E ? '<th></th>' : ''}</tr>` +
+    ys.map((y, i) => E ? `<tr>
+        <td><input class="ed narrow" data-path="yearly.${i}.year" value="${esc(y.year)}"></td>
+        <td><input class="ed" type="number" step="any" data-path="yearly.${i}.capitalGain" value="${y.capitalGain}"></td>
+        <td><input class="ed" type="number" step="any" data-path="yearly.${i}.dividend" value="${y.dividend || 0}"></td>
+        <td><input class="ed narrow" data-path="yearly.${i}.note" value="${esc(y.note || '')}"></td>
+        <td><button class="btn sm danger" onclick="delYear(${i})">🗑</button></td>
+      </tr>` : `<tr><td>${esc(y.year)}</td>
+        <td class="${cls(y.capitalGain)}">${fmt(y.capitalGain)}</td>
+        <td>${y.dividend ? fmt(y.dividend) : '-'}</td><td>${esc(y.note || '')}</td></tr>`).join('') +
+    `<tr class="total"><td>總計</td>
+      <td class="${cls(ys.reduce((s,y)=>s+y.capitalGain,0))}">${fmt(ys.reduce((s,y)=>s+y.capitalGain,0))}</td>
+      <td>${fmt(ys.reduce((s,y)=>s+(y.dividend||0),0))}</td><td></td>${E ? '<td></td>' : ''}</tr>`;
+
+  // 帳戶
+  const acc = d.account || (d.account = {});
+  const fmtSigned = n => n > 0 ? '+' + fmt(n) : fmt(n);
+  const accValueCell = (key) => {
+    const val = acc[key] || 0;
+    return E
+      ? `<input class="ed ${cls(val)}" type="number" step="any" data-path="account.${key}" value="${val}">`
+      : fmtSigned(val);
+  };
+  const accRow = (label, key) => {
+    const val = acc[key] || 0;
+    return `<tr><td style="text-align:left">${label}</td><td class="${cls(val)}">${accValueCell(key)}</td></tr>`;
+  };
+  const avail = (acc['餘額']||0) + (acc['交割款T1']||0) + (acc['交割款T2']||0);
+  document.getElementById('account').innerHTML =
+    `<tr><th style="text-align:left">項目</th><th>金額</th></tr>` +
+    accRow('帳戶餘額', '餘額') + accRow('交割款項 T+1', '交割款T1') + accRow('交割款項 T+2', '交割款T2') +
+    `<tr class="total"><td style="text-align:left">可用餘額</td><td class="${cls(avail)}">${fmtSigned(avail)}</td></tr>`;
+
+  drawCharts(rows.filter(r => r.mv > 0), ys);
+  document.getElementById('loader').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  restoreActiveTab();
+}
+
+let pieChart, barChart;
+const THEME_KEYS = ['report-navy', 'report', 'report-green', 'report-warm', 'agent'];
+const CHART_PALETTES = {
+  'report-navy': {
+    name: '藍灰月報',
+    slices: ['#344054', '#b42318', '#027a48', '#475467', '#7a5c3a', '#98a2b3'],
+    gain: '#b42318', loss: '#027a48', dividend: '#b54708', grid: 'rgba(102,112,133,.18)'
+  },
+  'report': {
+    name: '米白報告',
+    slices: ['#8b5e34', '#b42318', '#067647', '#a16207', '#57534e', '#c8b69c'],
+    gain: '#b42318', loss: '#067647', dividend: '#8b5e34', grid: 'rgba(122,106,85,.20)'
+  },
+  'report-green': {
+    name: '墨綠年報',
+    slices: ['#3f6212', '#b42318', '#047857', '#66785f', '#854d0e', '#a8b99f'],
+    gain: '#b42318', loss: '#047857', dividend: '#854d0e', grid: 'rgba(102,120,95,.20)'
+  },
+  'report-warm': {
+    name: '暖灰週報',
+    slices: ['#a16207', '#be123c', '#15803d', '#78716c', '#92400e', '#d6c4af'],
+    gain: '#be123c', loss: '#15803d', dividend: '#a16207', grid: 'rgba(120,113,108,.20)'
+  },
+  'agent': {
+    name: 'Agent Neon',
+    slices: ['#8b5cf6', '#35d5ff', '#ff4fb8', '#2ee6b8', '#facc15', '#94a3b8'],
+    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
+  }
+};
+
+function getChartStyleKey() {
+  const selected = document.getElementById('chart-style-sel')?.value || 'match';
+  const theme = document.documentElement.dataset.theme || 'report-navy';
+  const key = selected === 'match' ? theme : selected;
+  return CHART_PALETTES[key] ? key : 'report-navy';
+}
+
+const centerTextPlugin = {
+  id: 'centerText',
+  afterDatasetsDraw(chart, args, opts) {
+    if (!opts || !opts.text) return;
+    const { ctx, chartArea } = chart;
+    const x = (chartArea.left + chartArea.right) / 2;
+    const y = (chartArea.top + chartArea.bottom) / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontFamily = opts.fontFamily || '"Segoe UI", "Microsoft JhengHei", sans-serif';
+    ctx.fillStyle = opts.color || '#344054';
+    ctx.font = `${opts.weight || 800} ${opts.fontSize || 18}px ${fontFamily}`;
+    ctx.fillText(opts.text, x, y - 8);
+    ctx.fillStyle = opts.subColor || opts.color || '#667085';
+    ctx.font = `${opts.subWeight || 700} ${opts.subFontSize || 12}px ${fontFamily}`;
+    ctx.fillText(opts.subText || '', x, y + 14);
+    ctx.restore();
+  }
+};
+
+
+function roundedRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+const barHoverGlowPlugin = {
+  id: 'barHoverGlow',
+  beforeDatasetsDraw(chart, args, opts) {
+    const active = chart.getActiveElements();
+    if (!active.length) return;
+    const index = active[0].index;
+    const metas = chart.getSortedVisibleDatasetMetas();
+    const bars = metas
+      .map(meta => meta.data[index])
+      .filter(Boolean)
+      .map(el => el.getProps(['x', 'y', 'base', 'width'], true));
+    if (!bars.length) return;
+
+    const x = bars[0].x;
+    const width = Math.max(...bars.map(b => b.width || 0));
+    const top = Math.min(...bars.map(b => Math.min(b.y, b.base)));
+    const bottom = Math.max(...bars.map(b => Math.max(b.y, b.base)));
+    const height = Math.max(8, bottom - top);
+    const left = x - width / 2;
+
+    const { ctx } = chart;
+    ctx.save();
+    ctx.shadowColor = opts.glowColor || 'rgba(139,92,246,.32)';
+    ctx.shadowBlur = opts.glowBlur || 18;
+    ctx.strokeStyle = opts.borderColor || 'rgba(139,92,246,.52)';
+    ctx.lineWidth = opts.lineWidth || 2;
+    roundedRectPath(ctx, left - 6, top - 6, width + 12, height + 12, opts.radius || 22);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+const barTotalLabelPlugin = {
+  id: 'barTotalLabel',
+  afterDatasetsDraw(chart, args, opts) {
+    const totals = opts.totals || [];
+    if (!totals.length) return;
+    const visible = chart.getSortedVisibleDatasetMetas();
+    const meta = visible.find(m => m.data && m.data.length);
+    if (!meta) return;
+    const yScale = chart.scales.y;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${opts.weight || 800} ${opts.fontSize || 11}px ${opts.fontFamily || 'Segoe UI, Microsoft JhengHei, sans-serif'}`;
+    totals.forEach((val, i) => {
+      val = Number(val || 0);
+      if (!Number.isFinite(val) || val === 0 || !meta.data[i]) return;
+      const x = meta.data[i].getProps(['x'], true).x;
+      let y = yScale.getPixelForValue(val) + (val >= 0 ? -15 : 16);
+      y = Math.max(chartArea.top + 12, Math.min(chartArea.bottom - 12, y));
+      ctx.fillStyle = val >= 0 ? (opts.gainColor || opts.color || '#b42318') : (opts.lossColor || opts.color || '#027a48');
+      ctx.shadowColor = opts.shadowColor || 'transparent';
+      ctx.shadowBlur = opts.shadowBlur || 0;
+      ctx.fillText(`${sign(val)}${fmt(val)}`, x, y);
+    });
+    ctx.restore();
+  }
+};
+
+// 圓餅圖 tooltip 專用定位：把浮動資料推到甜甜圈外側，避免遮住中間總市值。
+if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners && !Chart.Tooltip.positioners.pieOuter) {
+  Chart.Tooltip.positioners.pieOuter = function(elements) {
+    if (!elements.length) return false;
+    const arc = elements[0].element;
+    const chartArea = this.chart.chartArea;
+    const angle = ((arc.startAngle || 0) + (arc.endAngle || 0)) / 2;
+    const radius = (arc.outerRadius || 0) + 46;
+    const side = Math.cos(angle) >= 0 ? 1 : -1;
+    const rawX = arc.x + Math.cos(angle) * radius;
+    const rawY = arc.y + Math.sin(angle) * radius;
+    const xPad = 74;
+    const yPad = 34;
+    return {
+      x: Math.max(chartArea.left + xPad, Math.min(chartArea.right - xPad, rawX)),
+      y: Math.max(chartArea.top + yPad, Math.min(chartArea.bottom - yPad, rawY)),
+      xAlign: side > 0 ? 'left' : 'right',
+      yAlign: 'center'
+    };
+  };
+}
+
+function topHoldingsForPie(held, limit = 5) {
+  const sorted = [...held].sort((a, b) => b.mv - a.mv);
+  const main = sorted.slice(0, limit);
+  const rest = sorted.slice(limit);
+  const otherMv = rest.reduce((s, r) => s + r.mv, 0);
+  if (otherMv > 0) main.push({ name: '其他', code: `${rest.length} 檔`, mv: otherMv });
+  return main;
+}
+
+function drawCharts(held, ys) {
+  const css = getComputedStyle(document.documentElement);
+  const v = name => css.getPropertyValue(name).trim();
+  const styleKey = getChartStyleKey();
+  const palette = CHART_PALETTES[styleKey];
+  const isAgentChart = styleKey === 'agent';
+  const muted = v('--muted');
+  const text = v('--text');
+  const card = v('--card');
+  const border = v('--border');
+  const tooltipBg = isAgentChart ? 'rgba(7,10,22,.99)' : (styleKey === 'report' ? '#fffaf0' : '#ffffff');
+  const tooltipBorder = isAgentChart ? 'rgba(53,213,255,.72)' : border;
+  const chartFont = isAgentChart
+    ? 'Trebuchet MS, Segoe UI, Microsoft JhengHei, sans-serif'
+    : 'Segoe UI, Microsoft JhengHei, sans-serif';
+  Chart.defaults.color = muted;
+  Chart.defaults.borderColor = border;
+  Chart.defaults.font.family = chartFont;
+  Chart.defaults.font.size = isAgentChart ? 12.5 : 12;
+  Chart.defaults.font.weight = isAgentChart ? '700' : '500';
+
+  const pieRows = topHoldingsForPie(held);
+  const totalMv = pieRows.reduce((s, r) => s + r.mv, 0);
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pie'), {
+    type: 'doughnut',
+    data: {
+      labels: pieRows.map(r => `${r.name} (${r.code})`),
+      datasets: [{
+        data: pieRows.map(r => r.mv),
+        backgroundColor: pieRows.map((_, i) => palette.slices[i % palette.slices.length]),
+        borderColor: card,
+        borderWidth: isAgentChart ? 4 : 5,
+        borderRadius: 12,
+        hoverOffset: isAgentChart ? 16 : 10,
+        hoverBorderWidth: isAgentChart ? 5 : 6,
+        spacing: isAgentChart ? 3 : 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: isAgentChart ? '56%' : '58%',
+      layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 14,
+            font: { size: 12 }
+          }
+        },
+        centerText: {
+          text: fmt(totalMv),
+          subText: '總市值',
+          color: isAgentChart ? '#dfe7ff' : text,
+          subColor: isAgentChart ? '#8ea0c7' : muted,
+          fontSize: isAgentChart ? 18 : 17,
+          subFontSize: isAgentChart ? 12.5 : 12,
+          fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined,
+          weight: isAgentChart ? 900 : 800,
+          subWeight: 700
+        },
+        tooltip: {
+          position: 'pieOuter',
+          backgroundColor: tooltipBg,
+          titleColor: isAgentChart ? '#67e8f9' : text,
+          bodyColor: isAgentChart ? '#eef4ff' : text,
+          borderColor: tooltipBorder,
+          borderWidth: 1.5,
+          cornerRadius: 12,
+          caretSize: 7,
+          padding: 12,
+          bodySpacing: 6,
+          titleSpacing: 4,
+          displayColors: true,
+          boxWidth: 10,
+          boxHeight: 10,
+          boxPadding: 6,
+          titleFont: { size: 13, weight: '700' },
+          bodyFont: { size: 12, weight: '600' },
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: c => {
+              const ratio = totalMv ? c.parsed / totalMv : 0;
+              return [`市值：${fmt(c.parsed)}`, `占比：${pct(ratio)}`];
+            }
+          }
+        }
+      }
+    },
+    plugins: [centerTextPlugin]
+  });
+
+  const years = [...ys]
+    .sort((a, b) => String(a.year).localeCompare(String(b.year), 'zh-Hant', { numeric: true }))
+    .map(y => ({
+      ...y,
+      capitalGain: y.capitalGain || 0,
+      dividend: y.dividend || 0,
+      total: (y.capitalGain || 0) + (y.dividend || 0)
+    }));
+
+  if (barChart) barChart.destroy();
+  const capitalData = years.map(y => y.capitalGain);
+  const dividendData = years.map(y => y.dividend);
+  const yearlyTotals = years.map(y => y.total);
+  barChart = new Chart(document.getElementById('bar'), {
+    type: 'bar',
+    data: {
+      labels: years.map(y => y.year + (y.note ? ` ${y.note}` : '')),
+      datasets: [
+        {
+          label: '資本利得',
+          data: capitalData,
+          stack: 'yearly',
+          backgroundColor: capitalData.map(v => v >= 0 ? palette.gain : palette.loss),
+          hoverBackgroundColor: capitalData.map(v => v >= 0 ? palette.gain : palette.loss),
+          borderColor: isAgentChart ? 'rgba(255,255,255,.34)' : 'rgba(255,255,255,.72)',
+          hoverBorderColor: isAgentChart ? '#f8e7ff' : text,
+          borderWidth: isAgentChart ? 2 : 1.5,
+          hoverBorderWidth: isAgentChart ? 4 : 3,
+          borderRadius: 18,
+          borderSkipped: false,
+          borderJoinStyle: 'round',
+          minBarLength: isAgentChart ? 10 : 7,
+          barThickness: isAgentChart ? 48 : 42,
+          maxBarThickness: isAgentChart ? 64 : 56,
+          categoryPercentage: .74
+        },
+        {
+          label: '股息收入',
+          data: dividendData,
+          stack: 'yearly',
+          backgroundColor: dividendData.map(v => v >= 0 ? palette.dividend : palette.loss),
+          hoverBackgroundColor: dividendData.map(v => v >= 0 ? palette.dividend : palette.loss),
+          borderColor: isAgentChart ? 'rgba(255,255,255,.34)' : 'rgba(255,255,255,.72)',
+          hoverBorderColor: isAgentChart ? '#f8e7ff' : text,
+          borderWidth: isAgentChart ? 2 : 1.5,
+          hoverBorderWidth: isAgentChart ? 4 : 3,
+          borderRadius: 18,
+          borderSkipped: false,
+          borderJoinStyle: 'round',
+          minBarLength: isAgentChart ? 10 : 7,
+          barThickness: isAgentChart ? 48 : 42,
+          maxBarThickness: isAgentChart ? 64 : 56,
+          categoryPercentage: .74
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 34, right: 8, bottom: 2, left: 2 } },
+      animation: { duration: 820, easing: 'easeOutBack' },
+      hover: { animationDuration: 220 },
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          ticks: {
+            color: isAgentChart ? '#b9c4ee' : muted,
+            font: { family: chartFont, size: isAgentChart ? 12 : 11.5, weight: '800' }
+          }
+        },
+        y: {
+          stacked: true,
+          border: { display: false },
+          grid: {
+            color: ctx => ctx.tick.value === 0
+              ? (isAgentChart ? 'rgba(200,184,255,.52)' : 'rgba(102,112,133,.34)')
+              : palette.grid,
+            lineWidth: ctx => ctx.tick.value === 0 ? 1.7 : 1,
+            drawTicks: false
+          },
+          ticks: {
+            color: isAgentChart ? '#aebbf0' : muted,
+            padding: 10,
+            font: { family: chartFont, size: isAgentChart ? 12 : 11.5, weight: '800' },
+            callback: val => (val / 10000) + '萬'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'rectRounded',
+            color: isAgentChart ? '#d4dcff' : muted,
+            boxWidth: isAgentChart ? 14 : 12,
+            boxHeight: isAgentChart ? 14 : 12,
+            padding: 18,
+            font: { family: chartFont, size: isAgentChart ? 13 : 12, weight: '800' }
+          }
+        },
+        barHoverGlow: {
+          glowColor: isAgentChart ? 'rgba(255,79,184,.30)' : 'rgba(180,35,24,.18)',
+          borderColor: isAgentChart ? 'rgba(53,213,255,.72)' : 'rgba(52,64,84,.34)',
+          glowBlur: isAgentChart ? 24 : 14,
+          radius: 26,
+          lineWidth: isAgentChart ? 2.5 : 2
+        },
+        barTotalLabel: {
+          totals: yearlyTotals,
+          color: isAgentChart ? '#f8e7ff' : text,
+          gainColor: palette.gain,
+          lossColor: palette.loss,
+          shadowColor: isAgentChart ? 'rgba(255,79,184,.32)' : 'transparent',
+          shadowBlur: isAgentChart ? 8 : 0,
+          fontFamily: chartFont,
+          fontSize: isAgentChart ? 11.5 : 11,
+          weight: 850
+        },
+        tooltip: {
+          backgroundColor: tooltipBg,
+          titleColor: isAgentChart ? '#67e8f9' : text,
+          bodyColor: isAgentChart ? '#eef4ff' : text,
+          footerColor: isAgentChart ? '#f8e7ff' : text,
+          borderColor: tooltipBorder,
+          borderWidth: 1.5,
+          cornerRadius: 14,
+          padding: 13,
+          bodySpacing: 7,
+          footerSpacing: 9,
+          displayColors: true,
+          boxWidth: 10,
+          boxHeight: 10,
+          boxPadding: 6,
+          titleFont: { family: chartFont, size: 13, weight: '850' },
+          bodyFont: { family: chartFont, size: 12.5, weight: '750' },
+          footerFont: { family: chartFont, size: 12.5, weight: '850' },
+          callbacks: {
+            title: items => years[items[0]?.dataIndex]?.year || '',
+            label: c => {
+              const val = c.parsed.y || 0;
+              return ` ${c.dataset.label}：${sign(val)}${fmt(val)}`;
+            },
+            footer: items => {
+              const y = years[items[0]?.dataIndex] || {};
+              return `年度合計：${sign(y.total || 0)}${fmt(y.total || 0)}`;
+            }
+          }
+        }
+      }
+    },
+    plugins: [barHoverGlowPlugin, barTotalLabelPlugin]
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-page').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  try { localStorage.setItem('pf-active-tab', tab); } catch (e) {}
+  if (tab === 'overview') {
+    setTimeout(() => {
+      if (pieChart) pieChart.resize();
+      if (barChart) barChart.resize();
+    }, 60);
+  }
+}
+
+function restoreActiveTab() {
+  let tab = 'overview';
+  try { tab = localStorage.getItem('pf-active-tab') || 'overview'; } catch (e) {}
+  if (!document.getElementById('tab-' + tab)) tab = 'overview';
+  switchTab(tab);
+}
+
+/* ---------- 編輯 ---------- */
+function toggleEdit() {
+  editMode = !editMode;
+  document.getElementById('edit-btn').textContent = editMode ? '👁 檢視' : '✏️ 編輯';
+  document.getElementById('save-btn').classList.toggle('hidden', !editMode);
+  render();
+}
+function addHolding() {
+  DATA.holdings.push({ type: 'ETF', code: '', name: '', cost: 0, price: 0, lots: 0 });
+  render();
+}
+function delHolding(i) {
+  const h = DATA.holdings[i];
+  if (confirm(`確定刪除 ${h.code} ${h.name}?`)) { DATA.holdings.splice(i, 1); cache(); render(); }
+}
+function addYear() {
+  DATA.yearly.push({ year: String(new Date().getFullYear()), capitalGain: 0, dividend: 0, note: '' });
+  render();
+}
+function delYear(i) {
+  if (confirm('確定刪除這筆年度紀錄?')) { DATA.yearly.splice(i, 1); cache(); render(); }
+}
+// 欄位變更 → 寫回 DATA → 重算
+document.addEventListener('change', e => {
+  const path = e.target.dataset && e.target.dataset.path;
+  if (!path) return;
+  const parts = path.split('.');
+  let obj = DATA;
+  for (let i = 0; i < parts.length - 1; i++) obj = obj[isNaN(parts[i]) ? parts[i] : +parts[i]];
+  const key = parts[parts.length - 1];
+  obj[key] = e.target.type === 'number' ? (parseFloat(e.target.value) || 0) : e.target.value;
+  cache(); render();
+});
+
+/* ---------- 儲存 / 載入 ---------- */
+function cache() { try { localStorage.setItem('portfolio-data', JSON.stringify(DATA)); } catch (e) {} }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// IndexedDB:記住 data.json 的檔案 handle,下次免重選
+const idb = {
+  open: () => new Promise((res, rej) => {
+    const r = indexedDB.open('pf-db', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = rej;
+  }),
+  get: async k => { const db = await idb.open(); return new Promise(res => {
+    const r = db.transaction('kv').objectStore('kv').get(k);
+    r.onsuccess = () => res(r.result); r.onerror = () => res(null); }); },
+  set: async (k, v) => { const db = await idb.open(); return new Promise(res => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(v, k); tx.oncomplete = res; }); }
+};
+
+async function saveFile() {
+  DATA.updated = new Date().toISOString().slice(0, 10);
+  cache();
+  const json = JSON.stringify(DATA, null, 2);
+  try {
+    let h = fsHandle || await idb.get('handle');
+    if (!h && window.showSaveFilePicker) {
+      h = await showSaveFilePicker({ suggestedName: 'data.json',
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+      await idb.set('handle', h);
+    }
+    if (h) {
+      if (await h.queryPermission({ mode: 'readwrite' }) !== 'granted' &&
+          await h.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('未授權');
+      const w = await h.createWritable();
+      await w.write(json); await w.close();
+      fsHandle = h;
+      render();
+      toast('✅ 已儲存到 ' + h.name);
+      return;
+    }
+    throw new Error('不支援');
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    // fallback:下載檔案
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    a.download = 'data.json';
+    a.click();
+    render();
+    toast('已下載 data.json,請覆蓋原檔');
+  }
+}
+
+async function pickFile() {
+  try {
+    if (window.showOpenFilePicker) {
+      const [h] = await showOpenFilePicker({ types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
+      fsHandle = h;
+      await idb.set('handle', h);
+      const file = await h.getFile();
+      load(JSON.parse(await file.text()));
+      return;
+    }
+  } catch (err) { if (err.name === 'AbortError') return; }
+  document.getElementById('file-input').click();
+}
+
+function normalizeData(json) {
+  if (!json.title && json.dashboardTitle) json.title = json.dashboardTitle;
+  if (!json.title) json.title = DEFAULT_TITLE;
+  return json;
+}
+function load(json) { DATA = normalizeData(json); cache(); render(); }
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) file.text().then(t => load(JSON.parse(t)));
+});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.json')) file.text().then(t => load(JSON.parse(t)));
+});
+document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
+
+/* ---------- 主題 / 圖表風格 ---------- */
+function applyTheme(t) {
+  if (!THEME_KEYS.includes(t)) t = 'report-navy';
+  document.documentElement.dataset.theme = t;
+  document.getElementById('theme-sel').value = t;
+  try { localStorage.setItem('pf-theme', t); } catch (e) {}
+  if (DATA) render();
+}
+function applyChartStyle(t) {
+  if (t !== 'match' && !CHART_PALETTES[t]) t = 'match';
+  document.getElementById('chart-style-sel').value = t;
+  try { localStorage.setItem('pf-chart-style', t); } catch (e) {}
+  if (DATA) render();
+}
+document.getElementById('theme-sel').addEventListener('change', e => applyTheme(e.target.value));
+document.getElementById('chart-style-sel').addEventListener('change', e => applyChartStyle(e.target.value));
+applyTheme(localStorage.getItem('pf-theme') || 'report-navy');
+applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
+
+/* ---------- 啟動 ----------
+   1. fetch data.json(經 http 伺服器或同資料夾可讀時)
+   2. 記住的檔案 handle(若權限仍有效)
+   3. localStorage 快取
+   4. 請使用者選檔 */
+(async function init() {
+  const showPickHint = () => {
+    const hint = document.getElementById('loader-hint');
+    const p = document.querySelector('#loader p');
+    if (hint) hint.classList.remove('hidden');
+    if (p) p.textContent = '請選擇 data.json 或拖曳檔案到此頁面';
+  };
+  setTimeout(() => { if (!DATA) showPickHint(); }, 800);
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    const r = await fetch('data.json', { cache: 'no-store', signal: controller.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw 0;
+    load(await r.json());
+    return;
+  } catch (e) {}
+  try {
+    const h = await idb.get('handle');
+    if (h && await h.queryPermission({ mode: 'read' }) === 'granted') {
+      fsHandle = h;
+      const file = await h.getFile();
+      load(JSON.parse(await file.text()));
+      return;
+    }
+  } catch (e) {}
+  const cached = localStorage.getItem('portfolio-data');
+  if (cached) { DATA = JSON.parse(cached); render(); toast('顯示上次的資料(快取)'); }
+  else {
+    document.getElementById('loader-hint').classList.remove('hidden');
+    document.querySelector('#loader p').textContent = '無法自動讀取 data.json';
+  }
+})();
+</script>
+</body>
+</html>
