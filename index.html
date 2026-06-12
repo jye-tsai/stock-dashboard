@@ -305,10 +305,33 @@
     text-shadow: 0 0 12px rgba(139,92,246,.18);
   }
 
+  .pl-panel { margin-top: 18px; }
+  .pl-panel .chart-box { height: 280px; }
+
+  /* ===== 手機版面 ===== */
   @media (max-width: 600px) {
     body { padding: 10px; }
-    h1 { font-size: 17px; }
-    .card .value { font-size: 17px; }
+    h1 { font-size: 17px; min-width: 0; width: 100%; }
+    .title-input { width: 100%; font-size: 17px; }
+    header { gap: 8px; margin-bottom: 12px; }
+    header > div { gap: 6px; width: 100%; }
+    .meta { width: 100%; order: -1; }
+    .toolbar-label { display: none; }
+    .btn { padding: 5px 10px; font-size: 12px; }
+    .select-group { gap: 4px; }
+    .view-tabs { padding: 4px; gap: 4px; margin-bottom: 10px; }
+    .tab-btn { padding: 7px 11px; font-size: 13px; flex: 1; }
+    .card { min-height: 76px; padding: 10px 14px; }
+    .card .label { font-size: 12px; margin-bottom: 4px; }
+    .card .value { font-size: 19px; }
+    .card .sub { font-size: 11.5px; margin-top: 4px; }
+    .cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .dashboard-top .cards { grid-template-columns: repeat(2, 1fr); }
+    .charts { gap: 12px; margin-bottom: 12px; }
+    .chart-box { height: 260px; }
+    .pl-panel { margin-top: 12px; }
+    .pl-panel .chart-box { height: 240px; }
+    .panel { padding: 12px; margin-bottom: 12px; }
     th, td { padding: 6px 8px; }
   }
 
@@ -316,6 +339,8 @@
   #loader p { color: var(--muted); margin-bottom: 16px; }
   .hidden { display: none; }
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--total-bg); color: var(--accent); }
+  .code-link { color: var(--accent); text-decoration: none; font-weight: 700; }
+  .code-link:hover { text-decoration: underline; }
   [data-theme="agent"] .tag { border: 1px solid rgba(34,211,238,.25); color: #67e8f9; background: rgba(34,211,238,.08); }
 
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 90;
@@ -376,6 +401,8 @@
         <button class="btn primary hidden" id="save-btn" onclick="saveFile()">💾 儲存 JSON</button>
         <button class="btn hidden auth-only" id="load-btn" onclick="pickFile()">載入 JSON</button>
         <button class="btn hidden auth-only" id="gh-btn" onclick="openGhModal()">⚙️ GitHub</button>
+        <button class="btn hidden auth-only" id="price-btn" onclick="updatePrices()">📈 更新市價</button>
+        <button class="btn hidden auth-only" id="logout-btn" onclick="lockUI()">🚪 登出</button>
       </div>
     </header>
 
@@ -390,7 +417,6 @@
     <section id="tab-overview" class="tab-page active">
       <div class="charts">
         <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
-        <div class="panel"><h2>持股損益</h2><div class="chart-subtitle">各持股未實現損益（已扣賣出稅費）</div><div class="chart-box"><canvas id="pl"></canvas></div></div>
         <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
@@ -400,6 +426,12 @@
           <h2>帳戶資訊</h2>
           <div class="tbl-wrap"><table id="account"></table></div>
         </div>
+      </div>
+
+      <div class="panel full-panel pl-panel">
+        <h2>持股損益</h2>
+        <div class="chart-subtitle">各持股未實現損益（已扣賣出稅費）</div>
+        <div class="chart-box"><canvas id="pl"></canvas></div>
       </div>
     </section>
 
@@ -530,7 +562,7 @@ function render() {
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.cost" value="${r.cost}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
-        <td><span class="tag">${esc(r.type)}</span></td><td>${esc(r.code)}</td><td>${esc(r.name)}</td>
+        <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}</td>
         <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       return `<tr>${cells}
         <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td>${fmt(r.sellCost)}</td>
@@ -1207,6 +1239,44 @@ function updateAuthUI() {
 }
 async function unlockUI() {
   if (await verifyEditPassword()) toast('🔓 已解鎖');
+}
+function lockUI() {
+  try { sessionStorage.removeItem('pf-edit-unlocked-until'); } catch (e) {}
+  if (editMode) {
+    editMode = false;
+    document.getElementById('edit-btn').textContent = '✏️ 編輯';
+    document.getElementById('save-btn').classList.add('hidden');
+  }
+  updateAuthUI();
+  if (DATA) render();
+  toast('🔒 已登出');
+}
+
+/* ---------- 市價查詢(證交所公開 API,當日收盤價) ---------- */
+async function updatePrices() {
+  toast('查詢市價中…');
+  try {
+    const r = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const list = await r.json();
+    const map = {};
+    list.forEach(s => {
+      const p = parseFloat(s.ClosingPrice);
+      if (p > 0) map[s.Code] = p;
+    });
+    let n = 0;
+    const miss = [];
+    DATA.holdings.forEach(h => {
+      if (!h.code) return;
+      if (map[h.code]) { h.price = map[h.code]; n++; }
+      else miss.push(h.code);
+    });
+    cache();
+    render();
+    toast(`✅ 已更新 ${n} 檔市價(證交所收盤價)` + (miss.length ? `;查不到:${miss.join('、')}` : ''));
+  } catch (err) {
+    toast('❌ 市價查詢失敗:' + err.message);
+  }
 }
 
 async function toggleEdit() {
