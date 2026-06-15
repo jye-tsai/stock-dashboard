@@ -2,7 +2,7 @@ name: update-stock-prices
 
 on:
   schedule:
-    - cron: "*/30 1-6 * * 1-5"
+    - cron: "*/15 1-6 * * 1-5"
   workflow_dispatch:
 
 permissions:
