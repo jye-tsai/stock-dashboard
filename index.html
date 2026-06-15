@@ -1531,6 +1531,7 @@ function drawCharts(held, ys) {
     const navLabels = hist.map(p => String(p.date).slice(5));
     const mvData = hist.map(p => Number(p.mv) || 0);
     const retData = hist.map(p => Number(p.ret) || 0);
+    const unData = hist.map(p => Number(p.un) || 0);
     const many = hist.length > 60;
     navChart = new Chart(navCanvas, {
       type: 'line',
@@ -1538,7 +1539,7 @@ function drawCharts(held, ys) {
         labels: navLabels,
         datasets: [
           {
-            label: '總市值', data: mvData, borderColor: palette.slices[0],
+            label: '總市值', data: mvData, borderColor: palette.slices[0], yAxisID: 'y',
             backgroundColor: c => {
               const area = c.chart.chartArea; if (!area) return 'transparent';
               const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
@@ -1548,7 +1549,11 @@ function drawCharts(held, ys) {
             borderWidth: 2.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
           },
           {
-            label: '總報酬', data: retData, borderColor: palette.dividend,
+            label: '未實現', data: unData, borderColor: palette.slices[2], yAxisID: 'y',
+            borderWidth: 2, fill: false, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
+          },
+          {
+            label: '總報酬', data: retData, borderColor: palette.gain, yAxisID: 'y',
             borderWidth: 2, borderDash: [5, 4], fill: false, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
           }
         ]
