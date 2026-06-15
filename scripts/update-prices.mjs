@@ -1,0 +1,99 @@
+// 在 GitHub Action 的伺服器端執行:抓台股市價 → 寫回 data.json。
+// 伺服器端沒有瀏覽器的 CORS 限制,所以可直接打證交所/櫃買/MIS。
+// 來源順序:MIS 即時價 → 證交所 OpenAPI 收盤 → 櫃買 OpenAPI 收盤,逐層補齊。
+import fs from 'node:fs';
+
+const FILE = process.env.DATA_FILE || 'data.json';
+
+function readData() {
+  return JSON.parse(fs.readFileSync(FILE, 'utf8'));
+}
+
+async function fetchJson(url, ms = 20000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(timer); }
+}
+
+// 來源 1:證交所 MIS 即時報價(上市 tse_ + 上櫃 otc_);z=成交 → pz → y=昨收
+async function fromMis(codes) {
+  if (!codes.length) return {};
+  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
+  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
+  const j = await fetchJson(url);
+  const map = {};
+  (j.msgArray || []).forEach(s => {
+    const p = parseFloat(s.z) || parseFloat(s.pz) || parseFloat(s.y);
+    if (p > 0) map[s.c] = p;
+  });
+  return map;
+}
+
+// 來源 2:證交所 OpenAPI 上市每日收盤
+async function fromTwse() {
+  const list = await fetchJson('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
+  const map = {};
+  (list || []).forEach(s => { const p = parseFloat(s.ClosingPrice); if (p > 0) map[s.Code] = p; });
+  return map;
+}
+
+// 來源 3:櫃買中心 OpenAPI 上櫃每日收盤
+async function fromTpex() {
+  const list = await fetchJson('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
+  const map = {};
+  (list || []).forEach(s => {
+    const code = s.SecuritiesCompanyCode || s.Code || s.code;
+    const p = parseFloat(s.Close || s.ClosingPrice || s.close);
+    if (code && p > 0) map[code] = p;
+  });
+  return map;
+}
+
+async function main() {
+  const data = readData();
+  const holdings = data.holdings || [];
+  const codes = [...new Set(holdings.map(h => h.code).filter(Boolean))];
+  if (!codes.length) { console.log('沒有可查詢的代號,結束。'); return; }
+
+  const prices = {};
+  const remaining = () => codes.filter(c => !(prices[c] > 0));
+  const merge = m => { for (const k in (m || {})) if (m[k] > 0 && !(prices[k] > 0)) prices[k] = m[k]; };
+
+  const steps = [
+    ['MIS 即時價', () => fromMis(remaining())],
+    ['證交所收盤', fromTwse],
+    ['櫃買收盤', fromTpex]
+  ];
+  for (const [name, fn] of steps) {
+    if (!remaining().length) break;
+    try { merge(await fn()); console.log(`${name}: OK,已取得 ${Object.keys(prices).length}/${codes.length}`); }
+    catch (e) { console.log(`${name}: 失敗(${e.message})`); }
+  }
+
+  let changed = 0;
+  for (const h of holdings) {
+    if (h.code && prices[h.code] > 0 && h.price !== prices[h.code]) {
+      h.price = prices[h.code];
+      changed++;
+    }
+  }
+  const missing = codes.filter(c => !(prices[c] > 0));
+  if (missing.length) console.log('查不到:', missing.join('、'));
+
+  if (changed > 0) {
+    data.updated = new Date().toISOString().slice(0, 10);
+    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+    console.log(`已更新 ${changed} 檔市價,寫回 ${FILE}。`);
+  } else {
+    console.log('市價無變動,不寫檔。');
+  }
+}
+
+main().catch(e => { console.error('執行失敗:', e); process.exit(1); });

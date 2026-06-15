@@ -1447,63 +1447,117 @@ function lockUI() {
   toast('🔒 已登出');
 }
 
-/* ---------- 市價查詢(證交所資料,多重備援) ---------- */
-const corsProxy = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
-async function fetchJson(url) {
-  const r = await fetch(url, { cache: 'no-store' });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return r.json();
+/* ---------- 市價查詢(多來源備援;每個請求都有逾時,不會再卡住) ---------- */
+// 公用 CORS 代理:MIS / Yahoo 即時價需要;依序嘗試,任一通就用
+const CORS_PROXIES = [
+  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
+];
+// 帶逾時的 fetch→JSON:逾時自動 abort,流程立刻往下一個來源走(這就是解決「卡住」的關鍵)
+async function fetchJson(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(timer); }
 }
-// 來源 1:證交所即時報價(經 CORS 代理),z=最新成交價,沒有就用 y=昨收
+// 透過多個代理輪流抓,任一成功即回傳(每個代理各自有逾時)
+async function fetchJsonViaProxy(url, ms = 4500) {
+  let lastErr;
+  for (const wrap of CORS_PROXIES) {
+    try { return await fetchJson(wrap(url), ms); } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('代理皆失敗');
+}
+// 先直連(支援 CORS 的來源最快),失敗再走代理
+async function fetchJsonSmart(url, ms = 9000) {
+  try { return await fetchJson(url, ms); } catch (e) {}
+  return fetchJsonViaProxy(url, ms);
+}
+
+// 來源 1:證交所 MIS 即時報價(上市 tse_ + 上櫃 otc_ 一起查);z=成交價 → pz → y=昨收
 async function priceFromMis(codes) {
-  const q = codes.map(c => `tse_${c}.tw`).join('|');
+  if (!codes.length) return {};
+  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
   const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
-  const j = await fetchJson(corsProxy(url));
+  const j = await fetchJsonViaProxy(url);
   if (!j || !j.msgArray || !j.msgArray.length) throw new Error('無資料');
   const map = {};
   j.msgArray.forEach(s => {
-    const p = parseFloat(s.z) || parseFloat(s.y);
+    const p = parseFloat(s.z) || parseFloat(s.pz) || parseFloat(s.y);
     if (p > 0) map[s.c] = p;
   });
   return map;
 }
-// 來源 2/3:證交所 OpenAPI 全市場收盤價(直連 → 失敗再走代理)
-async function priceFromOpenapi(viaProxy) {
-  const url = 'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL';
-  const list = await fetchJson(viaProxy ? corsProxy(url) : url);
+// 來源 2:Yahoo 財經即時價(逐檔,先試上市 .TW 再試上櫃 .TWO),經代理避免 CORS
+async function priceFromYahoo(codes) {
+  if (!codes.length) return {};
   const map = {};
-  list.forEach(s => {
-    const p = parseFloat(s.ClosingPrice);
-    if (p > 0) map[s.Code] = p;
+  await Promise.all(codes.map(async c => {
+    for (const suf of ['.TW', '.TWO']) {
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`;
+        const j = await fetchJsonViaProxy(url);
+        const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
+        const p = m && (m.regularMarketPrice || m.previousClose || m.chartPreviousClose);
+        if (p > 0) { map[c] = p; return; }
+      } catch (e) {}
+    }
+  }));
+  if (!Object.keys(map).length) throw new Error('無資料');
+  return map;
+}
+// 來源 3:證交所 OpenAPI 上市收盤價(直連支援 CORS,最穩定)
+async function priceFromTwseEod() {
+  const list = await fetchJsonSmart('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
+  const map = {};
+  (list || []).forEach(s => { const p = parseFloat(s.ClosingPrice); if (p > 0) map[s.Code] = p; });
+  return map;
+}
+// 來源 4:櫃買中心 OpenAPI 上櫃收盤價
+async function priceFromTpexEod() {
+  const list = await fetchJsonSmart('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
+  const map = {};
+  (list || []).forEach(s => {
+    const code = s.SecuritiesCompanyCode || s.Code || s.code;
+    const p = parseFloat(s.Close || s.ClosingPrice || s.close);
+    if (code && p > 0) map[code] = p;
   });
   return map;
 }
+
+// 按下「更新市價」→ 觸發 GitHub Action 在伺服器端抓價並寫回 data.json。
+// 瀏覽器受 CORS 限制無法自己抓(證交所/櫃買/Yahoo 都不允許跨站讀取),所以改由 Action 代勞;
+// 約 1 分鐘後 Action 會 commit 新價,重新整理頁面即可看到。
 async function updatePrices() {
-  if (!DATA) return;
-  toast('查詢市價中…');
-  const codes = DATA.holdings.map(h => h.code).filter(Boolean);
-  let map = null, src = '';
-  try { map = await priceFromMis(codes); src = '即時價'; } catch (e) {}
-  if (!map || !Object.keys(map).length) {
-    try { map = await priceFromOpenapi(false); src = '收盤價'; } catch (e) {}
-  }
-  if (!map || !Object.keys(map).length) {
-    try { map = await priceFromOpenapi(true); src = '收盤價'; } catch (e) {}
-  }
-  if (!map || !Object.keys(map).length) {
-    toast('❌ 市價查詢失敗,請稍後再試');
+  const c = ghCfg();
+  if (!ghReady(c)) {
+    toast('市價改由 GitHub Action 自動更新;請先設定 GitHub 同步(⚙️),或到 repo 的 Actions 分頁手動執行');
     return;
   }
-  let n = 0;
-  const miss = [];
-  DATA.holdings.forEach(h => {
-    if (!h.code) return;
-    if (map[h.code]) { h.price = map[h.code]; n++; }
-    else miss.push(h.code);
-  });
-  cache();
-  render();
-  toast(`✅ 已更新 ${n} 檔市價(${src})` + (miss.length ? `;查不到:${miss.join('、')}` : ''));
+  if (!confirm('將觸發 GitHub Action 於伺服器端更新市價並寫回 data.json。\n約 1 分鐘後重新整理頁面即可看到最新價。\n\n要現在執行嗎?')) return;
+  try {
+    toast('正在觸發 GitHub Action…');
+    const url = `https://api.github.com/repos/${c.owner}/${c.repo}/actions/workflows/update-prices.yml/dispatches`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: ghHeaders(c),
+      body: JSON.stringify({ ref: c.branch || 'main' })
+    });
+    if (r.status === 204) {
+      toast('✅ 已觸發更新,約 1 分鐘後重新整理即可看到新價');
+      return;
+    }
+    const msg = (await r.json().catch(() => ({}))).message || ('HTTP ' + r.status);
+    if (r.status === 401) throw new Error('Token 無效或已過期');
+    if (r.status === 403) throw new Error('Token 需要 Actions 寫入權限(fine-grained 勾「Actions 讀寫」,或 classic 勾 workflow)');
+    if (r.status === 404) throw new Error('找不到 update-prices.yml,請先把 .github/workflows/update-prices.yml 上傳到 repo 並推到預設分支');
+    throw new Error(msg);
+  } catch (e) {
+    toast('❌ 觸發失敗:' + e.message);
+  }
 }
 
 async function toggleEdit() {
