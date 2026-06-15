@@ -434,7 +434,7 @@
     <section id="tab-overview" class="tab-page active">
       <div class="charts">
         <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
-        <div class="panel"><h2>成本損益組成</h2><div class="chart-subtitle">市值 = 總成本 + 未實現損益（毛，未扣賣出稅費）</div><div class="chart-box"><canvas id="costpl"></canvas></div></div>
+        <div class="panel"><h2>總報酬</h2><div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div><div class="chart-box"><canvas id="costpl"></canvas></div></div>
         <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
@@ -1000,24 +1000,28 @@ function drawCharts(held, ys) {
     plugins: [centerTextPlugin]
   });
 
-  // 成本損益組成:市值 = 總成本 + 未實現損益(毛)。獲利→紅,虧損→綠(切換標籤)
-  const costTotal = held.reduce((s, r) => s + r.costAmt, 0);
-  const mvTotal2 = held.reduce((s, r) => s + r.mv, 0);
-  const plGross = mvTotal2 - costTotal;
-  const neutralColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
-  const costPlLabels = plGross >= 0 ? ['總成本', '未實現損益'] : ['目前市值', '未實現虧損'];
-  const costPlData = plGross >= 0 ? [costTotal, plGross] : [mvTotal2, -plGross];
-  const costPlColors = plGross >= 0 ? [neutralColor, palette.gain] : [neutralColor, palette.loss];
-  const costPlSum = costPlData[0] + costPlData[1];
+  // 總報酬:未實現 + 已實現 + 股息,依來源拆成甜甜圈;中央顯示報酬金額 + 報酬率,圖例標各來源占比
+  const unrealizedTotal = held.reduce((s, r) => s + r.unrealized, 0);
+  const realizedPL = (DATA && DATA['已實現損益']) || 0;
+  const dividendInc = (DATA && DATA['股息收入']) || 0;
+  const totalReturn = unrealizedTotal + realizedPL + dividendInc;
+  const investedCost = held.reduce((s, r) => s + r.costAmt, 0);
+  const returnRate = investedCost ? totalReturn / investedCost : 0;
+  const retComps = [
+    { label: '未實現損益', value: unrealizedTotal, color: palette.slices[0] },
+    { label: '已實現損益', value: realizedPL, color: palette.slices[2] },
+    { label: '股息收入', value: dividendInc, color: palette.dividend }
+  ];
+  const retColor = totalReturn > 0 ? palette.gain : totalReturn < 0 ? palette.loss : (isAgentChart ? '#dfe7ff' : text);
 
   if (costPlChart) costPlChart.destroy();
   costPlChart = new Chart(document.getElementById('costpl'), {
     type: 'doughnut',
     data: {
-      labels: costPlLabels,
+      labels: retComps.map(c => c.label),
       datasets: [{
-        data: costPlData,
-        backgroundColor: costPlColors,
+        data: retComps.map(c => Math.abs(c.value)),
+        backgroundColor: retComps.map(c => c.color),
         borderColor: card,
         borderWidth: isAgentChart ? 4 : 5,
         borderRadius: 12,
@@ -1029,23 +1033,46 @@ function drawCharts(held, ys) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: isAgentChart ? '56%' : '58%',
+      cutout: isAgentChart ? '58%' : '60%',
       layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, font: { size: 12 } }
+          labels: {
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 14,
+            font: { size: 12 },
+            generateLabels: chart => {
+              const ds = chart.data.datasets[0];
+              return chart.data.labels.map((lab, i) => {
+                const v = retComps[i] ? retComps[i].value : 0;
+                const ratio = totalReturn ? v / totalReturn : 0;
+                return {
+                  text: `${lab}　${pct(ratio)}`,
+                  fillStyle: ds.backgroundColor[i],
+                  strokeStyle: ds.backgroundColor[i],
+                  lineWidth: 0,
+                  pointStyle: 'circle',
+                  hidden: false,
+                  index: i
+                };
+              });
+            }
+          }
         },
         centerText: {
-          text: fmt(mvTotal2),
-          subText: '總市值',
-          color: isAgentChart ? '#dfe7ff' : text,
-          subColor: isAgentChart ? '#8ea0c7' : muted,
-          fontSize: isAgentChart ? 18 : 17,
+          text: `${sign(totalReturn)}${fmt(totalReturn)}`,
+          subText: `報酬率 ${sign(returnRate)}${pct(returnRate)}`,
+          color: retColor,
+          subColor: retColor,
+          fontSize: isAgentChart ? 19 : 18,
           subFontSize: isAgentChart ? 12.5 : 12,
           fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined,
-          weight: isAgentChart ? 900 : 800,
-          subWeight: 700
+          weight: isAgentChart ? 900 : 850,
+          subWeight: 750
         },
         tooltip: {
           position: 'pieOuter',
@@ -1068,8 +1095,9 @@ function drawCharts(held, ys) {
           callbacks: {
             title: items => items[0]?.label || '',
             label: c => {
-              const ratio = costPlSum ? c.parsed / costPlSum : 0;
-              return [`金額：${sign(c.parsed)}${fmt(c.parsed)}`, `占比：${pct(ratio)}`];
+              const v = retComps[c.dataIndex] ? retComps[c.dataIndex].value : 0;
+              const ratio = totalReturn ? v / totalReturn : 0;
+              return [`金額：${sign(v)}${fmt(v)}`, `占總報酬：${pct(ratio)}`];
             }
           }
         }
