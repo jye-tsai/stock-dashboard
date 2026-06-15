@@ -16,18 +16,18 @@
       "code": "2330",
       "name": "台積電",
       "cost": 1707.96,
-      "price": 2370,
+      "price": 2365,
       "lots": 2.33,
-      "priceTime": "2026-06-15 13:01"
+      "priceTime": "2026-06-15 13:36"
     },
     {
       "type": "ETF",
       "code": "00981A",
       "name": "主動統一台股增長",
       "cost": 16.18,
-      "price": 31.46,
+      "price": 31.47,
       "lots": 160,
-      "priceTime": "2026-06-15 13:01"
+      "priceTime": "2026-06-15 13:36"
     }
   ],
   "account": {
@@ -70,5 +70,5 @@
     }
   ],
   "title": "胖虎的小財庫",
-  "priceUpdated": "2026-06-15 13:01"
+  "priceUpdated": "2026-06-15 13:36"
 }
