@@ -2,7 +2,9 @@ name: update-stock-prices
 
 on:
   schedule:
-    - cron: "*/15 1-6 * * 1-5"
+    # 台北 = UTC+8;cron 跑在 UTC,所以填的時間 = 台北時間 − 8
+    - cron: "*/15 1-5 * * 1-5"   # 交易時段 每15分(台北 09:00–13:45,週一~五)
+    - cron: "0 6 * * 1-5"        # 收盤結算 一次(台北 14:00,週一~五)
   workflow_dispatch:
 
 permissions:
