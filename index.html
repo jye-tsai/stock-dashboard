@@ -489,9 +489,34 @@
   #edit-banner { background: rgba(255,180,84,.12); border: 1px solid #ffb454; color: #ffb454; border-radius: 10px;
     padding: 8px 14px; font-size: 13px; margin-bottom: 16px; display: none; }
   body.editing #edit-banner { display: block; }
+  /* PWA 全螢幕(已安裝成 App)時,留出頂部/底部安全區,避免標題被狀態列(時間)蓋住 */
+  @media (display-mode: standalone) {
+    body { padding-top: calc(env(safe-area-inset-top) + 12px); padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
+  }
+  /* 下拉重新整理指示器 */
+  #ptr { position: fixed; top: calc(env(safe-area-inset-top) + 4px); left: 50%; transform: translateX(-50%) translateY(-60px);
+    z-index: 95; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
+    background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    opacity: 0; transition: transform .2s ease, opacity .2s ease; pointer-events: none; white-space: nowrap; }
+  #ptr.spin .ptr-ico { animation: ptrSpin .7s linear infinite; display: inline-block; }
+  @keyframes ptrSpin { to { transform: rotate(360deg); } }
+  /* 啟動畫面(splash) */
+  #splash { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: var(--bg); transition: opacity .5s ease; }
+  #splash.hide { opacity: 0; pointer-events: none; }
+  #splash img { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; object-position: 50% 12%;
+    border: 3px solid var(--title-accent); box-shadow: var(--title-glow); background: #fff; animation: splashPop .5s ease; }
+  #splash .s-title { font-size: 21px; font-weight: 850; color: var(--title); text-shadow: var(--title-glow); letter-spacing: .02em; }
+  #splash .s-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: ptrSpin .8s linear infinite; }
+  @keyframes splashPop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 </style>
 </head>
 <body>
+<div id="splash">
+  <img src="panghu-icon.png" alt="胖虎" onerror="this.style.display='none'">
+  <div class="s-title">胖虎的小財庫</div>
+  <div class="s-spin"></div>
+</div>
 <div class="container">
   <div id="loader">
     <div class="skeleton-wrap" aria-hidden="true">
@@ -911,6 +936,7 @@ function render() {
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   restoreActiveTab();
+  if (typeof hideSplash === 'function') hideSplash();
 }
 
 let pieChart, costPlChart, barChart, plChart, navChart;
@@ -2129,6 +2155,10 @@ function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   document.getElementById('theme-sel').value = t;
   try { localStorage.setItem('pf-theme', t); } catch (e) {}
+  // 狀態列/瀏覽器列底色跟著主題走(Android 狀態列、iOS 安全區底色)
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m && bg) m.setAttribute('content', bg);
   if (DATA) render();
 }
 function applyChartStyle(t) {
@@ -2141,6 +2171,52 @@ document.getElementById('theme-sel').addEventListener('change', e => applyTheme(
 document.getElementById('chart-style-sel').addEventListener('change', e => applyChartStyle(e.target.value));
 applyTheme(localStorage.getItem('pf-theme') || 'ocean');
 applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
+
+/* ---------- 下拉重新整理(手機/PWA) ---------- */
+(function () {
+  if (!document.body) return;
+  const ind = document.createElement('div');
+  ind.id = 'ptr';
+  ind.innerHTML = '<span class="ptr-ico">↓</span><span class="ptr-txt">下拉重新整理</span>';
+  document.body.appendChild(ind);
+  const txt = ind.querySelector('.ptr-txt'), ico = ind.querySelector('.ptr-ico');
+  let startY = 0, dy = 0, active = false;
+  const TH = 70;
+  addEventListener('touchstart', e => {
+    if (window.scrollY <= 0 && e.touches.length === 1) { startY = e.touches[0].clientY; active = true; dy = 0; }
+  }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (!active) return;
+    dy = e.touches[0].clientY - startY;
+    if (dy > 0 && window.scrollY <= 0) {
+      ind.style.transition = 'none';
+      ind.style.transform = `translateX(-50%) translateY(${Math.min(dy, 90) - 60}px)`;
+      ind.style.opacity = String(Math.min(1, dy / TH));
+      txt.textContent = dy >= TH ? '放開重新整理' : '下拉重新整理';
+      ico.style.transform = dy >= TH ? 'rotate(180deg)' : 'rotate(0)';
+    }
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (!active) return;
+    active = false;
+    ind.style.transition = 'transform .25s ease, opacity .25s ease';
+    if (dy >= TH) {
+      txt.textContent = '更新中…'; ico.textContent = '⟳'; ind.classList.add('spin');
+      ind.style.transform = 'translateX(-50%) translateY(0)'; ind.style.opacity = '1';
+      setTimeout(() => location.reload(), 300);
+    } else {
+      ind.style.transform = 'translateX(-50%) translateY(-60px)'; ind.style.opacity = '0';
+    }
+    dy = 0;
+  }, { passive: true });
+})();
+
+/* ---------- 啟動畫面(splash):載入完成或最多 3 秒後收起 ---------- */
+function hideSplash() {
+  const s = document.getElementById('splash');
+  if (s && !s.classList.contains('hide')) { s.classList.add('hide'); setTimeout(() => { if (s.parentNode) s.remove(); }, 600); }
+}
+setTimeout(hideSplash, 3000);
 
 /* ---------- 啟動 ----------
    1. fetch data.json(經 http 伺服器或同資料夾可讀時)
