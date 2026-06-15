@@ -24,7 +24,7 @@ function computeTotals(data) {
     cost += c; mv += m; unreal += m - c - sellCost;
   }
   const realized = data['已實現損益'] || 0, dividend = data['股息收入'] || 0;
-  return { cost, mv, totalReturn: unreal + realized + dividend };
+  return { cost, mv, unreal, realized, dividend, totalReturn: unreal + realized + dividend };
 }
 
 // 台北時間戳,例:2026-06-15 12:16
@@ -158,7 +158,7 @@ async function main() {
     const tot = computeTotals(data);
     const day = stamp.slice(0, 10);
     data.history = Array.isArray(data.history) ? data.history : [];
-    const entry = { date: day, mv: tot.mv, cost: tot.cost, ret: tot.totalReturn };
+    const entry = { date: day, mv: tot.mv, cost: tot.cost, un: tot.unreal, real: tot.realized, div: tot.dividend, ret: tot.totalReturn };
     const last = data.history[data.history.length - 1];
     if (last && last.date === day) data.history[data.history.length - 1] = entry;
     else data.history.push(entry);

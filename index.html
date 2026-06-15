@@ -372,13 +372,13 @@
   [data-theme="agent"] .chart-box { filter: drop-shadow(0 0 12px rgba(139,92,246,.09)); }
   .toolbar-label { color: var(--muted); font-size: 12px; }
   .select-group { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-  .chart-subtitle { color: var(--muted); font-size: 12px; margin-top: -4px; margin-bottom: 8px; font-weight: 500; letter-spacing: .015em; }
+  .chart-subtitle { color: var(--accent); font-size: 12px; margin-top: -2px; margin-bottom: 10px; font-weight: 600; letter-spacing: .015em; border-left: 3px solid var(--title-accent); padding-left: 8px; opacity: .92; }
   [data-theme="agent"] .chart-subtitle {
-    color: #9aa8d7;
+    color: var(--title-accent);
     font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
     font-weight: 700;
     letter-spacing: .045em;
-    text-shadow: 0 0 12px rgba(139,92,246,.18);
+    text-shadow: 0 0 12px rgba(53,213,255,.35);
   }
 
   .pl-panel { margin-top: 18px; }
@@ -652,9 +652,24 @@ function render() {
   const title = d.title || DEFAULT_TITLE;
   d.title = title;
   document.title = title;
+  // 胖虎表情:拿「今天的未實現損益」跟「昨天(上一個交易日)的未實現損益」比 —— 變好→笑、變差→哭、持平→淡定
+  // 還沒有昨天的歷史資料時,先看當前未實現損益的正負
+  const histArr = Array.isArray(d.history) ? d.history : [];
+  const today = String(d.priceUpdated || d.updated || '').slice(0, 10);
+  let prevDay = null;
+  for (let i = histArr.length - 1; i >= 0; i--) {
+    if (histArr[i] && histArr[i].date && histArr[i].date !== today) { prevDay = histArr[i]; break; }
+  }
+  let moodVal;
+  if (prevDay && typeof prevDay.un === 'number') moodVal = t.unrealized - prevDay.un;        // 跟昨日未實現損益比
+  else if (prevDay && typeof prevDay.mv === 'number') moodVal = t.mv - prevDay.mv;            // 舊資料沒存 un,退而比市值
+  else moodVal = t.unrealized;                                                                // 沒有昨天資料 → 看當前未實現
+  const moodSrc = moodVal > 0 ? 'panghu.png' : moodVal < 0 ? 'panghu-sad.png' : 'panghu-flat.png';
+  const moodTip = moodVal > 0 ? '今天比昨天賺😆' : moodVal < 0 ? '今天比昨天賠😢' : '跟昨天持平😐';
+  const mascotImg = `<img class="brand-icon mascot" src="${moodSrc}" alt="胖虎" title="${moodTip}" onerror="if(this.src.indexOf('panghu.png')<0){this.src='panghu.png'}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))}">`;
   document.getElementById('dashboard-title').innerHTML = E
-    ? `<img class="brand-icon mascot" src="panghu.png" alt="胖虎" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))"><input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
-    : `<img class="brand-icon mascot" src="panghu.png" alt="胖虎" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))"><span class="brand-title-text">${esc(title)}</span>`;
+    ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
+    : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
 
   document.getElementById('updated').textContent = '更新日期:' + (d.updated || '-');
   const puEl = document.getElementById('price-updated');
@@ -1090,7 +1105,8 @@ function drawCharts(held, ys) {
             boxWidth: 8,
             boxHeight: 8,
             padding: 14,
-            font: { size: 12 }
+            font: { size: 12 },
+            color: muted
           }
         },
         centerText: {
@@ -1180,6 +1196,7 @@ function drawCharts(held, ys) {
             boxHeight: 8,
             padding: 14,
             font: { size: 12 },
+            color: muted,
             generateLabels: chart => {
               const ds = chart.data.datasets[0];
               return chart.data.labels.map((lab, i) => {
@@ -1187,6 +1204,7 @@ function drawCharts(held, ys) {
                 const ratio = totalReturn ? v / totalReturn : 0;
                 return {
                   text: `${lab}　${pct(ratio)}`,
+                  fontColor: muted,
                   fillStyle: ds.backgroundColor[i],
                   strokeStyle: ds.backgroundColor[i],
                   lineWidth: 0,
