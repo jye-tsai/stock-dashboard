@@ -434,6 +434,7 @@
     <section id="tab-overview" class="tab-page active">
       <div class="charts">
         <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
+        <div class="panel"><h2>成本損益組成</h2><div class="chart-subtitle">市值 = 總成本 + 未實現損益（毛，未扣賣出稅費）</div><div class="chart-box"><canvas id="costpl"></canvas></div></div>
         <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
@@ -671,7 +672,7 @@ function render() {
   restoreActiveTab();
 }
 
-let pieChart, barChart, plChart;
+let pieChart, costPlChart, barChart, plChart;
 const THEME_KEYS = ['report-navy', 'report', 'report-green', 'report-warm', 'agent'];
 const CHART_PALETTES = {
   'report-navy': {
@@ -991,6 +992,84 @@ function drawCharts(held, ys) {
             label: c => {
               const ratio = totalMv ? c.parsed / totalMv : 0;
               return [`市值：${fmt(c.parsed)}`, `占比：${pct(ratio)}`];
+            }
+          }
+        }
+      }
+    },
+    plugins: [centerTextPlugin]
+  });
+
+  // 成本損益組成:市值 = 總成本 + 未實現損益(毛)。獲利→紅,虧損→綠(切換標籤)
+  const costTotal = held.reduce((s, r) => s + r.costAmt, 0);
+  const mvTotal2 = held.reduce((s, r) => s + r.mv, 0);
+  const plGross = mvTotal2 - costTotal;
+  const neutralColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
+  const costPlLabels = plGross >= 0 ? ['總成本', '未實現損益'] : ['目前市值', '未實現虧損'];
+  const costPlData = plGross >= 0 ? [costTotal, plGross] : [mvTotal2, -plGross];
+  const costPlColors = plGross >= 0 ? [neutralColor, palette.gain] : [neutralColor, palette.loss];
+  const costPlSum = costPlData[0] + costPlData[1];
+
+  if (costPlChart) costPlChart.destroy();
+  costPlChart = new Chart(document.getElementById('costpl'), {
+    type: 'doughnut',
+    data: {
+      labels: costPlLabels,
+      datasets: [{
+        data: costPlData,
+        backgroundColor: costPlColors,
+        borderColor: card,
+        borderWidth: isAgentChart ? 4 : 5,
+        borderRadius: 12,
+        hoverOffset: isAgentChart ? 16 : 10,
+        hoverBorderWidth: isAgentChart ? 5 : 6,
+        spacing: isAgentChart ? 3 : 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: isAgentChart ? '56%' : '58%',
+      layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, font: { size: 12 } }
+        },
+        centerText: {
+          text: fmt(mvTotal2),
+          subText: '總市值',
+          color: isAgentChart ? '#dfe7ff' : text,
+          subColor: isAgentChart ? '#8ea0c7' : muted,
+          fontSize: isAgentChart ? 18 : 17,
+          subFontSize: isAgentChart ? 12.5 : 12,
+          fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined,
+          weight: isAgentChart ? 900 : 800,
+          subWeight: 700
+        },
+        tooltip: {
+          position: 'pieOuter',
+          backgroundColor: tooltipBg,
+          titleColor: isAgentChart ? '#67e8f9' : text,
+          bodyColor: isAgentChart ? '#eef4ff' : text,
+          borderColor: tooltipBorder,
+          borderWidth: 1.5,
+          cornerRadius: 12,
+          caretSize: 7,
+          padding: 12,
+          bodySpacing: 6,
+          titleSpacing: 4,
+          displayColors: true,
+          boxWidth: 10,
+          boxHeight: 10,
+          boxPadding: 6,
+          titleFont: { size: 13, weight: '700' },
+          bodyFont: { size: 12, weight: '600' },
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: c => {
+              const ratio = costPlSum ? c.parsed / costPlSum : 0;
+              return [`金額：${sign(c.parsed)}${fmt(c.parsed)}`, `占比：${pct(ratio)}`];
             }
           }
         }
@@ -1474,22 +1553,35 @@ async function ghLoad(c) {
   if (!r.ok) throw new Error('讀取失敗 ' + r.status);
   return r.json();
 }
-async function ghSave(c, json) {
-  let sha;
-  const g = await fetch(`${ghUrl(c)}?ref=${c.branch || 'main'}&_=${Date.now()}`, { headers: ghHeaders(c), cache: 'no-store' });
-  if (g.ok) sha = (await g.json()).sha;
-  else if (g.status !== 404) throw new Error('讀取 sha 失敗 ' + g.status);
-  const body = {
-    message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
-    content: btoa(unescape(encodeURIComponent(json))),
-    branch: c.branch || 'main'
+// 把 GitHub API 的狀態碼轉成白話訊息,方便判斷存檔失敗原因
+function ghErr(status, j) {
+  const detail = j && j.message ? `（${j.message}）` : '';
+  const map = {
+    401: 'Token 無效或已過期，請到 GitHub 重新產生 token 並更新設定',
+    403: '權限不足：Token 需要這個 repo 的 Contents 讀寫權限（速率限制也可能造成）',
+    404: '找不到 repo／分支／檔案路徑，請檢查帳號、Repo 名稱、分支、檔案路徑是否正確，且 Token 有權限存取',
+    409: '版本衝突：repo 上的檔案比你手上的新',
+    422: '送出的內容有誤，通常是分支或檔案路徑設定問題'
   };
-  if (sha) body.sha = sha;
-  const r = await fetch(ghUrl(c), { method: 'PUT', headers: ghHeaders(c), body: JSON.stringify(body) });
-  if (!r.ok) {
-    const msg = (await r.json().catch(() => ({}))).message || r.status;
-    throw new Error(msg);
-  }
+  return new Error((map[status] || ('GitHub 錯誤 ' + status)) + detail);
+}
+async function ghSave(c, json) {
+  const commit = async () => {
+    let sha;
+    const g = await fetch(`${ghUrl(c)}?ref=${c.branch || 'main'}&_=${Date.now()}`, { headers: ghHeaders(c), cache: 'no-store' });
+    if (g.ok) sha = (await g.json()).sha;
+    else if (g.status !== 404) throw ghErr(g.status, await g.json().catch(() => ({})));
+    const body = {
+      message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
+      content: btoa(unescape(encodeURIComponent(json))),
+      branch: c.branch || 'main'
+    };
+    if (sha) body.sha = sha;
+    return fetch(ghUrl(c), { method: 'PUT', headers: ghHeaders(c), body: JSON.stringify(body) });
+  };
+  let r = await commit();
+  if (r.status === 409 || r.status === 422) r = await commit();   // sha 衝突 → 重抓最新 sha 再存一次
+  if (!r.ok) throw ghErr(r.status, await r.json().catch(() => ({})));
 }
 
 async function openGhModal() {
@@ -1549,7 +1641,13 @@ async function saveFile() {
       toast(`✅ 已 commit 到 ${c.owner}/${c.repo}`);
       return;
     } catch (err) {
-      if (!confirm('GitHub 儲存失敗:' + err.message + '\n\n改存到本機檔案?')) return;
+      if (!confirm('GitHub 儲存失敗:' + err.message + '\n\n改存到本機檔案?(注意:存到本機不會更新網站上的資料)')) return;
+    }
+  } else if (location.hostname.endsWith('.github.io')) {
+    // 透過 GitHub Pages 開啟卻沒設定同步 → 存本機檔案不會更新網站,主動提醒先設定
+    if (confirm('你正透過 GitHub Pages 開啟,但尚未設定 GitHub 同步。\n\n存到本機檔案「不會」更新網站上的資料。要現在設定 GitHub 同步嗎?')) {
+      openGhModal();
+      return;
     }
   }
   try {
