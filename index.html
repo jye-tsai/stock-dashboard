@@ -49,14 +49,14 @@
     --shadow: 0 2px 8px rgba(80,60,40,.07);
   }
   [data-theme="agent"] {                       /* Agent Skills：霓虹網格 */
-    --bg: #030409; --card: rgba(13,16,24,.88); --border: rgba(139,92,246,.28);
-    --text: #dfe7ff; --muted: #9aa8d7;
-    --title: #f7f3ff; --title-accent: #35d5ff; --title-glow: 0 0 16px rgba(139,92,246,.72), 0 0 34px rgba(53,213,255,.24);
-    --label: #b9c4ee; --value: #f2f6ff;
-    --up: #ff4fa3; --down: #21d6a0; --accent: #9b6cff;
-    --row-hover: rgba(139,92,246,.11);
-    --total-bg: rgba(139,92,246,.12);
-    --shadow: 0 0 0 1px rgba(139,92,246,.08), 0 18px 42px rgba(0,0,0,.32);
+    --bg: #05060f; --card: rgba(16,19,33,.78); --border: rgba(139,92,246,.34);
+    --text: #e6ecff; --muted: #98a7d8;
+    --title: #f8f5ff; --title-accent: #4fdcff; --title-glow: 0 0 18px rgba(139,92,246,.85), 0 0 40px rgba(53,213,255,.32);
+    --label: #c3cef4; --value: #f4f7ff;
+    --up: #ff5cae; --down: #2fe6b2; --accent: #9d6dff;
+    --row-hover: rgba(139,92,246,.13);
+    --total-bg: rgba(139,92,246,.14);
+    --shadow: 0 0 0 1px rgba(139,92,246,.12), 0 20px 52px rgba(0,0,0,.5);
   }
   
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -65,11 +65,13 @@
   [data-theme="agent"] body::before {
     opacity: 1;
     background:
-      radial-gradient(circle at 12% 8%, rgba(139,92,246,.22), transparent 26%),
-      radial-gradient(circle at 82% 18%, rgba(34,211,238,.13), transparent 28%),
-      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
-    background-size: auto, auto, 44px 44px, 44px 44px;
+      radial-gradient(circle at 12% 6%, rgba(139,92,246,.30), transparent 30%),
+      radial-gradient(circle at 86% 12%, rgba(34,211,238,.18), transparent 32%),
+      radial-gradient(circle at 50% 118%, rgba(155,108,255,.22), transparent 55%),
+      linear-gradient(rgba(120,140,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,140,255,.05) 1px, transparent 1px),
+      radial-gradient(circle at 50% 38%, #0b0d1d 0%, #06070f 68%, #020308 100%);
+    background-size: auto, auto, auto, 40px 40px, 40px 40px, auto;
   }
   .container { max-width: 1280px; margin: 0 auto; }
   [data-theme="agent"] .container { max-width: 1320px; }
@@ -163,12 +165,22 @@
   [data-theme="agent"] .card {
     position: relative;
     overflow: hidden;
-    border-radius: 14px;
-    backdrop-filter: blur(14px);
+    border-radius: 16px;
+    background:
+      linear-gradient(160deg, rgba(139,92,246,.12), transparent 58%),
+      var(--card);
+    backdrop-filter: blur(16px);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  [data-theme="agent"] .card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(53,213,255,.5);
+    box-shadow: 0 0 0 1px rgba(139,92,246,.2), 0 22px 50px rgba(0,0,0,.5), 0 0 30px rgba(139,92,246,.16);
   }
   [data-theme="agent"] .card::after {
-    content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(139,92,246,.9), rgba(34,211,238,.55), transparent);
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(139,92,246,.95), rgba(34,211,238,.7), transparent);
+    opacity: .9;
   }
   .card .label { color: var(--label, var(--muted)); font-size: 13.5px; margin-bottom: 8px; font-weight: 750; }
   .card .value { font-size: clamp(24px, 1.85vw, 29px); font-weight: 880; font-variant-numeric: tabular-nums; line-height: 1.08; letter-spacing: .01em; }
@@ -190,11 +202,16 @@
 
   .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
   [data-theme="agent"] .panel {
-    border-radius: 14px;
+    border-radius: 16px;
     background:
-      linear-gradient(180deg, rgba(255,255,255,.035), transparent 46%),
+      linear-gradient(180deg, rgba(139,92,246,.07), transparent 46%),
       var(--card);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(16px);
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  [data-theme="agent"] .panel:hover {
+    border-color: rgba(53,213,255,.4);
+    box-shadow: 0 0 0 1px rgba(139,92,246,.16), 0 18px 46px rgba(0,0,0,.5), 0 0 30px rgba(139,92,246,.1);
   }
   .panel h2 { font-size: 15px; margin-bottom: 12px; color: var(--muted); font-weight: 600; }
   [data-theme="agent"] .panel h2 {
@@ -1041,7 +1058,7 @@ function drawCharts(held, ys) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: isAgentChart ? '58%' : '60%',
+      cutout: isAgentChart ? '56%' : '58%',
       layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
       plugins: {
         legend: {
