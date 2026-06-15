@@ -6,47 +6,67 @@
 <title>股票庫存儀表板</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  /* ===== 主題：Report 系 ===== */
+  /* ===== 主題 ===== */
   :root,
-  [data-theme="report-navy"] {                 /* 藍灰月報：預設 */
-    --bg: #eef2f6; --card: #ffffff; --border: #d6dee8;
-    --text: #172033; --muted: #667085;
-    --title: #101828; --title-accent: #2563eb; --title-glow: none;
-    --label: #475467; --value: #101828;
-    --up: #b42318; --down: #027a48; --accent: #344054;
-    --row-hover: rgba(52,64,84,.055);
-    --total-bg: rgba(52,64,84,.05);
-    --shadow: 0 2px 10px rgba(16,24,40,.07);
+  [data-theme="ocean"] {                       /* 🌊 海洋藍:預設(清新淺色) */
+    --bg: #eef4fb; --card: #ffffff; --border: #d4e2f0;
+    --text: #15324a; --muted: #6b8299;
+    --title: #0c2840; --title-accent: #0ea5e9; --title-glow: 0 0 16px rgba(14,165,233,.5), 0 0 32px rgba(14,165,233,.22);
+    --label: #44627c; --value: #0c2840;
+    --up: #e11d48; --down: #0d9488; --accent: #0284c7;
+    --row-hover: rgba(2,132,199,.06);
+    --total-bg: rgba(2,132,199,.07);
+    --shadow: 0 2px 14px rgba(13,40,64,.09);
   }
-  [data-theme="report"] {                      /* 米白報告 */
-    --bg: #f4efe6; --card: #fffaf0; --border: #d8cbb7;
-    --text: #2b241b; --muted: #7a6a55;
-    --title: #3b2f22; --title-accent: #b54708; --title-glow: none;
-    --label: #5f4b32; --value: #20170f;
-    --up: #b42318; --down: #067647; --accent: #8b5e34;
-    --row-hover: rgba(139,94,52,.06);
-    --total-bg: rgba(139,94,52,.055);
-    --shadow: 0 2px 8px rgba(80,60,30,.08);
+  [data-theme="coral"] {                       /* 🌅 珊瑚暖陽(溫暖淺色) */
+    --bg: #fff4ee; --card: #fffaf6; --border: #f5d9c8;
+    --text: #4a2f26; --muted: #a07a68;
+    --title: #7c3a1d; --title-accent: #f97316; --title-glow: 0 0 16px rgba(249,115,22,.5), 0 0 32px rgba(251,113,133,.22);
+    --label: #8a5a44; --value: #3d241b;
+    --up: #e0394e; --down: #0f9d76; --accent: #f97316;
+    --row-hover: rgba(249,115,22,.06);
+    --total-bg: rgba(249,115,22,.08);
+    --shadow: 0 2px 14px rgba(180,90,50,.12);
   }
-  [data-theme="report-green"] {                /* 墨綠年報 */
-    --bg: #eef3ec; --card: #fbfdf8; --border: #cfdccc;
-    --text: #1f2a1f; --muted: #66785f;
-    --title: #14532d; --title-accent: #047857; --title-glow: none;
-    --label: #3f5f3a; --value: #132118;
-    --up: #b42318; --down: #047857; --accent: #3f6212;
-    --row-hover: rgba(63,98,18,.06);
-    --total-bg: rgba(63,98,18,.055);
-    --shadow: 0 2px 8px rgba(40,70,40,.08);
+  [data-theme="matcha"] {                      /* 🌿 抹茶清新(自然淺色) */
+    --bg: #eef4ec; --card: #fbfdf9; --border: #d3e2cc;
+    --text: #25352a; --muted: #6f8772;
+    --title: #1f3a2a; --title-accent: #16a34a; --title-glow: 0 0 16px rgba(22,163,74,.48), 0 0 32px rgba(22,163,74,.2);
+    --label: #46604c; --value: #1c2c22;
+    --up: #d6443b; --down: #15803d; --accent: #4d7c45;
+    --row-hover: rgba(77,124,69,.07);
+    --total-bg: rgba(77,124,69,.08);
+    --shadow: 0 2px 14px rgba(40,70,45,.09);
   }
-  [data-theme="report-warm"] {                 /* 暖灰週報 */
-    --bg: #f5f1eb; --card: #fffdf8; --border: #ddd3c4;
-    --text: #292524; --muted: #78716c;
-    --title: #3f2e1f; --title-accent: #a16207; --title-glow: none;
-    --label: #5f5147; --value: #1c1917;
-    --up: #be123c; --down: #15803d; --accent: #a16207;
-    --row-hover: rgba(161,98,7,.06);
-    --total-bg: rgba(161,98,7,.055);
-    --shadow: 0 2px 8px rgba(80,60,40,.07);
+  [data-theme="midnight"] {                    /* 🌌 午夜金(典雅深色) */
+    --bg: #0d1424; --card: #15203a; --border: #2a3a57;
+    --text: #e8edf7; --muted: #93a3c0;
+    --title: #f5f0e1; --title-accent: #e0b34d; --title-glow: 0 0 18px rgba(224,179,77,.72), 0 0 40px rgba(224,179,77,.32);
+    --label: #b8c4dc; --value: #f3f6fc;
+    --up: #ff6b81; --down: #34d399; --accent: #d4a843;
+    --row-hover: rgba(224,179,77,.08);
+    --total-bg: rgba(224,179,77,.11);
+    --shadow: 0 8px 30px rgba(0,0,0,.42);
+  }
+  [data-theme="sailor"] {                      /* 🌙 美少女:水手月亮 藍/紅/白/金 */
+    --bg: #f4f2fc; --card: #ffffff; --border: #e0dcf2;
+    --text: #25224d; --muted: #837fa8;
+    --title: #1e3a8a; --title-accent: #eab308; --title-glow: 0 0 16px rgba(234,179,8,.6), 0 0 30px rgba(43,63,158,.3);
+    --label: #574f86; --value: #1e1b40;
+    --up: #e11d48; --down: #0ea5a4; --accent: #2b3f9e;
+    --row-hover: rgba(43,63,158,.07);
+    --total-bg: rgba(43,63,158,.09);
+    --shadow: 0 4px 16px rgba(70,60,140,.16);
+  }
+  [data-theme="cute"] {                        /* 馬卡龍粉嫩 */
+    --bg: #fef6fb; --card: #fffafd; --border: #f6dbe8;
+    --text: #5b4a55; --muted: #b291a3;
+    --title: #6b4a5e; --title-accent: #ff8fb8; --title-glow: 0 0 16px rgba(255,143,184,.6), 0 0 30px rgba(255,143,184,.28);
+    --label: #8a6b7a; --value: #4a3a44;
+    --up: #f0688f; --down: #2bb39a; --accent: #ff8fb4;
+    --row-hover: rgba(255,143,184,.10);
+    --total-bg: rgba(255,143,184,.13);
+    --shadow: 0 4px 16px rgba(244,143,177,.18);
   }
   [data-theme="agent"] {                       /* Agent Skills：霓虹網格 */
     --bg: #05060f; --card: rgba(16,19,33,.78); --border: rgba(139,92,246,.34);
@@ -73,11 +93,37 @@
       radial-gradient(circle at 50% 38%, #0b0d1d 0%, #06070f 68%, #020308 100%);
     background-size: auto, auto, auto, 40px 40px, 40px 40px, auto;
   }
+  /* 馬卡龍:柔和粉嫩光暈背景 + 大圓角,整體更可愛 */
+  [data-theme="cute"] body::before {
+    opacity: 1;
+    background:
+      radial-gradient(circle at 15% 8%, rgba(255,158,196,.20), transparent 42%),
+      radial-gradient(circle at 85% 14%, rgba(143,224,200,.18), transparent 44%),
+      radial-gradient(circle at 50% 112%, rgba(185,167,255,.16), transparent 55%);
+  }
+  [data-theme="cute"] .card { border-radius: 22px; }
+  [data-theme="cute"] .panel { border-radius: 22px; }
+  [data-theme="cute"] .btn { border-radius: 16px; }
+  [data-theme="cute"] .title-input { border-radius: 16px; }
+  [data-theme="cute"] .view-tabs { border-radius: 20px; }
+  [data-theme="cute"] .tab-btn { border-radius: 16px; }
+  [data-theme="cute"] .tab-btn.active { box-shadow: 0 6px 16px rgba(244,143,177,.35); }
+  [data-theme="cute"] .card:hover { transform: translateY(-2px); transition: transform .18s ease; }
+  [data-theme="cute"] .tag { background: rgba(255,143,184,.16); color: #d96a92; }
+  [data-theme="cute"] input.ed, [data-theme="cute"] select.ed { border-radius: 10px; }
   .container { max-width: 1280px; margin: 0 auto; }
   [data-theme="agent"] .container { max-width: 1320px; }
   header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
   h1 { font-size: 22px; color: var(--title); display: flex; align-items: center; gap: 8px; min-width: 270px; line-height: 1.25; }
-  .brand-icon { color: var(--title-accent); filter: drop-shadow(0 0 8px rgba(47,111,237,.22)); }
+  .brand-icon { color: var(--title-accent); filter: drop-shadow(0 0 10px var(--title-accent)); }
+  /* 胖虎吉祥物頭像(圓形,跟主題主色描邊+光暈) */
+  img.mascot {
+    width: 42px; height: 42px; border-radius: 50%;
+    object-fit: cover; object-position: 50% 12%;
+    border: 2px solid var(--title-accent);
+    box-shadow: var(--title-glow);
+    background: #fff; vertical-align: middle; flex: 0 0 auto;
+  }
   .brand-title-text { color: var(--title); font-weight: 850; letter-spacing: .02em; text-shadow: var(--title-glow); }
   .title-input {
     width: min(420px, 62vw);
@@ -161,6 +207,13 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  /* 所有主題通用:滑過框框會浮起 + 主色描邊 + 加深陰影 */
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 30px rgba(20,30,50,.16);
   }
   [data-theme="agent"] .card {
     position: relative;
@@ -200,7 +253,8 @@
 
   .up { color: var(--up); } .down { color: var(--down); }
 
-  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .panel:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 28px rgba(20,30,50,.14); }
   [data-theme="agent"] .panel {
     border-radius: 16px;
     background:
@@ -230,6 +284,11 @@
   [data-theme="agent"] table { font-family: Consolas, "SFMono-Regular", "Cascadia Mono", "Microsoft JhengHei", monospace; }
   [data-theme="agent"] th { color: #8ea0c7; border-bottom-color: rgba(139,92,246,.28); }
   [data-theme="agent"] td { border-bottom-color: rgba(139,92,246,.12); }
+  /* 🌌 午夜金:深色下的表格線、輸入框、tag 微調 */
+  [data-theme="midnight"] th { border-bottom-color: rgba(224,179,77,.28); }
+  [data-theme="midnight"] td { border-bottom-color: rgba(255,255,255,.07); }
+  [data-theme="midnight"] .tag { background: rgba(224,179,77,.14); color: #e7c66e; }
+  [data-theme="midnight"] input.ed, [data-theme="midnight"] select.ed { background: rgba(13,20,36,.85); border-color: #2a3a57; }
   th:nth-child(-n+3), td:nth-child(-n+3) { text-align: left; }
   tr:hover td { background: var(--row-hover); }
   tr.total td { font-weight: 700; border-top: 2px solid var(--border); background: var(--total-bg); }
@@ -412,10 +471,12 @@
         <div class="select-group">
           <span class="toolbar-label">頁面</span>
           <select class="btn" id="theme-sel" title="切換頁面風格">
-            <option value="report-navy">📘 藍灰月報</option>
-            <option value="report">📄 米白報告</option>
-            <option value="report-green">📗 墨綠年報</option>
-            <option value="report-warm">☕ 暖灰週報</option>
+            <option value="ocean">🌊 海洋藍</option>
+            <option value="coral">🌅 珊瑚暖陽</option>
+            <option value="matcha">🌿 抹茶清新</option>
+            <option value="midnight">🌌 午夜金</option>
+            <option value="cute">🍡 馬卡龍</option>
+            <option value="sailor">🌙 美少女</option>
             <option value="agent">🧬 Agent Neon</option>
           </select>
         </div>
@@ -423,10 +484,12 @@
           <span class="toolbar-label">圖表</span>
           <select class="btn" id="chart-style-sel" title="切換圖表風格">
             <option value="match">跟隨頁面</option>
-            <option value="report-navy">📘 藍灰月報</option>
-            <option value="report">📄 米白報告</option>
-            <option value="report-green">📗 墨綠年報</option>
-            <option value="report-warm">☕ 暖灰週報</option>
+            <option value="ocean">🌊 海洋藍</option>
+            <option value="coral">🌅 珊瑚暖陽</option>
+            <option value="matcha">🌿 抹茶清新</option>
+            <option value="midnight">🌌 午夜金</option>
+            <option value="cute">🍡 馬卡龍</option>
+            <option value="sailor">🌙 美少女</option>
             <option value="agent">🧬 Agent Neon</option>
           </select>
         </div>
@@ -559,8 +622,8 @@ function render() {
   d.title = title;
   document.title = title;
   document.getElementById('dashboard-title').innerHTML = E
-    ? `<span class="brand-icon">📊</span><input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
-    : `<span class="brand-icon">📊</span><span class="brand-title-text">${esc(title)}</span>`;
+    ? `<img class="brand-icon mascot" src="panghu.png" alt="胖虎" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))"><input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
+    : `<img class="brand-icon mascot" src="panghu.png" alt="胖虎" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))"><span class="brand-title-text">${esc(title)}</span>`;
 
   document.getElementById('updated').textContent = '更新日期:' + (d.updated || '-');
   const puEl = document.getElementById('price-updated');
@@ -698,27 +761,37 @@ function render() {
 }
 
 let pieChart, costPlChart, barChart, plChart;
-const THEME_KEYS = ['report-navy', 'report', 'report-green', 'report-warm', 'agent'];
+const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent'];
 const CHART_PALETTES = {
-  'report-navy': {
-    name: '藍灰月報',
-    slices: ['#344054', '#b42318', '#027a48', '#475467', '#7a5c3a', '#98a2b3'],
-    gain: '#b42318', loss: '#027a48', dividend: '#b54708', grid: 'rgba(102,112,133,.18)'
+  'ocean': {
+    name: '海洋藍',
+    slices: ['#0284c7', '#e11d48', '#0d9488', '#7c3aed', '#f59e0b', '#64748b'],
+    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)'
   },
-  'report': {
-    name: '米白報告',
-    slices: ['#8b5e34', '#b42318', '#067647', '#a16207', '#57534e', '#c8b69c'],
-    gain: '#b42318', loss: '#067647', dividend: '#8b5e34', grid: 'rgba(122,106,85,.20)'
+  'coral': {
+    name: '珊瑚暖陽',
+    slices: ['#f97316', '#e0394e', '#0f9d76', '#d97706', '#fb7185', '#a8a29e'],
+    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)'
   },
-  'report-green': {
-    name: '墨綠年報',
-    slices: ['#3f6212', '#b42318', '#047857', '#66785f', '#854d0e', '#a8b99f'],
-    gain: '#b42318', loss: '#047857', dividend: '#854d0e', grid: 'rgba(102,120,95,.20)'
+  'matcha': {
+    name: '抹茶清新',
+    slices: ['#4d7c45', '#d6443b', '#15803d', '#7c9a3f', '#a16207', '#9ca99b'],
+    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)'
   },
-  'report-warm': {
-    name: '暖灰週報',
-    slices: ['#a16207', '#be123c', '#15803d', '#78716c', '#92400e', '#d6c4af'],
-    gain: '#be123c', loss: '#15803d', dividend: '#a16207', grid: 'rgba(120,113,108,.20)'
+  'midnight': {
+    name: '午夜金',
+    slices: ['#e0b34d', '#ff6b81', '#34d399', '#60a5fa', '#c084fc', '#94a3b8'],
+    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)'
+  },
+  'cute': {
+    name: '馬卡龍',
+    slices: ['#ff9ec4', '#8fe0c8', '#ffd98c', '#b9a7ff', '#9fd0ff', '#ffc2a0'],
+    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)'
+  },
+  'sailor': {
+    name: '美少女',
+    slices: ['#2b3f9e', '#e11d48', '#eab308', '#ec4899', '#0ea5a4', '#a78bdb'],
+    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)'
   },
   'agent': {
     name: 'Agent Neon',
@@ -729,9 +802,9 @@ const CHART_PALETTES = {
 
 function getChartStyleKey() {
   const selected = document.getElementById('chart-style-sel')?.value || 'match';
-  const theme = document.documentElement.dataset.theme || 'report-navy';
+  const theme = document.documentElement.dataset.theme || 'ocean';
   const key = selected === 'match' ? theme : selected;
-  return CHART_PALETTES[key] ? key : 'report-navy';
+  return CHART_PALETTES[key] ? key : 'ocean';
 }
 
 const centerTextPlugin = {
@@ -936,7 +1009,8 @@ function drawCharts(held, ys) {
   const text = v('--text');
   const card = v('--card');
   const border = v('--border');
-  const tooltipBg = isAgentChart ? 'rgba(7,10,22,.99)' : (styleKey === 'report' ? '#fffaf0' : '#ffffff');
+  const isDarkChart = styleKey === 'agent' || styleKey === 'midnight';
+  const tooltipBg = isAgentChart ? 'rgba(7,10,22,.99)' : (styleKey === 'midnight' ? 'rgba(18,27,48,.98)' : '#ffffff');
   const tooltipBorder = isAgentChart ? 'rgba(53,213,255,.72)' : border;
   const chartFont = isAgentChart
     ? 'Trebuchet MS, Segoe UI, Microsoft JhengHei, sans-serif'
@@ -1826,7 +1900,7 @@ document.getElementById('hide-zero').addEventListener('change', () => DATA && re
 
 /* ---------- 主題 / 圖表風格 ---------- */
 function applyTheme(t) {
-  if (!THEME_KEYS.includes(t)) t = 'report-navy';
+  if (!THEME_KEYS.includes(t)) t = 'ocean';
   document.documentElement.dataset.theme = t;
   document.getElementById('theme-sel').value = t;
   try { localStorage.setItem('pf-theme', t); } catch (e) {}
@@ -1840,7 +1914,7 @@ function applyChartStyle(t) {
 }
 document.getElementById('theme-sel').addEventListener('change', e => applyTheme(e.target.value));
 document.getElementById('chart-style-sel').addEventListener('change', e => applyChartStyle(e.target.value));
-applyTheme(localStorage.getItem('pf-theme') || 'report-navy');
+applyTheme(localStorage.getItem('pf-theme') || 'ocean');
 applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
 
 /* ---------- 啟動 ----------
