@@ -18,7 +18,9 @@
       "cost": 1707.96,
       "price": 2375,
       "lots": 2.33,
-      "priceTime": "2026-06-15 14:16"
+      "priceTime": "2026-06-15 14:16",
+      "target": 3000,
+      "stop": 1800
     },
     {
       "type": "ETF",
@@ -27,7 +29,9 @@
       "cost": 16.18,
       "price": 31.47,
       "lots": 160,
-      "priceTime": "2026-06-15 14:16"
+      "priceTime": "2026-06-15 14:16",
+      "target": 45,
+      "stop": 18
     }
   ],
   "account": {
