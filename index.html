@@ -2211,12 +2211,19 @@ applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
   }, { passive: true });
 })();
 
-/* ---------- 啟動畫面(splash):載入完成或最多 3 秒後收起 ---------- */
+/* ---------- 啟動畫面(splash):至少停留 SPLASH_MIN,載入完成後再收起 ---------- */
+const SPLASH_MIN = 1800;             // 最少停留毫秒(想更久就調大)
+const splashStart = Date.now();
 function hideSplash() {
   const s = document.getElementById('splash');
-  if (s && !s.classList.contains('hide')) { s.classList.add('hide'); setTimeout(() => { if (s.parentNode) s.remove(); }, 600); }
+  if (!s || s.classList.contains('hide')) return;
+  const wait = Math.max(0, SPLASH_MIN - (Date.now() - splashStart));
+  setTimeout(() => {
+    s.classList.add('hide');
+    setTimeout(() => { if (s.parentNode) s.remove(); }, 600);
+  }, wait);
 }
-setTimeout(hideSplash, 3000);
+setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
 
 /* ---------- 啟動 ----------
    1. fetch data.json(經 http 伺服器或同資料夾可讀時)

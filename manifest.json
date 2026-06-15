@@ -1,6 +1,6 @@
 {
   "name": "胖虎的小財庫",
-  "short_name": "小財庫",
+  "short_name": "胖虎的小財庫",
   "description": "股票庫存儀表板",
   "start_url": "./index.html",
   "scope": "./",
