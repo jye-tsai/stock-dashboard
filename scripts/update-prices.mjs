@@ -11,6 +11,22 @@ function readData() {
   return JSON.parse(fs.readFileSync(FILE, 'utf8'));
 }
 
+// 計算總成本 / 總市值 / 總報酬(與前端 compute 邏輯一致)
+function computeTotals(data) {
+  const f = data.fees || {};
+  const feeRate = f.feeRate || 0, feeDiscount = f.feeDiscount || 0, taxRates = f.taxRates || {};
+  let cost = 0, mv = 0, unreal = 0;
+  for (const h of (data.holdings || [])) {
+    const c = Math.round((h.cost || 0) * 1000 * (h.lots || 0));
+    const m = Math.round((h.price || 0) * 1000 * (h.lots || 0));
+    const taxRate = taxRates[h.type] ?? 0.003;
+    const sellCost = Math.round(m * (taxRate + feeRate * feeDiscount));
+    cost += c; mv += m; unreal += m - c - sellCost;
+  }
+  const realized = data['已實現損益'] || 0, dividend = data['股息收入'] || 0;
+  return { cost, mv, totalReturn: unreal + realized + dividend };
+}
+
 // 台北時間戳,例:2026-06-15 12:16
 function taipeiStamp() {
   const p = Object.fromEntries(
@@ -137,8 +153,19 @@ async function main() {
   if (liveHit > 0 || changed > 0) {
     data.updated = stamp.slice(0, 10);
     data.priceUpdated = stamp;     // 最後成功抓到即時價的時間 → 判斷是否真的在即時更新
+
+    // 記錄每日資產走勢(同一天只留最新一筆,供前端畫淨值曲線)
+    const tot = computeTotals(data);
+    const day = stamp.slice(0, 10);
+    data.history = Array.isArray(data.history) ? data.history : [];
+    const entry = { date: day, mv: tot.mv, cost: tot.cost, ret: tot.totalReturn };
+    const last = data.history[data.history.length - 1];
+    if (last && last.date === day) data.history[data.history.length - 1] = entry;
+    else data.history.push(entry);
+    if (data.history.length > 400) data.history = data.history.slice(-400);
+
     fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-    console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔(${stamp})`);
+    console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
   } else {
     console.log('完全沒抓到即時價,維持原狀不寫檔(時間戳不前進=即時來源不通)');
   }

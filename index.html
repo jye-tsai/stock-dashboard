@@ -526,6 +526,13 @@
         </div>
       </div>
 
+      <div class="panel full-panel">
+        <h2>資產走勢</h2>
+        <div class="chart-subtitle">每日總市值與總報酬（由 GitHub Action 每天收盤累積）</div>
+        <div class="chart-box"><canvas id="nav"></canvas></div>
+        <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
+      </div>
+
       <div class="panel full-panel pl-panel">
         <h2>持股損益</h2>
         <div class="chart-subtitle">各持股未實現損益（已扣賣出稅費）</div>
@@ -591,6 +598,30 @@ const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
 const sign = n => n > 0 ? '+' : '';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
+/* ---------- 數字跳動動畫 ---------- */
+const countCache = {};
+function animateCounts() {
+  document.querySelectorAll('#cards .value[data-count]').forEach(el => {
+    const to = parseFloat(el.dataset.count) || 0;
+    const signed = el.dataset.signed === '1';
+    const key = el.dataset.key;
+    const from = (key in countCache) ? countCache[key] : 0;
+    countCache[key] = to;
+    const finalText = (signed ? sign(to) : '') + fmt(to);
+    if (from === to) { el.textContent = finalText; return; }   // 值沒變(如換主題)就不重播
+    const dur = 650, t0 = performance.now();
+    const ease = x => 1 - Math.pow(1 - x, 3);
+    const tick = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      const v = from + (to - from) * ease(p);
+      el.textContent = (signed ? sign(v) : '') + fmt(v);
+      if (p < 1) requestAnimationFrame(tick);
+      else el.textContent = finalText;
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 /* ---------- 計算 ---------- */
 function compute(d) {
   const f = d.fees;
@@ -635,20 +666,25 @@ function render() {
 
   // 摘要卡片(編輯模式下 已實現損益/股息收入 可改)
   const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
+  // [label, 顯示值, 著色值, 副標, 原始數值, 是否帶正負號]
   const cards = [
-    ['總市值', fmt(t.mv), null, null],
-    ['總成本', fmt(t.costAmt), null, null],
-    ['未實現損益', sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0)],
-    ['已實現損益', E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null],
-    ['股息收入', E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null],
-    ['總損益', sign(totalPL) + fmt(totalPL), totalPL, null]
+    ['總市值', fmt(t.mv), null, null, t.mv, false],
+    ['總成本', fmt(t.costAmt), null, null, t.costAmt, false],
+    ['未實現損益', sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0), t.unrealized, true],
+    ['已實現損益', E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null, realized, true],
+    ['股息收入', E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
+    ['總損益', sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
   ];
-  document.getElementById('cards').innerHTML = cards.map(([label, val, colorVal, sub]) => `
+  document.getElementById('cards').innerHTML = cards.map(([label, val, colorVal, sub, raw, signed]) => {
+    const cnt = String(val).includes('<input') ? '' : ` data-count="${raw}" data-signed="${signed ? 1 : 0}" data-key="${label}"`;
+    return `
     <div class="card">
       <div class="label">${label}</div>
-      <div class="value ${colorVal === null ? '' : cls(colorVal)}">${val}</div>
+      <div class="value ${colorVal === null ? '' : cls(colorVal)}"${cnt}>${val}</div>
       ${sub ? `<div class="sub ${cls(colorVal)}">${sub}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  animateCounts();
 
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
@@ -760,7 +796,7 @@ function render() {
   restoreActiveTab();
 }
 
-let pieChart, costPlChart, barChart, plChart;
+let pieChart, costPlChart, barChart, plChart, navChart;
 const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent'];
 const CHART_PALETTES = {
   'ocean': {
@@ -1461,6 +1497,67 @@ function drawCharts(held, ys) {
     },
     plugins: [barHoverGlowPlugin, barTotalLabelPlugin]
   });
+
+  // 資產走勢:每日總市值 + 總報酬(折線)
+  const navCanvas = document.getElementById('nav');
+  const navBox = navCanvas ? navCanvas.closest('.chart-box') : null;
+  const navEmpty = document.getElementById('nav-empty');
+  const hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date).slice(-180);
+  if (navChart) { navChart.destroy(); navChart = null; }
+  if (!hist.length) {
+    if (navBox) navBox.style.display = 'none';
+    if (navEmpty) navEmpty.style.display = 'block';
+  } else if (navCanvas) {
+    if (navBox) navBox.style.display = '';
+    if (navEmpty) navEmpty.style.display = 'none';
+    const navLabels = hist.map(p => String(p.date).slice(5));
+    const mvData = hist.map(p => Number(p.mv) || 0);
+    const retData = hist.map(p => Number(p.ret) || 0);
+    const many = hist.length > 60;
+    navChart = new Chart(navCanvas, {
+      type: 'line',
+      data: {
+        labels: navLabels,
+        datasets: [
+          {
+            label: '總市值', data: mvData, borderColor: palette.slices[0],
+            backgroundColor: c => {
+              const area = c.chart.chartArea; if (!area) return 'transparent';
+              const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+              g.addColorStop(0, palette.slices[0] + '44'); g.addColorStop(1, palette.slices[0] + '05');
+              return g;
+            },
+            borderWidth: 2.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
+          },
+          {
+            label: '總報酬', data: retData, borderColor: palette.dividend,
+            borderWidth: 2, borderDash: [5, 4], fill: false, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
+          y: {
+            border: { display: false },
+            grid: { color: palette.grid, drawTicks: false },
+            ticks: { color: muted, padding: 8, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' }
+          }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
+          tooltip: {
+            backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+            borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
+            callbacks: { label: c => ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
+          }
+        }
+      }
+    });
+  }
 }
 
 function switchTab(tab) {
@@ -1470,8 +1567,10 @@ function switchTab(tab) {
   if (tab === 'overview') {
     setTimeout(() => {
       if (pieChart) pieChart.resize();
+      if (costPlChart) costPlChart.resize();
       if (barChart) barChart.resize();
       if (plChart) plChart.resize();
+      if (navChart) navChart.resize();
     }, 60);
   }
 }
