@@ -1,6 +1,5 @@
 {
   "updated": "2026-06-15",
-  "passwordHash": "dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d",
   "fees": {
     "feeRate": 0.001425,
     "feeDiscount": 0.4,
@@ -85,5 +84,11 @@
       "div": 116490,
       "ret": 4555142
     }
-  ]
+  ],
+  "auth": {
+    "alg": "PBKDF2-SHA256",
+    "salt": "iLQeAuWvRs7zAwuE/wo2Pw==",
+    "iter": 210000,
+    "hash": "gl65YOhsi3IO9omFPKw1Z5Bqec9tiPs3jcvHa7aq3yw="
+  }
 }
