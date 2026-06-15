@@ -2,8 +2,21 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>股票庫存儀表板</title>
+<!-- PWA:可安裝到手機主畫面、全螢幕、離線 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0284c7">
+<link rel="apple-touch-icon" href="panghu-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="小財庫">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   /* ===== 主題 ===== */
@@ -291,6 +304,19 @@
   [data-theme="midnight"] input.ed, [data-theme="midnight"] select.ed { background: rgba(13,20,36,.85); border-color: #2a3a57; }
   th:nth-child(-n+3), td:nth-child(-n+3) { text-align: left; }
   tr:hover td { background: var(--row-hover); }
+  th.th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.th-sort:hover { color: var(--accent); }
+  .nav-range .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  /* 持股列展開 + 目標/停損 到價標記 */
+  tr.hold-row { cursor: pointer; }
+  tr.hit-target td:first-child { box-shadow: inset 4px 0 0 #eab308; }
+  tr.hit-stop td:first-child { box-shadow: inset 4px 0 0 #ef4444; }
+  tr.hold-detail td { background: var(--total-bg); text-align: left; white-space: normal; font-size: 12.5px; padding: 10px 14px; }
+  tr.hold-detail:hover td { background: var(--total-bg); }
+  .d-stat { display: inline-flex; align-items: center; gap: 6px; margin: 2px 20px 2px 0; }
+  .d-stat .ed { width: 90px; }
+  .d-k { color: var(--muted); }
+  .d-v { font-weight: 700; }
   tr.total td { font-weight: 700; border-top: 2px solid var(--border); background: var(--total-bg); }
   tr.total td { text-align: right; }
   tr.total td:first-child { text-align: left; }
@@ -428,7 +454,18 @@
     body:not(.editing) .h-cards { display: grid; gap: 10px; }
   }
 
-  #loader { text-align: center; padding: 60px 20px; }
+  #loader { text-align: center; padding: 40px 20px; }
+  /* 載入骨架屏 + App 淡入過場 */
+  @keyframes skShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .skeleton-wrap { max-width: 1100px; margin: 0 auto; text-align: left; }
+  .sk { background: linear-gradient(90deg, var(--row-hover) 25%, var(--total-bg) 37%, var(--row-hover) 63%); background-size: 200% 100%; animation: skShimmer 1.3s ease-in-out infinite; border-radius: 12px; }
+  .sk-title { height: 26px; width: 220px; margin: 0 auto 20px; }
+  .sk-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .sk-card { height: 90px; }
+  .sk-chart { height: 260px; }
+  @media (max-width: 600px) { .sk-cards { grid-template-columns: repeat(2, 1fr); } .sk-chart { height: 200px; } }
+  @keyframes appFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  #app:not(.hidden) { animation: appFadeIn .4s ease both; }
   #loader p { color: var(--muted); margin-bottom: 16px; }
   .hidden { display: none; }
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--total-bg); color: var(--accent); }
@@ -457,7 +494,14 @@
 <body>
 <div class="container">
   <div id="loader">
-    <p>正在讀取 data.json… 若未自動載入，請點下方按鈕選檔。</p>
+    <div class="skeleton-wrap" aria-hidden="true">
+      <div class="sk sk-title"></div>
+      <div class="sk-cards">
+        <div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div>
+      </div>
+      <div class="sk sk-chart"></div>
+    </div>
+    <p style="margin-top:16px">正在讀取 data.json… 若未自動載入，請點下方按鈕選檔。</p>
     <p id="loader-hint" class="hidden">無法自動讀取(以 file:// 直接開啟時瀏覽器會阻擋)。<br>請選擇 data.json 檔案,或將檔案拖曳到此頁面。</p>
     <button class="btn" onclick="pickFile()">選擇 data.json</button>
     <input type="file" id="file-input" accept=".json" class="hidden">
@@ -527,8 +571,14 @@
       </div>
 
       <div class="panel full-panel">
-        <h2>資產走勢</h2>
-        <div class="chart-subtitle">每日總市值與總報酬（由 GitHub Action 每天收盤累積）</div>
+        <h2>資產走勢
+          <span class="nav-range" style="float:right;font-weight:400">
+            <button class="btn sm" data-r="30" onclick="setNavRange(30)">近1月</button>
+            <button class="btn sm primary" data-r="90" onclick="setNavRange(90)">近3月</button>
+            <button class="btn sm" data-r="0" onclick="setNavRange(0)">全部</button>
+          </span>
+        </h2>
+        <div class="chart-subtitle">總市值 / 未實現 / 總報酬（由 GitHub Action 每天收盤累積）</div>
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
       </div>
@@ -586,6 +636,24 @@
 <script>
 let DATA = null;
 let editMode = false;
+let holdSort = { key: null, dir: -1 };           // 持股表排序狀態
+let navRangeDays = 90;                            // 資產走勢顯示天數(0=全部)
+function sortHoldings(key) {
+  if (holdSort.key === key) holdSort.dir *= -1;
+  else { holdSort.key = key; holdSort.dir = -1; }
+  if (DATA) render();
+}
+function setNavRange(d) {
+  navRangeDays = d;
+  document.querySelectorAll('.nav-range .btn').forEach(b => b.classList.toggle('primary', Number(b.dataset.r) === d));
+  if (DATA) render();
+}
+// 點持股列展開/收合明細(點到輸入框/連結/按鈕時不觸發)
+function toggleHoldDetail(tr, ev) {
+  if (ev && ev.target.closest('input, select, button, a')) return;
+  const d = tr.nextElementSibling;
+  if (d && d.classList.contains('hold-detail')) d.style.display = d.style.display === 'none' ? '' : 'none';
+}
 let fsHandle = null;
 const DEFAULT_TITLE = '股票庫存儀表板';
 const EDIT_PASSWORD_SHA256 = 'dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d';
@@ -704,13 +772,29 @@ function render() {
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
   const types = Object.keys(d.fees.taxRates);
-  const head = ['類型','代號','名稱','成本','市價','張數','成本金額','市值','賣出(稅+費)','未實現損益','損益比例','成本比例','市值比例','更新時間'];
-  if (E) head.push('');
+  const cols = [['類型','type'],['代號','code'],['名稱','name'],['成本','cost'],['市價','price'],['張數','lots'],['成本金額','costAmt'],['市值','mv'],['賣出(稅+費)','sellCost'],['未實現損益','unrealized'],['損益比例','plRatio'],['成本比例','costPctOfTotal'],['市值比例','mvPctOfTotal'],['更新時間','priceTime']];
+  const headHtml = cols.map(([label, key]) => {
+    const arrow = holdSort.key === key ? (holdSort.dir < 0 ? ' ▼' : ' ▲') : '';
+    return `<th class="th-sort" onclick="sortHoldings('${key}')" title="點擊排序">${label}${arrow}</th>`;
+  }).join('') + (E ? '<th></th>' : '');
   const ptimeCell = r => `<td title="${r.priceTime ? esc(r.priceTime) : '尚未由 Action 更新'}" style="color:var(--muted);font-size:12px">${r.priceTime ? esc(r.priceTime.slice(5)) : '—'}</td>`;
+  // 排序(僅檢視模式;編輯模式維持原順序,避免欄位索引錯位)
+  if (holdSort.key && !E) {
+    const k = holdSort.key, dir = holdSort.dir;
+    rows.sort((a, b) => {
+      const va = a[k], vb = b[k];
+      if (typeof va === 'string' || typeof vb === 'string') return dir * String(va == null ? '' : va).localeCompare(String(vb == null ? '' : vb), 'zh-Hant', { numeric: true });
+      return dir * ((va || 0) - (vb || 0));
+    });
+  }
   document.getElementById('holdings').innerHTML =
-    '<tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr>' +
+    '<tr>' + headHtml + '</tr>' +
     rows.map((r, i) => {
       if (hideZero && r.lots <= 0) return '';
+      const hitTarget = r.target > 0 && r.price >= r.target;
+      const hitStop = r.stop > 0 && r.price <= r.stop;
+      const hitClass = hitTarget ? 'hit-target' : hitStop ? 'hit-stop' : '';
+      const flag = hitTarget ? ' 🎯' : hitStop ? ' ⚠️' : '';
       const cells = E ? `
         <td><select class="ed narrow" data-path="holdings.${i}.type">${types.map(tp => `<option ${tp===r.type?'selected':''}>${tp}</option>`).join('')}</select></td>
         <td><input class="ed narrow" data-path="holdings.${i}.code" value="${esc(r.code)}"></td>
@@ -718,16 +802,32 @@ function render() {
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.cost" value="${r.cost}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
-        <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}</td>
+        <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
         <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
-      return `<tr>${cells}
+      const sellNet = r.mv - r.sellCost;
+      const colspan = cols.length + (E ? 1 : 0);
+      const dstat = (k, v) => `<span class="d-stat"><span class="d-k">${k}</span><span class="d-v">${v}</span></span>`;
+      let detailInner;
+      if (E) {
+        detailInner = `<span class="d-stat"><span class="d-k">🎯 目標價</span><input class="ed narrow" type="number" step="any" data-path="holdings.${i}.target" value="${r.target || ''}"></span>`
+          + `<span class="d-stat"><span class="d-k">⚠️ 停損價</span><input class="ed narrow" type="number" step="any" data-path="holdings.${i}.stop" value="${r.stop || ''}"></span>`
+          + dstat('賣出可拿回', fmt(sellNet));
+      } else {
+        const toT = r.target > 0 ? (r.price >= r.target ? '已達標 🎯' : '距目標 ' + pct((r.target - r.price) / r.price)) : '';
+        const toS = r.stop > 0 ? (r.price <= r.stop ? '已觸停損 ⚠️' : '距停損 ' + pct((r.price - r.stop) / r.price)) : '';
+        detailInner = dstat('賣出可拿回', fmt(sellNet))
+          + dstat('🎯 目標價', r.target > 0 ? `${fmt2(r.target)}　${toT}` : '—')
+          + dstat('⚠️ 停損價', r.stop > 0 ? `${fmt2(r.stop)}　${toS}` : '—');
+      }
+      return `<tr class="hold-row ${hitClass}" onclick="toggleHoldDetail(this, event)">${cells}
         <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td>${fmt(r.sellCost)}</td>
         <td class="${cls(r.unrealized)}">${sign(r.unrealized)}${fmt(r.unrealized)}</td>
         <td class="${cls(r.unrealized)}">${pct(r.plRatio)}</td>
         <td>${pct(r.costPctOfTotal)}</td><td>${pct(r.mvPctOfTotal)}</td>
         ${ptimeCell(r)}
         ${E ? `<td><button class="btn sm danger" onclick="delHolding(${i})">🗑</button></td>` : ''}
-      </tr>`;
+      </tr>
+      <tr class="hold-detail" style="display:${E ? '' : 'none'}"><td colspan="${colspan}">${detailInner}</td></tr>`;
     }).join('') +
     `<tr class="total"><td colspan="6">合計</td>
       <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td>${fmt(t.sellCost)}</td>
@@ -743,7 +843,7 @@ function render() {
       <div class="h-top">
         <span class="tag">${esc(r.type)}</span>
         <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
-        <span class="h-name">${esc(r.name)}</span>
+        <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}</span>
         <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
       </div>
       <div class="h-stats">
@@ -754,6 +854,8 @@ function render() {
         ${stat('未實現損益', sign(r.unrealized) + fmt(r.unrealized), cls(r.unrealized))}
         ${stat('市值比例', pct(r.mvPctOfTotal))}
         ${stat('更新時間', r.priceTime ? r.priceTime.slice(5) : '—')}
+        ${r.target > 0 ? stat('🎯 目標', fmt2(r.target) + (r.price >= r.target ? ' 已達' : '')) : ''}
+        ${r.stop > 0 ? stat('⚠️ 停損', fmt2(r.stop) + (r.price <= r.stop ? ' 觸及' : '')) : ''}
       </div>
     </div>`).join('') + `
     <div class="h-card h-total">
@@ -1520,7 +1622,8 @@ function drawCharts(held, ys) {
   const navCanvas = document.getElementById('nav');
   const navBox = navCanvas ? navCanvas.closest('.chart-box') : null;
   const navEmpty = document.getElementById('nav-empty');
-  const hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date).slice(-180);
+  let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date);
+  if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   if (navChart) { navChart.destroy(); navChart = null; }
   if (!hist.length) {
     if (navBox) navBox.style.display = 'none';

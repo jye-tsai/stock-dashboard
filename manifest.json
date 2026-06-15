@@ -1,0 +1,16 @@
+{
+  "name": "胖虎的小財庫",
+  "short_name": "小財庫",
+  "description": "股票庫存儀表板",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#05060f",
+  "theme_color": "#0284c7",
+  "icons": [
+    { "src": "panghu-icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "panghu-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "panghu-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
