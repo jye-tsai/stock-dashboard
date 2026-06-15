@@ -573,8 +573,9 @@ function render() {
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
   const types = Object.keys(d.fees.taxRates);
-  const head = ['類型','代號','名稱','成本','市價','張數','成本金額','市值','賣出(稅+費)','未實現損益','損益比例','成本比例','市值比例'];
+  const head = ['類型','代號','名稱','成本','市價','張數','成本金額','市值','賣出(稅+費)','未實現損益','損益比例','成本比例','市值比例','更新時間'];
   if (E) head.push('');
+  const ptimeCell = r => `<td title="${r.priceTime ? esc(r.priceTime) : '尚未由 Action 更新'}" style="color:var(--muted);font-size:12px">${r.priceTime ? esc(r.priceTime.slice(5)) : '—'}</td>`;
   document.getElementById('holdings').innerHTML =
     '<tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr>' +
     rows.map((r, i) => {
@@ -593,6 +594,7 @@ function render() {
         <td class="${cls(r.unrealized)}">${sign(r.unrealized)}${fmt(r.unrealized)}</td>
         <td class="${cls(r.unrealized)}">${pct(r.plRatio)}</td>
         <td>${pct(r.costPctOfTotal)}</td><td>${pct(r.mvPctOfTotal)}</td>
+        ${ptimeCell(r)}
         ${E ? `<td><button class="btn sm danger" onclick="delHolding(${i})">🗑</button></td>` : ''}
       </tr>`;
     }).join('') +
@@ -600,7 +602,7 @@ function render() {
       <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td>${fmt(t.sellCost)}</td>
       <td class="${cls(t.unrealized)}">${sign(t.unrealized)}${fmt(t.unrealized)}</td>
       <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
-      <td>100.00%</td><td>100.00%</td>${E ? '<td></td>' : ''}</tr>`;
+      <td>100.00%</td><td>100.00%</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
   // 持股卡片(手機檢視模式)
   const stat = (k, v, c2) => `<div class="h-stat"><span class="k">${k}</span><span class="v ${c2 || ''}">${v}</span></div>`;
@@ -620,6 +622,7 @@ function render() {
         ${stat('市值', fmt(r.mv))}
         ${stat('未實現損益', sign(r.unrealized) + fmt(r.unrealized), cls(r.unrealized))}
         ${stat('市值比例', pct(r.mvPctOfTotal))}
+        ${stat('更新時間', r.priceTime ? r.priceTime.slice(5) : '—')}
       </div>
     </div>`).join('') + `
     <div class="h-card h-total">
