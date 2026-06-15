@@ -2,13 +2,13 @@
 // 伺服器端沒有瀏覽器的 CORS 限制,所以可直接打證交所/櫃買/MIS。
 // 來源順序:MIS 即時價 → 證交所 OpenAPI 收盤 → 櫃買 OpenAPI 收盤,逐層補齊。
 import fs from 'node:fs';
- 
+
 const FILE = process.env.DATA_FILE || 'data.json';
- 
+
 function readData() {
   return JSON.parse(fs.readFileSync(FILE, 'utf8'));
 }
- 
+
 async function fetchJson(url, ms = 20000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -21,7 +21,7 @@ async function fetchJson(url, ms = 20000) {
     return await r.json();
   } finally { clearTimeout(timer); }
 }
- 
+
 // 來源 1:證交所 MIS 即時報價(上市 tse_ + 上櫃 otc_);z=成交 → pz → y=昨收
 async function fromMis(codes) {
   if (!codes.length) return {};
@@ -35,7 +35,7 @@ async function fromMis(codes) {
   });
   return map;
 }
- 
+
 // 來源 2:證交所 OpenAPI 上市每日收盤
 async function fromTwse() {
   const list = await fetchJson('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
@@ -43,7 +43,7 @@ async function fromTwse() {
   (list || []).forEach(s => { const p = parseFloat(s.ClosingPrice); if (p > 0) map[s.Code] = p; });
   return map;
 }
- 
+
 // 來源 3:櫃買中心 OpenAPI 上櫃每日收盤
 async function fromTpex() {
   const list = await fetchJson('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
@@ -55,17 +55,17 @@ async function fromTpex() {
   });
   return map;
 }
- 
+
 async function main() {
   const data = readData();
   const holdings = data.holdings || [];
   const codes = [...new Set(holdings.map(h => h.code).filter(Boolean))];
   if (!codes.length) { console.log('沒有可查詢的代號,結束。'); return; }
- 
+
   const prices = {};
   const remaining = () => codes.filter(c => !(prices[c] > 0));
   const merge = m => { for (const k in (m || {})) if (m[k] > 0 && !(prices[k] > 0)) prices[k] = m[k]; };
- 
+
   const steps = [
     ['MIS 即時價', () => fromMis(remaining())],
     ['證交所收盤', fromTwse],
@@ -76,7 +76,7 @@ async function main() {
     try { merge(await fn()); console.log(`${name}: OK,已取得 ${Object.keys(prices).length}/${codes.length}`); }
     catch (e) { console.log(`${name}: 失敗(${e.message})`); }
   }
- 
+
   let changed = 0;
   for (const h of holdings) {
     if (h.code && prices[h.code] > 0 && h.price !== prices[h.code]) {
@@ -86,7 +86,7 @@ async function main() {
   }
   const missing = codes.filter(c => !(prices[c] > 0));
   if (missing.length) console.log('查不到:', missing.join('、'));
- 
+
   if (changed > 0) {
     // 台北時間時間戳,例:2026-06-15 13:45
     const stamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei', hour12: false }).slice(0, 16);
@@ -98,4 +98,5 @@ async function main() {
     console.log('市價無變動,不寫檔。');
   }
 }
- 
+
+main().catch(e => { console.error('執行失敗:', e); process.exit(1); });
