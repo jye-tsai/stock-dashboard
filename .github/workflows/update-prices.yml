@@ -1,0 +1,43 @@
+name: 更新台股市價
+
+# 1) 定時:台股交易時段(台北 09:00–14:00 = UTC 01:00–06:00)每 30 分跑一次
+# 2) 手動:可在 GitHub 的 Actions 分頁按「Run workflow」,或由儀表板的「更新市價」鈕觸發
+on:
+  schedule:
+    - cron: '*/30 1-6 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出 repo
+        uses: actions/checkout@v4
+
+      - name: 安裝 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 抓取最新市價並寫回 data.json
+        run: node scripts/update-prices.mjs
+
+      - name: 有變動才 commit
+        run: |
+          if [ -n "$(git status --porcelain data.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data.json
+            git commit -m "自動更新市價 $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+            git push
+            echo "已更新並推送 data.json"
+          else
+            echo "data.json 無變動,略過 commit"
+          fi
