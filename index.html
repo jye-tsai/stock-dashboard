@@ -568,6 +568,7 @@
         <button class="btn hidden auth-only" id="load-btn" onclick="pickFile()">載入 JSON</button>
         <button class="btn hidden auth-only" id="gh-btn" onclick="openGhModal()">⚙️ GitHub</button>
         <button class="btn hidden auth-only" id="price-btn" onclick="updatePrices()">📈 更新市價</button>
+        <button class="btn hidden auth-only" id="pwd-btn" onclick="setPassword()">🔑 設定密碼</button>
         <button class="btn hidden auth-only" id="logout-btn" onclick="lockUI()">🚪 登出</button>
       </div>
     </header>
@@ -1742,6 +1743,41 @@ async function sha256Text(text) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* ---------- 密碼:PBKDF2-SHA256 + 隨機鹽(相容舊版 SHA-256) ---------- */
+const PBKDF2_ITER = 210000;
+const b64enc = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
+const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function pbkdf2Hash(pwd, saltBytes, iter) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pwd), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: iter, hash: 'SHA-256' }, km, 256);
+  return b64enc(bits);
+}
+async function verifyPassword(pwd) {
+  const a = DATA && DATA.auth;
+  if (a && a.salt && a.hash) {
+    try { return (await pbkdf2Hash(pwd, b64dec(a.salt), a.iter || PBKDF2_ITER)) === a.hash; }
+    catch (e) { return false; }
+  }
+  // 舊版相容:無加鹽 SHA-256
+  const expected = (DATA && DATA.passwordHash) || EDIT_PASSWORD_SHA256;
+  try { return (await sha256Text(pwd)) === expected; } catch (e) { return false; }
+}
+// 設定新密碼:升級為 PBKDF2 並移除舊的弱雜湊
+async function setPassword() {
+  if (!isUnlocked() && !(await verifyEditPassword())) return;
+  const p1 = prompt('輸入新密碼(至少 6 碼)');
+  if (p1 === null) return;
+  if (p1.length < 6) { alert('密碼至少 6 碼'); return; }
+  if (prompt('再輸入一次新密碼') !== p1) { alert('兩次輸入不一致'); return; }
+  try {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    DATA.auth = { alg: 'PBKDF2-SHA256', salt: b64enc(salt), iter: PBKDF2_ITER, hash: await pbkdf2Hash(p1, salt, PBKDF2_ITER) };
+    delete DATA.passwordHash;
+    cache();
+    toast('✅ 密碼已更新,記得按「💾 儲存 JSON」寫回');
+  } catch (e) { alert('此瀏覽器不支援加密 API,無法設定。'); }
+}
+
 async function verifyEditPassword() {
   try {
     const unlockedUntil = Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0);
@@ -1751,19 +1787,11 @@ async function verifyEditPassword() {
   const pwd = prompt('請輸入編輯密碼');
   if (pwd === null) return false;
 
-  try {
-    const hashed = await sha256Text(pwd);
-    // 優先用 data.json 的 passwordHash,沒有才用上面的預設值
-    const expected = (DATA && DATA.passwordHash) || EDIT_PASSWORD_SHA256;
-    if (hashed === expected) {
-      try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) {}
-      updateAuthUI();
-      return true;
-    }
-  } catch (e) {
-    // 若瀏覽器不支援 Web Crypto，退回不啟用編輯。
+  if (await verifyPassword(pwd)) {
+    try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) {}
+    updateAuthUI();
+    return true;
   }
-
   alert('密碼錯誤。');
   return false;
 }
