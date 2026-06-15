@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-12",
+  "updated": "2026-06-15",
   "passwordHash": "dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d",
   "fees": {
     "feeRate": 0.001425,
@@ -16,7 +16,7 @@
       "code": "2330",
       "name": "台積電",
       "cost": 1707.96,
-      "price": 2310,
+      "price": 2355,
       "lots": 2.33
     },
     {
@@ -24,7 +24,7 @@
       "code": "00981A",
       "name": "主動統一台股增長",
       "cost": 16.18,
-      "price": 30.6,
+      "price": 31.48,
       "lots": 160
     }
   ],
