@@ -1,8 +1,8 @@
-// 在 GitHub Action 的伺服器端執行:抓台股市價 → 寫回 data.json。
-// 原則(避免價格來回跳/被還原):
-//   - 即時成交價(MIS 的 z/pz)優先,而且「只有即時價能覆蓋現有價格」。
-//   - 收盤價/昨收只用來「補目前沒有價格的新標的」或「收盤後結算」。
-//   - 盤中若某檔抓不到即時價,就維持原價不動,絕不用較舊的收盤/昨收蓋掉。
+// 在 GitHub Action 的伺服器端執行:抓台股「即時價」→ 寫回 data.json。
+// 即時來源:Yahoo(regularMarketPrice)優先 → 證交所 MIS(z/pz)補。
+// 時間戳:只要這次有抓到即時價,就更新 priceUpdated 與該檔 priceTime(就算價格沒變),
+//         所以「時間有沒有前進」可用來判斷即時更新是否真的在運作。
+// 防還原:只有即時價能覆蓋現有價格;收盤價(OpenAPI)只用來初始化「完全沒有價格」的新標的。
 import fs from 'node:fs';
 
 const FILE = process.env.DATA_FILE || 'data.json';
@@ -11,23 +11,19 @@ function readData() {
   return JSON.parse(fs.readFileSync(FILE, 'utf8'));
 }
 
-// 台北時間:時間戳 + 是否盤中(週一~週五 09:00–13:30)
-function taipei() {
+// 台北時間戳,例:2026-06-15 12:16
+function taipeiStamp() {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Taipei', hour12: false,
       year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', weekday: 'short'
+      hour: '2-digit', minute: '2-digit'
     }).formatToParts(new Date()).map(x => [x.type, x.value])
   );
-  const stamp = `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
-  const mins = (+p.hour) * 60 + (+p.minute);
-  const weekday = !['Sat', 'Sun'].includes(p.weekday);
-  const marketOpen = weekday && mins >= 9 * 60 && mins <= 13 * 60 + 30;
-  return { stamp, marketOpen };
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
-async function fetchJson(url, ms = 20000) {
+async function fetchJson(url, ms = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -40,33 +36,45 @@ async function fetchJson(url, ms = 20000) {
   } finally { clearTimeout(timer); }
 }
 
-// MIS 即時報價:live = 即時成交(z 或 pz);prevClose = 昨收(y)
-async function fromMis(codes) {
-  const out = { live: {}, prevClose: {} };
-  if (!codes.length) return out;
-  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
-  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
-  const j = await fetchJson(url);
-  (j.msgArray || []).forEach(s => {
-    const live = parseFloat(s.z) || parseFloat(s.pz);   // 即時成交 / 最後揭示
-    const y = parseFloat(s.y);                          // 昨收
-    if (live > 0) out.live[s.c] = live;
-    if (y > 0) out.prevClose[s.c] = y;
-  });
-  return out;
+// 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價),先試上市 .TW 再試上櫃 .TWO
+async function fromYahoo(codes) {
+  const live = {};
+  for (const c of codes) {
+    for (const suf of ['.TW', '.TWO']) {
+      try {
+        const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`);
+        const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
+        const p = m && m.regularMarketPrice;
+        if (p > 0) { live[c] = p; break; }
+      } catch (e) {}
+    }
+  }
+  return live;
 }
 
-// 證交所 OpenAPI 上市每日收盤
+// 即時來源 2:證交所 MIS(z=成交 → pz=最後揭示;不取昨收 y,以免用舊價倒退)
+async function fromMis(codes) {
+  const live = {};
+  if (!codes.length) return live;
+  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
+  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
+  const j = await fetchJson(url, 15000);
+  (j.msgArray || []).forEach(s => {
+    const p = parseFloat(s.z) || parseFloat(s.pz);
+    if (p > 0) live[s.c] = p;
+  });
+  return live;
+}
+
+// 收盤價(只用來初始化「完全沒有價格」的新標的)
 async function fromTwse() {
-  const list = await fetchJson('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
+  const list = await fetchJson('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', 20000);
   const map = {};
   (list || []).forEach(s => { const p = parseFloat(s.ClosingPrice); if (p > 0) map[s.Code] = p; });
   return map;
 }
-
-// 櫃買中心 OpenAPI 上櫃每日收盤
 async function fromTpex() {
-  const list = await fetchJson('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
+  const list = await fetchJson('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes', 20000);
   const map = {};
   (list || []).forEach(s => {
     const code = s.SecuritiesCompanyCode || s.Code || s.code;
@@ -82,52 +90,57 @@ async function main() {
   const codes = [...new Set(holdings.map(h => h.code).filter(Boolean))];
   if (!codes.length) { console.log('沒有可查詢的代號,結束。'); return; }
 
-  const { stamp, marketOpen } = taipei();
-  console.log(`時間 ${stamp}(${marketOpen ? '盤中' : '非盤中'})`);
+  const stamp = taipeiStamp();
+  console.log(`時間 ${stamp}`);
 
-  // 1) 即時成交價(只有它能覆蓋現有價格)
-  let live = {}, prevClose = {};
+  // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的
+  const live = {};
   try {
-    const r = await fromMis(codes);
-    live = r.live; prevClose = r.prevClose;
-    console.log(`MIS 即時: 取得 ${Object.keys(live).length}/${codes.length}`);
-  } catch (e) { console.log(`MIS 失敗(${e.message})`); }
+    const y = await fromYahoo(codes);
+    Object.assign(live, y);
+    console.log(`Yahoo 即時: 取得 ${Object.keys(y).length}/${codes.length}`);
+  } catch (e) { console.log(`Yahoo 失敗(${e.message})`); }
 
-  // 2) 收盤價:只在「沒有即時價、且(非盤中要結算 或 目前完全沒有價格要初始化)」時才抓
-  const eodNeeded = h => h.code && !(live[h.code] > 0) && (!marketOpen || !(h.price > 0));
+  const misCodes = codes.filter(c => !(live[c] > 0));
+  if (misCodes.length) {
+    try {
+      const m = await fromMis(misCodes);
+      Object.assign(live, m);
+      console.log(`MIS 即時: 補抓 ${Object.keys(m).length}/${misCodes.length}`);
+    } catch (e) { console.log(`MIS 失敗(${e.message})`); }
+  }
+
+  // 只有「完全沒有價格、即時也沒抓到」的新標的,才用收盤價初始化
   let eod = {};
-  if (holdings.some(eodNeeded)) {
-    try { eod = await fromTwse(); console.log(`證交所收盤: ${Object.keys(eod).length} 檔`); }
-    catch (e) { console.log(`證交所收盤 失敗(${e.message})`); }
-    if (holdings.some(h => eodNeeded(h) && !(eod[h.code] > 0))) {
-      try { const t = await fromTpex(); for (const k in t) if (!(eod[k] > 0)) eod[k] = t[k]; console.log('已併入櫃買收盤'); }
-      catch (e) { console.log(`櫃買收盤 失敗(${e.message})`); }
+  const needInit = holdings.filter(h => h.code && !(h.price > 0) && !(live[h.code] > 0)).map(h => h.code);
+  if (needInit.length) {
+    try { eod = await fromTwse(); } catch (e) { console.log(`證交所收盤 失敗(${e.message})`); }
+    if (needInit.some(c => !(eod[c] > 0))) {
+      try { const t = await fromTpex(); for (const k in t) if (!(eod[k] > 0)) eod[k] = t[k]; } catch (e) {}
     }
   }
 
-  // 3) 套用:即時價優先;無即時價時,僅「非盤中」或「該檔尚無價格」才用收盤/昨收
-  let changed = 0;
-  const miss = [];
+  let changed = 0, liveHit = 0;
   for (const h of holdings) {
     if (!h.code) continue;
-    let p = 0, kind = '';
-    if (live[h.code] > 0) { p = live[h.code]; kind = '即時'; }
-    else if (!marketOpen || !(h.price > 0)) {
-      const fb = eod[h.code] > 0 ? eod[h.code] : (prevClose[h.code] > 0 ? prevClose[h.code] : 0);
-      if (fb > 0) { p = fb; kind = marketOpen ? '初始' : '收盤'; }
+    if (live[h.code] > 0) {
+      liveHit++;
+      h.priceTime = stamp;                                   // 最後抓到即時價的時間(有抓到就更新)
+      if (h.price !== live[h.code]) { h.price = live[h.code]; changed++; }
+    } else if (!(h.price > 0) && eod[h.code] > 0) {
+      h.price = eod[h.code]; h.priceTime = stamp; changed++; // 初始化新標的
     }
-    if (!(p > 0)) { if (!(h.price > 0)) miss.push(h.code); continue; }
-    if (h.price !== p) { h.price = p; h.priceTime = stamp; changed++; console.log(`${h.code} → ${p}(${kind})`); }
   }
-  if (miss.length) console.log('查不到:', miss.join('、'));
+  const noLive = codes.filter(c => !(live[c] > 0) && !(eod[c] > 0));
+  if (noLive.length) console.log('即時抓不到:', noLive.join('、'));
 
-  if (changed > 0) {
+  if (liveHit > 0 || changed > 0) {
     data.updated = stamp.slice(0, 10);
-    data.priceUpdated = stamp;
+    data.priceUpdated = stamp;     // 最後成功抓到即時價的時間 → 判斷是否真的在即時更新
     fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-    console.log(`已更新 ${changed} 檔市價(${stamp}),寫回 ${FILE}。`);
+    console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔(${stamp})`);
   } else {
-    console.log('市價無變動,不寫檔。');
+    console.log('完全沒抓到即時價,維持原狀不寫檔(時間戳不前進=即時來源不通)');
   }
 }
 
