@@ -27,16 +27,11 @@ function computeTotals(data) {
   return { cost, mv, unreal, realized, dividend, totalReturn: unreal + realized + dividend };
 }
 
-// 台北時間戳,例:2026-06-15 12:16
+// 台北時間戳(直接 UTC+8 手算,不依賴 runner 時區資料庫;台灣無日光節約,固定 +8),例:2026-06-15 12:16
 function taipeiStamp() {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Taipei', hour12: false,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit'
-    }).formatToParts(new Date()).map(x => [x.type, x.value])
-  );
-  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+  const d = new Date(Date.now() + 8 * 3600 * 1000);
+  const z = n => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${z(d.getUTCMonth() + 1)}-${z(d.getUTCDate())} ${z(d.getUTCHours())}:${z(d.getUTCMinutes())}`;
 }
 
 async function fetchJson(url, ms = 12000) {
