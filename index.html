@@ -657,6 +657,20 @@
     </div>
   </div>
 </div>
+<!-- 解鎖密碼視窗(取代手機上不穩的原生 prompt) -->
+<div id="pwd-modal" class="modal-bg hidden" onclick="if(event.target===this)closePwdModal(false)">
+  <div class="modal">
+    <h3>🔒 解鎖</h3>
+    <label>請輸入編輯密碼
+      <input class="ed" id="pwd-input" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()">
+    </label>
+    <div id="pwd-err" style="color:var(--up);font-size:13px;margin-top:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn" onclick="closePwdModal(false)">取消</button>
+      <button class="btn primary" onclick="submitPwd()">解鎖</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -1778,22 +1792,40 @@ async function setPassword() {
   } catch (e) { alert('此瀏覽器不支援加密 API,無法設定。'); }
 }
 
+// 用頁面內視窗輸入密碼(手機/PWA 比原生 prompt 穩);回傳 Promise<boolean>
+let _pwdResolve = null;
 async function verifyEditPassword() {
   try {
     const unlockedUntil = Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0);
     if (Date.now() < unlockedUntil) return true;
   } catch (e) {}
-
-  const pwd = prompt('請輸入編輯密碼');
-  if (pwd === null) return false;
-
+  return new Promise(resolve => {
+    _pwdResolve = resolve;
+    const inp = document.getElementById('pwd-input');
+    const err = document.getElementById('pwd-err');
+    if (inp) inp.value = '';
+    if (err) err.textContent = '';
+    document.getElementById('pwd-modal').classList.remove('hidden');
+    setTimeout(() => inp && inp.focus(), 60);
+  });
+}
+async function submitPwd() {
+  const pwd = document.getElementById('pwd-input').value;
   if (await verifyPassword(pwd)) {
     try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) {}
-    updateAuthUI();
-    return true;
+    closePwdModal(true);
+  } else {
+    const err = document.getElementById('pwd-err');
+    if (err) err.textContent = '密碼錯誤,請再試一次';
+    const inp = document.getElementById('pwd-input');
+    if (inp) { inp.value = ''; inp.focus(); }
   }
-  alert('密碼錯誤。');
-  return false;
+}
+function closePwdModal(ok) {
+  document.getElementById('pwd-modal').classList.add('hidden');
+  const r = _pwdResolve; _pwdResolve = null;
+  if (ok) updateAuthUI();
+  if (r) r(!!ok);
 }
 
 /* ---------- 解鎖後才顯示 編輯/載入/GitHub 按鈕 ---------- */
