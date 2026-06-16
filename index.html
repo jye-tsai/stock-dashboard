@@ -692,7 +692,7 @@
 <div id="setpwd-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSetPwd()">
   <div class="modal">
     <h3 id="setpwd-title">🔑 設定新密碼(至少 6 碼)</h3>
-    <input class="ed" id="setpwd-input" type="password" inputmode="numeric" readonly placeholder="輸入新密碼" style="width:100%;text-align:center;letter-spacing:6px;font-size:20px;padding:10px">
+    <input class="ed" id="setpwd-input" type="password" inputmode="numeric" readonly placeholder="輸入新密碼" onkeydown="if(event.key==='Enter')setpwdNext()" style="width:100%;text-align:center;letter-spacing:6px;font-size:20px;padding:10px">
     <div class="keypad">
       <button type="button" onclick="pinKey('1','setpwd-input')">1</button>
       <button type="button" onclick="pinKey('2','setpwd-input')">2</button>
@@ -1845,6 +1845,18 @@ function closeConfirm(ok) {
   if (r) r(!!ok);
 }
 
+// 觸控裝置(手機/平板)用數字鍵盤;桌機(滑鼠)用一般鍵盤打字
+const IS_TOUCH = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+function applyKeypadMode(scopeId, inputId) {
+  const kp = document.querySelector('#' + scopeId + ' .keypad');
+  if (kp) kp.style.display = IS_TOUCH ? 'grid' : 'none';
+  const inp = document.getElementById(inputId);
+  if (inp) {
+    inp.readOnly = IS_TOUCH;                            // 手機:唯讀,只用鍵盤盤
+    if (!IS_TOUCH) setTimeout(() => inp.focus(), 60);   // 桌機:自動聚焦,直接打字
+  }
+}
+
 // 設定新密碼(數字鍵盤,兩步驟:輸入 → 確認)
 let _setpwdStep = 1, _setpwdFirst = '';
 function setpwdReset() {
@@ -1859,6 +1871,7 @@ async function setPassword() {
   if (!isUnlocked() && !(await verifyEditPassword())) return;
   setpwdReset();
   document.getElementById('setpwd-modal').classList.remove('hidden');
+  applyKeypadMode('setpwd-modal', 'setpwd-input');
 }
 function closeSetPwd() { document.getElementById('setpwd-modal').classList.add('hidden'); }
 async function setpwdNext() {
@@ -1899,6 +1912,7 @@ async function verifyEditPassword() {
     if (inp) inp.value = '';
     if (err) err.textContent = '';
     document.getElementById('pwd-modal').classList.remove('hidden');
+    applyKeypadMode('pwd-modal', 'pwd-input');
   });
 }
 // 數字鍵盤輸入(點按,不叫出系統鍵盤);id 預設解鎖欄位,可傳 setpwd-input
