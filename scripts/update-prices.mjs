@@ -96,6 +96,10 @@ async function fromTpex() {
 }
 
 async function main() {
+  // 週末不動作(台北星期六/日);排程設成每天跑,由這裡擋掉非交易日,避免漏掉週五又不在假日亂寫
+  const tpeDow = new Date(Date.now() + 8 * 3600 * 1000).getUTCDay(); // 0=日 .. 6=六(台北)
+  if (tpeDow === 0 || tpeDow === 6) { console.log('週末(台北),不更新'); return; }
+
   const data = readData();
   const holdings = data.holdings || [];
   const codes = [...new Set(holdings.map(h => h.code).filter(Boolean))];
