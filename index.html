@@ -671,6 +671,29 @@
     </div>
   </div>
 </div>
+<!-- 設定新密碼視窗 -->
+<div id="setpwd-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSetPwd()">
+  <div class="modal">
+    <h3>🔑 設定新密碼</h3>
+    <label>新密碼(至少 6 碼)<input class="ed" id="newpwd1" type="password" autocomplete="new-password"></label>
+    <label>再輸入一次<input class="ed" id="newpwd2" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSetPwd()"></label>
+    <div id="setpwd-err" style="color:var(--up);font-size:13px;margin-top:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn" onclick="closeSetPwd()">取消</button>
+      <button class="btn primary" onclick="doSetPwd()">儲存密碼</button>
+    </div>
+  </div>
+</div>
+<!-- 通用確認視窗(取代手機上不穩的 confirm) -->
+<div id="confirm-modal" class="modal-bg hidden" onclick="if(event.target===this)closeConfirm(false)">
+  <div class="modal">
+    <p id="confirm-msg" style="white-space:pre-wrap;line-height:1.6;margin:0"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="closeConfirm(false)">取消</button>
+      <button class="btn primary" onclick="closeConfirm(true)">確定</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -1777,19 +1800,45 @@ async function verifyPassword(pwd) {
   try { return (await sha256Text(pwd)) === expected; } catch (e) { return false; }
 }
 // 設定新密碼:升級為 PBKDF2 並移除舊的弱雜湊
+// 通用確認視窗(取代 confirm),回傳 Promise<boolean>
+let _confirmResolve = null;
+function uiConfirm(msg) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-modal').classList.remove('hidden');
+  });
+}
+function closeConfirm(ok) {
+  document.getElementById('confirm-modal').classList.add('hidden');
+  const r = _confirmResolve; _confirmResolve = null;
+  if (r) r(!!ok);
+}
+
+// 設定新密碼(頁面內視窗,手機/PWA 可用)
 async function setPassword() {
   if (!isUnlocked() && !(await verifyEditPassword())) return;
-  const p1 = prompt('輸入新密碼(至少 6 碼)');
-  if (p1 === null) return;
-  if (p1.length < 6) { alert('密碼至少 6 碼'); return; }
-  if (prompt('再輸入一次新密碼') !== p1) { alert('兩次輸入不一致'); return; }
+  document.getElementById('newpwd1').value = '';
+  document.getElementById('newpwd2').value = '';
+  document.getElementById('setpwd-err').textContent = '';
+  document.getElementById('setpwd-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('newpwd1').focus(), 60);
+}
+function closeSetPwd() { document.getElementById('setpwd-modal').classList.add('hidden'); }
+async function doSetPwd() {
+  const p1 = document.getElementById('newpwd1').value;
+  const p2 = document.getElementById('newpwd2').value;
+  const err = document.getElementById('setpwd-err');
+  if (p1.length < 6) { err.textContent = '密碼至少 6 碼'; return; }
+  if (p1 !== p2) { err.textContent = '兩次輸入不一致'; return; }
   try {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     DATA.auth = { alg: 'PBKDF2-SHA256', salt: b64enc(salt), iter: PBKDF2_ITER, hash: await pbkdf2Hash(p1, salt, PBKDF2_ITER) };
     delete DATA.passwordHash;
     cache();
+    closeSetPwd();
     toast('✅ 密碼已更新,記得按「💾 儲存 JSON」寫回');
-  } catch (e) { alert('此瀏覽器不支援加密 API,無法設定。'); }
+  } catch (e) { err.textContent = '此瀏覽器不支援加密 API'; }
 }
 
 // 用頁面內視窗輸入密碼(手機/PWA 比原生 prompt 穩);回傳 Promise<boolean>
@@ -1947,7 +1996,7 @@ async function updatePrices() {
     toast('市價改由 GitHub Action 自動更新;請先設定 GitHub 同步(⚙️),或到 repo 的 Actions 分頁手動執行');
     return;
   }
-  if (!confirm('將觸發 GitHub Action 於伺服器端更新市價並寫回 data.json。\n約 1 分鐘後重新整理頁面即可看到最新價。\n\n要現在執行嗎?')) return;
+  if (!await uiConfirm('將觸發 GitHub Action 於伺服器端更新市價並寫回 data.json。\n約 1 分鐘後重新整理頁面即可看到最新價。\n\n要現在執行嗎?')) return;
   try {
     toast('正在觸發 GitHub Action…');
     const url = `https://api.github.com/repos/${c.owner}/${c.repo}/actions/workflows/update-prices.yml/dispatches`;
@@ -1984,16 +2033,16 @@ function addHolding() {
   DATA.holdings.push({ type: 'ETF', code: '', name: '', cost: 0, price: 0, lots: 0 });
   render();
 }
-function delHolding(i) {
+async function delHolding(i) {
   const h = DATA.holdings[i];
-  if (confirm(`確定刪除 ${h.code} ${h.name}?`)) { DATA.holdings.splice(i, 1); cache(); render(); }
+  if (await uiConfirm(`確定刪除 ${h.code} ${h.name}?`)) { DATA.holdings.splice(i, 1); cache(); render(); }
 }
 function addYear() {
   DATA.yearly.push({ year: String(new Date().getFullYear()), capitalGain: 0, dividend: 0, note: '' });
   render();
 }
-function delYear(i) {
-  if (confirm('確定刪除這筆年度紀錄?')) { DATA.yearly.splice(i, 1); cache(); render(); }
+async function delYear(i) {
+  if (await uiConfirm('確定刪除這筆年度紀錄?')) { DATA.yearly.splice(i, 1); cache(); render(); }
 }
 // 欄位變更 → 寫回 DATA → 重算
 document.addEventListener('change', e => {
@@ -2101,14 +2150,14 @@ function saveGh() {
     path: document.getElementById('gh-path').value.trim() || 'data.json',
     token: document.getElementById('gh-token').value.trim()
   };
-  if (!ghReady(c)) { alert('帳號、Repo、Token 為必填'); return; }
+  if (!ghReady(c)) { toast('帳號、Repo、Token 為必填'); return; }
   localStorage.setItem('pf-gh', JSON.stringify(c));
   updateGhBtn();
   closeGhModal();
   toast('✅ GitHub 設定已儲存');
 }
-function clearGh() {
-  if (confirm('確定清除 GitHub 設定(含 Token)?')) {
+async function clearGh() {
+  if (await uiConfirm('確定清除 GitHub 設定(含 Token)?')) {
     localStorage.removeItem('pf-gh');
     updateGhBtn();
     closeGhModal();
@@ -2133,11 +2182,11 @@ async function saveFile() {
       toast(`✅ 已 commit 到 ${c.owner}/${c.repo}`);
       return;
     } catch (err) {
-      if (!confirm('GitHub 儲存失敗:' + err.message + '\n\n改存到本機檔案?(注意:存到本機不會更新網站上的資料)')) return;
+      if (!await uiConfirm('GitHub 儲存失敗:' + err.message + '\n\n改存到本機檔案?(注意:存到本機不會更新網站上的資料)')) return;
     }
   } else if (location.hostname.endsWith('.github.io')) {
     // 透過 GitHub Pages 開啟卻沒設定同步 → 存本機檔案不會更新網站,主動提醒先設定
-    if (confirm('你正透過 GitHub Pages 開啟,但尚未設定 GitHub 同步。\n\n存到本機檔案「不會」更新網站上的資料。要現在設定 GitHub 同步嗎?')) {
+    if (await uiConfirm('你正透過 GitHub Pages 開啟,但尚未設定 GitHub 同步。\n\n存到本機檔案「不會」更新網站上的資料。要現在設定 GitHub 同步嗎?')) {
       openGhModal();
       return;
     }
