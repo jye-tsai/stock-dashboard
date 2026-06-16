@@ -509,6 +509,11 @@
   #splash .s-title { font-size: 21px; font-weight: 850; color: var(--title); text-shadow: var(--title-glow); letter-spacing: .02em; }
   #splash .s-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: ptrSpin .8s linear infinite; }
   @keyframes splashPop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  /* 解鎖數字鍵盤 */
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 4px; }
+  .keypad button { padding: 16px 0; font-size: 20px; font-weight: 800; border-radius: 14px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; font-variant-numeric: tabular-nums; }
+  .keypad button:active { background: var(--accent); color: #fff; }
+  .keypad button.kp-mute { color: var(--muted); font-size: 15px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -661,9 +666,21 @@
 <div id="pwd-modal" class="modal-bg hidden" onclick="if(event.target===this)closePwdModal(false)">
   <div class="modal">
     <h3>🔒 解鎖</h3>
-    <label>請輸入編輯密碼
-      <input class="ed" id="pwd-input" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitPwd()">
-    </label>
+    <input class="ed" id="pwd-input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="輸入密碼" onkeydown="if(event.key==='Enter')submitPwd()" style="width:100%;text-align:center;letter-spacing:6px;font-size:20px;padding:10px">
+    <div class="keypad">
+      <button type="button" onclick="pinKey('1')">1</button>
+      <button type="button" onclick="pinKey('2')">2</button>
+      <button type="button" onclick="pinKey('3')">3</button>
+      <button type="button" onclick="pinKey('4')">4</button>
+      <button type="button" onclick="pinKey('5')">5</button>
+      <button type="button" onclick="pinKey('6')">6</button>
+      <button type="button" onclick="pinKey('7')">7</button>
+      <button type="button" onclick="pinKey('8')">8</button>
+      <button type="button" onclick="pinKey('9')">9</button>
+      <button type="button" class="kp-mute" onclick="pinKey('clear')">清除</button>
+      <button type="button" onclick="pinKey('0')">0</button>
+      <button type="button" class="kp-mute" onclick="pinKey('back')">⌫</button>
+    </div>
     <div id="pwd-err" style="color:var(--up);font-size:13px;margin-top:8px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="btn" onclick="closePwdModal(false)">取消</button>
@@ -674,13 +691,26 @@
 <!-- 設定新密碼視窗 -->
 <div id="setpwd-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSetPwd()">
   <div class="modal">
-    <h3>🔑 設定新密碼</h3>
-    <label>新密碼(至少 6 碼)<input class="ed" id="newpwd1" type="password" autocomplete="new-password"></label>
-    <label>再輸入一次<input class="ed" id="newpwd2" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSetPwd()"></label>
+    <h3 id="setpwd-title">🔑 設定新密碼(至少 6 碼)</h3>
+    <input class="ed" id="setpwd-input" type="password" inputmode="numeric" readonly placeholder="輸入新密碼" style="width:100%;text-align:center;letter-spacing:6px;font-size:20px;padding:10px">
+    <div class="keypad">
+      <button type="button" onclick="pinKey('1','setpwd-input')">1</button>
+      <button type="button" onclick="pinKey('2','setpwd-input')">2</button>
+      <button type="button" onclick="pinKey('3','setpwd-input')">3</button>
+      <button type="button" onclick="pinKey('4','setpwd-input')">4</button>
+      <button type="button" onclick="pinKey('5','setpwd-input')">5</button>
+      <button type="button" onclick="pinKey('6','setpwd-input')">6</button>
+      <button type="button" onclick="pinKey('7','setpwd-input')">7</button>
+      <button type="button" onclick="pinKey('8','setpwd-input')">8</button>
+      <button type="button" onclick="pinKey('9','setpwd-input')">9</button>
+      <button type="button" class="kp-mute" onclick="pinKey('clear','setpwd-input')">清除</button>
+      <button type="button" onclick="pinKey('0','setpwd-input')">0</button>
+      <button type="button" class="kp-mute" onclick="pinKey('back','setpwd-input')">⌫</button>
+    </div>
     <div id="setpwd-err" style="color:var(--up);font-size:13px;margin-top:8px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
       <button class="btn" onclick="closeSetPwd()">取消</button>
-      <button class="btn primary" onclick="doSetPwd()">儲存密碼</button>
+      <button class="btn primary" id="setpwd-next" onclick="setpwdNext()">下一步</button>
     </div>
   </div>
 </div>
@@ -1815,25 +1845,39 @@ function closeConfirm(ok) {
   if (r) r(!!ok);
 }
 
-// 設定新密碼(頁面內視窗,手機/PWA 可用)
+// 設定新密碼(數字鍵盤,兩步驟:輸入 → 確認)
+let _setpwdStep = 1, _setpwdFirst = '';
+function setpwdReset() {
+  _setpwdStep = 1; _setpwdFirst = '';
+  document.getElementById('setpwd-input').value = '';
+  document.getElementById('setpwd-input').placeholder = '輸入新密碼';
+  document.getElementById('setpwd-title').textContent = '🔑 設定新密碼(至少 6 碼)';
+  document.getElementById('setpwd-next').textContent = '下一步';
+  document.getElementById('setpwd-err').textContent = '';
+}
 async function setPassword() {
   if (!isUnlocked() && !(await verifyEditPassword())) return;
-  document.getElementById('newpwd1').value = '';
-  document.getElementById('newpwd2').value = '';
-  document.getElementById('setpwd-err').textContent = '';
+  setpwdReset();
   document.getElementById('setpwd-modal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('newpwd1').focus(), 60);
 }
 function closeSetPwd() { document.getElementById('setpwd-modal').classList.add('hidden'); }
-async function doSetPwd() {
-  const p1 = document.getElementById('newpwd1').value;
-  const p2 = document.getElementById('newpwd2').value;
+async function setpwdNext() {
+  const inp = document.getElementById('setpwd-input');
   const err = document.getElementById('setpwd-err');
-  if (p1.length < 6) { err.textContent = '密碼至少 6 碼'; return; }
-  if (p1 !== p2) { err.textContent = '兩次輸入不一致'; return; }
+  const v = inp.value;
+  if (_setpwdStep === 1) {
+    if (v.length < 6) { err.textContent = '密碼至少 6 碼'; return; }
+    _setpwdFirst = v; _setpwdStep = 2;
+    inp.value = ''; inp.placeholder = '再輸入一次';
+    document.getElementById('setpwd-title').textContent = '🔑 再輸入一次確認';
+    document.getElementById('setpwd-next').textContent = '儲存密碼';
+    err.textContent = '';
+    return;
+  }
+  if (v !== _setpwdFirst) { err.textContent = '兩次不一致,請重新設定'; setpwdReset(); return; }
   try {
     const salt = crypto.getRandomValues(new Uint8Array(16));
-    DATA.auth = { alg: 'PBKDF2-SHA256', salt: b64enc(salt), iter: PBKDF2_ITER, hash: await pbkdf2Hash(p1, salt, PBKDF2_ITER) };
+    DATA.auth = { alg: 'PBKDF2-SHA256', salt: b64enc(salt), iter: PBKDF2_ITER, hash: await pbkdf2Hash(v, salt, PBKDF2_ITER) };
     delete DATA.passwordHash;
     cache();
     closeSetPwd();
@@ -1855,8 +1899,17 @@ async function verifyEditPassword() {
     if (inp) inp.value = '';
     if (err) err.textContent = '';
     document.getElementById('pwd-modal').classList.remove('hidden');
-    setTimeout(() => inp && inp.focus(), 60);
   });
+}
+// 數字鍵盤輸入(點按,不叫出系統鍵盤);id 預設解鎖欄位,可傳 setpwd-input
+function pinKey(k, id) {
+  const inp = document.getElementById(id || 'pwd-input');
+  if (!inp) return;
+  if (k === 'back') inp.value = inp.value.slice(0, -1);
+  else if (k === 'clear') inp.value = '';
+  else if (inp.value.length < 20) inp.value += k;
+  const err = document.getElementById(id === 'setpwd-input' ? 'setpwd-err' : 'pwd-err');
+  if (err) err.textContent = '';
 }
 async function submitPwd() {
   const pwd = document.getElementById('pwd-input').value;
@@ -1867,7 +1920,7 @@ async function submitPwd() {
     const err = document.getElementById('pwd-err');
     if (err) err.textContent = '密碼錯誤,請再試一次';
     const inp = document.getElementById('pwd-input');
-    if (inp) { inp.value = ''; inp.focus(); }
+    if (inp) inp.value = '';
   }
 }
 function closePwdModal(ok) {
