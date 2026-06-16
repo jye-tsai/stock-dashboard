@@ -1,10 +1,8 @@
 name: update-stock-prices
  
 on:
-  schedule:
-    # 台北 = UTC+8;cron 跑在 UTC,所以填的時間 = 台北時間 − 8。分鐘錯開整點 :00 以避開 GitHub 最塞時段
-    - cron: "2,17,32,47 1-5 * * 1-5"   # 交易時段 每15分(台北約 09:02–13:47,週一~五)
-    - cron: "2 6 * * 1-5"              # 收盤結算 一次(台北約 14:02,週一~五)
+  # 排程改由 Cloudflare Worker 準時觸發(GitHub 內建 schedule 不準時,已移除)。
+  # 保留 workflow_dispatch:讓 Cloudflare、儀表板按鈕、GitHub「Run workflow」都能觸發。
   workflow_dispatch:
  
 permissions:
