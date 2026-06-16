@@ -765,7 +765,7 @@ function render() {
     ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
     : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
 
-  document.getElementById('updated').textContent = '更新日期:' + (d.updated || '-');
+  document.getElementById('updated').textContent = '更新時間:' + (d.priceUpdated || d.updated || '-');
   const puEl = document.getElementById('price-updated');
   if (puEl) puEl.textContent = d.priceUpdated
     ? `📈 市價更新時間:${d.priceUpdated}(台北時間，由 GitHub Action 更新）`
