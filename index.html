@@ -2240,7 +2240,7 @@ applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
 })();
 
 /* ---------- 啟動畫面(splash):至少停留 SPLASH_MIN,載入完成後再收起 ---------- */
-const SPLASH_MIN = 1800;             // 最少停留毫秒(想更久就調大)
+const SPLASH_MIN = 1200;             // 最少停留毫秒(想更久就調大)
 const splashStart = Date.now();
 function hideSplash() {
   const s = document.getElementById('splash');
