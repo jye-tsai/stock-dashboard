@@ -2087,6 +2087,20 @@ async function updatePrices() {
   }
 }
 
+// 刷新時自動觸發更新市價（靜默、不跳確認；60 秒內不重複觸發）
+async function autoTriggerPrices(c) {
+  try {
+    if (!ghReady(c)) return;
+    const last = +(localStorage.getItem('pf-autoprice-ts') || 0);
+    if (Date.now() - last < 60000) return;
+    localStorage.setItem('pf-autoprice-ts', String(Date.now()));
+    const url = `https://api.github.com/repos/${c.owner}/${c.repo}/actions/workflows/update-prices.yml/dispatches`;
+    const r = await fetch(url, { method: 'POST', headers: ghHeaders(c), body: JSON.stringify({ ref: c.branch || 'main' }) });
+    if (r.status === 204) toast('📈 已自動觸發更新市價（約 1 分鐘後再整理看最新）');
+    else if (r.status === 403) toast('自動更新需 Token 有 Actions 寫入權限');
+  } catch (e) {}
+}
+
 async function toggleEdit() {
   if (!editMode) {
     const ok = await verifyEditPassword();
@@ -2420,6 +2434,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
   // 已設定 GitHub → 優先讀 repo 最新版(不受 Pages 部署延遲影響)
   const ghc = ghCfg();
   if (ghReady(ghc)) {
+    autoTriggerPrices(ghc);            // 刷新時自動送出更新市價（不等待，不影響載入）
     try { load(await ghLoad(ghc)); return; }
     catch (e) { toast('GitHub 讀取失敗,改用其他來源'); }
   }
