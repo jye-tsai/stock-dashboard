@@ -590,7 +590,7 @@
     <section id="tab-overview" class="tab-page active">
       <div class="charts">
         <div class="panel"><h2>總報酬</h2><div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div><div class="chart-box"><canvas id="costpl"></canvas></div></div>
-        <div class="panel"><h2>市值比例</h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
+        <div class="panel"><h2>市值比例 <span style="float:right;font-weight:400"><button class="btn sm" id="pie-mode-btn" onclick="togglePieMode()">切換</button></span></h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
         <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
@@ -620,6 +620,7 @@
         <div class="chart-subtitle">各持股未實現損益（已扣賣出稅費）</div>
         <div class="chart-box"><canvas id="pl"></canvas></div>
       </div>
+
     </section>
 
     <section id="tab-holdings" class="tab-page">
@@ -1009,6 +1010,11 @@ function render() {
 }
 
 let pieChart, costPlChart, barChart, plChart, navChart;
+function togglePieMode(){
+  const m = localStorage.getItem('pf-pie-mode') || 'costpl';
+  localStorage.setItem('pf-pie-mode', m === 'costpl' ? 'value' : 'costpl');
+  if (DATA) render();
+}
 const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent'];
 const CHART_PALETTES = {
   'ocean': {
@@ -1243,7 +1249,7 @@ function topHoldingsForPie(held, limit = 5) {
   const main = sorted.slice(0, limit);
   const rest = sorted.slice(limit);
   const otherMv = rest.reduce((s, r) => s + r.mv, 0);
-  if (otherMv > 0) main.push({ name: '其他', code: `${rest.length} 檔`, mv: otherMv });
+  if (otherMv > 0) main.push({ name: '其他', code: `${rest.length} 檔`, mv: otherMv, costAmt: rest.reduce((s, r) => s + r.costAmt, 0) });
   return main;
 }
 
@@ -1272,19 +1278,56 @@ function drawCharts(held, ys) {
   const pieRows = topHoldingsForPie(held);
   const totalMv = pieRows.reduce((s, r) => s + r.mv, 0);
 
+  const pieMode = localStorage.getItem('pf-pie-mode') || 'costpl';
+  { const pmb = document.getElementById('pie-mode-btn'); if (pmb) pmb.textContent = pieMode === 'costpl' ? '切換：純市值比例' : '切換：成本+損益'; }
   if (pieChart) pieChart.destroy();
+  if (pieMode === 'value') {
+    // 原本：每檔一段，依市值占比
+    pieChart = new Chart(document.getElementById('pie'), {
+      type: 'doughnut',
+      data: {
+        labels: pieRows.map(r => `${r.name} (${r.code})`),
+        datasets: [{
+          data: pieRows.map(r => r.mv),
+          backgroundColor: pieRows.map((_, i) => palette.slices[i % palette.slices.length]),
+          borderColor: card, borderWidth: isAgentChart ? 4 : 5, borderRadius: 12,
+          hoverOffset: isAgentChart ? 16 : 10, hoverBorderWidth: isAgentChart ? 5 : 6, spacing: isAgentChart ? 3 : 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: isAgentChart ? '56%' : '58%',
+        layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, font: { size: 12 }, color: muted } },
+          centerText: { text: fmt(totalMv), subText: '總市值', color: isAgentChart ? '#dfe7ff' : text, subColor: isAgentChart ? '#8ea0c7' : muted, fontSize: isAgentChart ? 18 : 17, subFontSize: isAgentChart ? 12.5 : 12, fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined, weight: isAgentChart ? 900 : 800, subWeight: 700 },
+          tooltip: { backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: isAgentChart ? '#eef4ff' : text, borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, bodySpacing: 6, titleFont: { size: 13, weight: '700' }, bodyFont: { size: 12, weight: '600' },
+            callbacks: { title: items => items[0]?.label || '', label: c => { const ratio = totalMv ? c.parsed / totalMv : 0; return [`市值 ${fmt(c.parsed)}`, `占比 ${pct(ratio)}`]; } } }
+        }
+      },
+      plugins: [centerTextPlugin]
+    });
+  } else {
+  // 每檔兩段：成本(持股色，淡) + 損益(綠獲利/紅虧損)；整圈 = 總市值
+  const segVals = [], segColors = [], segMeta = [];
+  pieRows.forEach((r, i) => {
+    const base = palette.slices[i % palette.slices.length];
+    const profit = r.mv - r.costAmt;
+    const gain = Math.max(0, profit);
+    const costPart = r.mv - gain;                       // = min(成本, 市值)
+    segVals.push(costPart); segColors.push(base + '59'); segMeta.push(r);   // 成本：同色淺
+    segVals.push(gain);     segColors.push(base);        segMeta.push(r);   // 損益：同色實(深)
+  });
   pieChart = new Chart(document.getElementById('pie'), {
     type: 'doughnut',
     data: {
-      labels: pieRows.map(r => `${r.name} (${r.code})`),
+      labels: segMeta.map(r => r.name),
       datasets: [{
-        data: pieRows.map(r => r.mv),
-        backgroundColor: pieRows.map((_, i) => palette.slices[i % palette.slices.length]),
+        data: segVals,
+        backgroundColor: segColors,
         borderColor: card,
         borderWidth: isAgentChart ? 4 : 5,
-        borderRadius: 12,
-        hoverOffset: isAgentChart ? 16 : 10,
-        hoverBorderWidth: isAgentChart ? 5 : 6,
+        borderRadius: 8,
+        hoverOffset: isAgentChart ? 14 : 8,
         spacing: isAgentChart ? 3 : 2
       }]
     },
@@ -1296,14 +1339,11 @@ function drawCharts(held, ys) {
       plugins: {
         legend: {
           position: 'bottom',
+          onClick: () => {},
           labels: {
-            usePointStyle: true,
-            pointStyle: 'circle',
-            boxWidth: 8,
-            boxHeight: 8,
-            padding: 14,
-            font: { size: 12 },
-            color: muted
+            usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14,
+            font: { size: 12 }, color: muted,
+            generateLabels: () => pieRows.map((r, i) => ({ text: r.name, fillStyle: palette.slices[i % palette.slices.length], strokeStyle: 'transparent', lineWidth: 0, fontColor: muted }))
           }
         },
         centerText: {
@@ -1318,7 +1358,6 @@ function drawCharts(held, ys) {
           subWeight: 700
         },
         tooltip: {
-          position: 'pieOuter',
           backgroundColor: tooltipBg,
           titleColor: isAgentChart ? '#67e8f9' : text,
           bodyColor: isAgentChart ? '#eef4ff' : text,
@@ -1328,18 +1367,19 @@ function drawCharts(held, ys) {
           caretSize: 7,
           padding: 12,
           bodySpacing: 6,
-          titleSpacing: 4,
-          displayColors: true,
-          boxWidth: 10,
-          boxHeight: 10,
-          boxPadding: 6,
           titleFont: { size: 13, weight: '700' },
           bodyFont: { size: 12, weight: '600' },
+          filter: item => !!segMeta[item.dataIndex],
           callbacks: {
-            title: items => items[0]?.label || '',
+            title: items => segMeta[items[0].dataIndex]?.name || '',
             label: c => {
-              const ratio = totalMv ? c.parsed / totalMv : 0;
-              return [`市值：${fmt(c.parsed)}`, `占比：${pct(ratio)}`];
+              const r = segMeta[c.dataIndex] || {}; const pl = (r.mv || 0) - (r.costAmt || 0);
+              return [
+                `成本 ${fmt(r.costAmt || 0)}`,
+                `${pl >= 0 ? '＋ 獲利' : '－ 虧損'} ${fmt(Math.abs(pl))}`,
+                `＝ 市值 ${fmt(r.mv || 0)}`,
+                `報酬率 ${sign(pl)}${pct(r.costAmt ? pl / r.costAmt : 0)} · 占比 ${pct(totalMv ? (r.mv || 0) / totalMv : 0)}`
+              ];
             }
           }
         }
@@ -1347,6 +1387,7 @@ function drawCharts(held, ys) {
     },
     plugins: [centerTextPlugin]
   });
+  }
 
   // 總報酬:未實現 + 已實現 + 股息,依來源拆成甜甜圈;中央顯示報酬金額 + 報酬率,圖例標各來源占比
   const unrealizedTotal = held.reduce((s, r) => s + r.unrealized, 0);
@@ -1425,7 +1466,6 @@ function drawCharts(held, ys) {
           subWeight: 750
         },
         tooltip: {
-          position: 'pieOuter',
           backgroundColor: tooltipBg,
           titleColor: isAgentChart ? '#67e8f9' : text,
           bodyColor: isAgentChart ? '#eef4ff' : text,
