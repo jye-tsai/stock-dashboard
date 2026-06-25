@@ -610,7 +610,7 @@
             <button class="btn sm" data-r="0" onclick="setNavRange(0)">全部</button>
           </span>
         </h2>
-        <div class="chart-subtitle">總市值 / 未實現 / 總報酬（由 GitHub Action 每天收盤累積）</div>
+        <div class="chart-subtitle">成本 + 未實現損益（堆疊，合計 ≈ 總市值；每天累積）</div>
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
       </div>
@@ -1753,7 +1753,7 @@ function drawCharts(held, ys) {
     plugins: [barHoverGlowPlugin, barTotalLabelPlugin]
   });
 
-  // 資產走勢:每日總市值 + 總報酬(折線)
+  // 資產走勢:堆疊面積(成本 + 未實現損益,合計 ≈ 總市值)
   const navCanvas = document.getElementById('nav');
   const navBox = navCanvas ? navCanvas.closest('.chart-box') : null;
   const navEmpty = document.getElementById('nav-empty');
@@ -1767,33 +1767,17 @@ function drawCharts(held, ys) {
     if (navBox) navBox.style.display = '';
     if (navEmpty) navEmpty.style.display = 'none';
     const navLabels = hist.map(p => String(p.date).slice(5));
-    const mvData = hist.map(p => Number(p.mv) || 0);
-    const retData = hist.map(p => Number(p.ret) || 0);
+    const costData = hist.map(p => Number(p.cost) || 0);
     const unData = hist.map(p => Number(p.un) || 0);
     const many = hist.length > 60;
+    const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
     navChart = new Chart(navCanvas, {
       type: 'line',
       data: {
         labels: navLabels,
         datasets: [
-          {
-            label: '總市值', data: mvData, borderColor: palette.slices[0], yAxisID: 'y',
-            backgroundColor: c => {
-              const area = c.chart.chartArea; if (!area) return 'transparent';
-              const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-              g.addColorStop(0, palette.slices[0] + '44'); g.addColorStop(1, palette.slices[0] + '05');
-              return g;
-            },
-            borderWidth: 2.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
-          },
-          {
-            label: '未實現', data: unData, borderColor: palette.slices[2], yAxisID: 'y',
-            borderWidth: 2, fill: false, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
-          },
-          {
-            label: '總報酬', data: retData, borderColor: palette.gain, yAxisID: 'y',
-            borderWidth: 2, borderDash: [5, 4], fill: false, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5
-          }
+          { label: '成本', data: costData, borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
+          { label: '未實現損益', data: unData, borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 }
         ]
       },
       options: {
@@ -1801,19 +1785,18 @@ function drawCharts(held, ys) {
         interaction: { mode: 'index', intersect: false },
         layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
         scales: {
-          x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
-          y: {
-            border: { display: false },
-            grid: { color: palette.grid, drawTicks: false },
-            ticks: { color: muted, padding: 8, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' }
-          }
+          x: { stacked: true, grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
+          y: { stacked: true, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
         },
         plugins: {
-          legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
+          legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
           tooltip: {
-            backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+            backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text, footerColor: text,
             borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
-            callbacks: { label: c => ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
+            callbacks: {
+              label: c => ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}`,
+              footer: items => { const i = items[0].dataIndex; return `市值 ≈ ${fmt((costData[i] || 0) + (unData[i] || 0))}`; }
+            }
           }
         }
       }
