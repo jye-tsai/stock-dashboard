@@ -1769,6 +1769,7 @@ function drawCharts(held, ys) {
     const navLabels = hist.map(p => String(p.date).slice(5));
     const costData = hist.map(p => Number(p.cost) || 0);
     const unData = hist.map(p => Number(p.un) || 0);
+    const mvData = hist.map((p, i) => costData[i] + unData[i]);
     const many = hist.length > 60;
     const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
     navChart = new Chart(navCanvas, {
@@ -1776,8 +1777,9 @@ function drawCharts(held, ys) {
       data: {
         labels: navLabels,
         datasets: [
-          { label: '成本', data: costData, borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
-          { label: '未實現損益', data: unData, borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 }
+          { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
+          { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
+          { label: '總市值', data: mvData, stack: 'mv', borderColor: muted, borderWidth: 1.5, borderDash: [6, 4], fill: false, tension: .3, pointRadius: 0, pointHoverRadius: 4 }
         ]
       },
       options: {
@@ -1786,7 +1788,7 @@ function drawCharts(held, ys) {
         layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
         scales: {
           x: { stacked: true, grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
-          y: { stacked: true, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
+          y: { stacked: true, beginAtZero: true, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 6, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
         },
         plugins: {
           legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
@@ -1794,8 +1796,7 @@ function drawCharts(held, ys) {
             backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text, footerColor: text,
             borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
             callbacks: {
-              label: c => ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}`,
-              footer: items => { const i = items[0].dataIndex; return `市值 ≈ ${fmt((costData[i] || 0) + (unData[i] || 0))}`; }
+              label: c => c.dataset.label === '總市值' ? ` 總市值：${fmt(c.parsed.y)}` : ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}`
             }
           }
         }
