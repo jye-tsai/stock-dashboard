@@ -1772,20 +1772,45 @@ function drawCharts(held, ys) {
     const mvData = hist.map((p, i) => costData[i] + unData[i]);
     const many = hist.length > 60;
     const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
+    // 在目前期間內找總市值的最高/最低點(資料 >=2 筆且高低不同才標)
+    const hiCol = palette.gain || '#22c55e', loCol = palette.loss || palette.down || '#ef4444';
+    let hiIdx = 0, loIdx = 0;
+    mvData.forEach((v, i) => { if (v > mvData[hiIdx]) hiIdx = i; if (v < mvData[loIdx]) loIdx = i; });
+    const showPeaks = mvData.length >= 2 && hiIdx !== loIdx;
+    const mvPointR = mvData.map((_, i) => showPeaks && (i === hiIdx || i === loIdx) ? 5 : 0);
+    const mvPointBg = mvData.map((_, i) => i === hiIdx ? hiCol : i === loIdx ? loCol : 'transparent');
     navChart = new Chart(navCanvas, {
+      plugins: [{
+        id: 'navPeaks',
+        afterDatasetsDraw(chart) {
+          if (!showPeaks) return;
+          const meta = chart.getDatasetMeta(2);
+          if (!meta || meta.hidden) return;
+          const c = chart.ctx, n = mvData.length - 1;
+          c.save();
+          c.font = '700 11px ' + chartFont;
+          [[hiIdx, hiCol, '▲ 最高 ' + fmt(mvData[hiIdx]), -12], [loIdx, loCol, '▼ 最低 ' + fmt(mvData[loIdx]), 18]].forEach(([idx, col, txt, dy]) => {
+            const pt = meta.data[idx]; if (!pt) return;
+            c.textAlign = idx === 0 ? 'left' : idx === n ? 'right' : 'center';
+            c.fillStyle = col;
+            c.fillText(txt, pt.x, pt.y + dy);
+          });
+          c.restore();
+        }
+      }],
       type: 'line',
       data: {
         labels: navLabels,
         datasets: [
           { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
           { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
-          { label: '總市值', data: mvData, stack: 'mv', borderColor: muted, borderWidth: 1.5, borderDash: [6, 4], fill: false, tension: .3, pointRadius: 0, pointHoverRadius: 4 }
+          { label: '總市值', data: mvData, stack: 'mv', borderColor: muted, borderWidth: 1.5, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+        layout: { padding: { top: 20, right: 10, bottom: 2, left: 2 } },
         scales: {
           x: { stacked: true, grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
           y: { stacked: true, beginAtZero: true, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 6, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
