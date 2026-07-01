@@ -613,6 +613,10 @@
         <div class="chart-subtitle">成本 + 未實現損益（堆疊，合計 ≈ 總市值；每天累積）</div>
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
+        <div id="navchg-wrap" style="display:none">
+          <div class="chart-subtitle" style="margin-top:18px">每日市值變動（紅漲綠跌，較前一日的增減）</div>
+          <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
+        </div>
       </div>
 
       <div class="panel full-panel pl-panel">
@@ -1009,7 +1013,7 @@ function render() {
   if (typeof hideSplash === 'function') hideSplash();
 }
 
-let pieChart, costPlChart, barChart, plChart, navChart;
+let pieChart, costPlChart, barChart, plChart, navChart, navChgChart;
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
   localStorage.setItem('pf-pie-mode', m === 'costpl' ? 'value' : 'costpl');
@@ -1759,10 +1763,13 @@ function drawCharts(held, ys) {
   const navEmpty = document.getElementById('nav-empty');
   let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date);
   if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
+  const navChgWrap = document.getElementById('navchg-wrap');
   if (navChart) { navChart.destroy(); navChart = null; }
+  if (navChgChart) { navChgChart.destroy(); navChgChart = null; }
   if (!hist.length) {
     if (navBox) navBox.style.display = 'none';
     if (navEmpty) navEmpty.style.display = 'block';
+    if (navChgWrap) navChgWrap.style.display = 'none';
   } else if (navCanvas) {
     if (navBox) navBox.style.display = '';
     if (navEmpty) navEmpty.style.display = 'none';
@@ -1773,7 +1780,7 @@ function drawCharts(held, ys) {
     const many = hist.length > 60;
     const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
     // 在目前期間內找總市值的最高/最低點(資料 >=2 筆且高低不同才標)
-    const hiCol = palette.gain || '#22c55e', loCol = palette.loss || palette.down || '#ef4444';
+    const hiCol = '#f59e0b', loCol = '#38bdf8';  // 高=琥珀、低=天藍(中性,避免和漲跌色混淆)
     let hiIdx = 0, loIdx = 0;
     mvData.forEach((v, i) => { if (v > mvData[hiIdx]) hiIdx = i; if (v < mvData[loIdx]) loIdx = i; });
     const showPeaks = mvData.length >= 2 && hiIdx !== loIdx;
@@ -1804,7 +1811,7 @@ function drawCharts(held, ys) {
         datasets: [
           { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
           { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
-          { label: '總市值', data: mvData, stack: 'mv', borderColor: muted, borderWidth: 1.5, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 }
+          { label: '總市值', data: mvData, stack: 'mv', borderColor: text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 }
         ]
       },
       options: {
@@ -1827,6 +1834,39 @@ function drawCharts(held, ys) {
         }
       }
     });
+
+    // 每日市值變動(較前一日增減;紅漲綠跌,沿用台股慣例色)
+    const navChgCanvas = document.getElementById('navchg');
+    if (navChgWrap && navChgCanvas && mvData.length >= 2) {
+      navChgWrap.style.display = '';
+      const chgData = mvData.map((v, i) => i === 0 ? 0 : v - mvData[i - 1]);
+      const upC = palette.gain || '#ef4444', downC = palette.loss || '#22c55e';
+      navChgChart = new Chart(navChgCanvas, {
+        type: 'bar',
+        data: { labels: navLabels, datasets: [
+          { label: '市值變動', data: chgData, backgroundColor: chgData.map(v => v >= 0 ? upC : downC), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
+        ] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
+            y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + (v / 10000) + '萬' } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+              borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: false,
+              callbacks: { label: c => ` 市值變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
+            }
+          }
+        }
+      });
+    } else if (navChgWrap) {
+      navChgWrap.style.display = 'none';
+    }
   }
 }
 
@@ -1841,6 +1881,7 @@ function switchTab(tab) {
       if (barChart) barChart.resize();
       if (plChart) plChart.resize();
       if (navChart) navChart.resize();
+      if (navChgChart) navChgChart.resize();
     }, 60);
   }
 }
