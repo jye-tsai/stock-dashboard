@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>胖虎的小財庫 — 台股庫存儀表板</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root{
+    --bg:#0a0e1a; --bg2:#0e1424; --panel:#141d33; --panel2:#1a2540;
+    --gold:#e0b34d; --cyan:#4fd0ff; --pink:#ff6b81; --green:#34d399;
+    --text:#e8edf7; --muted:#93a3c0; --border:rgba(224,179,77,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%,#16223f 0%,var(--bg) 55%);
+    color:var(--text); line-height:1.7; -webkit-font-smoothing:antialiased;
+    min-height:100vh; overflow-x:hidden;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  section{padding:56px 0}
+
+  /* Hero */
+  .hero{text-align:center;padding:80px 20px 48px;position:relative}
+  .mascot{width:110px;height:110px;border-radius:28px;object-fit:cover;
+    background:var(--panel);border:1px solid var(--border);
+    box-shadow:0 8px 40px rgba(224,179,77,.25);margin-bottom:22px}
+  .mascot-fallback{width:110px;height:110px;border-radius:28px;display:none;
+    align-items:center;justify-content:center;font-size:56px;background:var(--panel);
+    border:1px solid var(--border);margin:0 auto 22px}
+  h1{font-size:clamp(34px,6vw,58px);font-weight:800;letter-spacing:.02em;
+    color:var(--gold);
+    text-shadow:0 0 18px rgba(224,179,77,.55),0 0 44px rgba(224,179,77,.28)}
+  .tag{font-size:clamp(15px,2.4vw,20px);color:var(--muted);margin-top:14px;max-width:640px;margin-left:auto;margin-right:auto}
+  .cta{display:inline-flex;gap:10px;align-items:center;margin-top:30px;
+    background:linear-gradient(135deg,var(--gold),#f2c96a);color:#2a1f05;font-weight:800;
+    padding:13px 28px;border-radius:999px;font-size:16px;
+    box-shadow:0 6px 26px rgba(224,179,77,.4);transition:transform .15s,box-shadow .15s}
+  .cta:hover{transform:translateY(-2px);box-shadow:0 10px 34px rgba(224,179,77,.55)}
+  .pillrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:30px}
+  .pill{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+    padding:7px 15px;border-radius:999px;font-size:13px;font-weight:600}
+  .pill b{color:var(--gold)}
+
+  h2{font-size:clamp(24px,4vw,34px);font-weight:800;text-align:center;margin-bottom:8px}
+  h2 .em{color:var(--gold)}
+  .sub{text-align:center;color:var(--muted);margin-bottom:36px;font-size:15px}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--border);border-radius:18px;padding:22px 20px;
+    transition:transform .18s,border-color .18s}
+  .card:hover{transform:translateY(-4px);border-color:rgba(224,179,77,.5)}
+  .card .ico{font-size:30px;margin-bottom:10px}
+  .card h3{font-size:17px;font-weight:800;margin-bottom:6px}
+  .card p{font-size:14px;color:var(--muted)}
+
+  /* flow */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;justify-content:center;gap:12px}
+  .step{flex:1;min-width:150px;max-width:210px;background:var(--panel);
+    border:1px solid var(--border);border-radius:16px;padding:18px 16px;text-align:center}
+  .step .n{width:30px;height:30px;border-radius:50%;background:rgba(224,179,77,.15);
+    color:var(--gold);font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 10px}
+  .step h4{font-size:15px;margin-bottom:5px}
+  .step p{font-size:12.5px;color:var(--muted)}
+  .arrow{display:flex;align-items:center;color:var(--gold);font-size:22px;opacity:.7}
+  @media(max-width:720px){.arrow{transform:rotate(90deg)}}
+
+  /* charts showcase */
+  .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .chart{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px;overflow:hidden}
+  .chart h3{font-size:16px;margin-bottom:4px}
+  .chart .desc{font-size:13px;color:var(--muted);margin-bottom:14px}
+  .chart svg{width:100%;height:110px;display:block}
+
+  /* two-col info */
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+  .info{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px}
+  .info h3{font-size:18px;margin-bottom:12px;color:var(--gold)}
+  .info ul{list-style:none}
+  .info li{padding:7px 0 7px 24px;position:relative;font-size:14px;color:var(--muted)}
+  .info li::before{content:"✦";position:absolute;left:0;color:var(--gold);opacity:.8}
+  .info li b{color:var(--text);font-weight:700}
+
+  .themes{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+  .theme{padding:8px 16px;border-radius:999px;font-weight:700;font-size:13px;border:1px solid transparent}
+
+  footer{text-align:center;padding:48px 20px 60px;color:var(--muted);font-size:13px;border-top:1px solid var(--border);margin-top:20px}
+  footer .big{font-size:16px;color:var(--gold);font-weight:800;margin-bottom:8px}
+
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <img src="panghu-icon.png" alt="胖虎" class="mascot" onerror="this.style.display='none';document.getElementById('mf').style.display='flex'">
+    <div class="mascot-fallback" id="mf">🐶</div>
+    <h1>胖虎的小財庫</h1>
+    <p class="tag">一個純前端、可安裝到手機的 <b style="color:var(--text)">台股庫存儀表板</b> —— 自動更新市價、看損益、比大盤,還有會看你賺賠換表情的胖虎。</p>
+    <a class="cta" href="https://jye-tsai.github.io/stock-dashboard/" target="_blank" rel="noopener">🚀 打開儀表板</a>
+    <div class="pillrow">
+      <span class="pill"><b>7</b> 種主題</span>
+      <span class="pill"><b>PWA</b> 可安裝</span>
+      <span class="pill"><b>自動</b> 更新市價</span>
+      <span class="pill"><b>對比</b> 大盤 / 台積電</span>
+      <span class="pill">單一 <b>HTML</b> 檔</span>
+    </div>
+  </div>
+
+  <section class="wrap reveal">
+    <h2>它能做<span class="em">什麼</span></h2>
+    <p class="sub">一頁看完你的台股資產、損益與走勢</p>
+    <div class="grid">
+      <div class="card"><div class="ico">🍩</div><h3>總報酬甜甜圈</h3><p>未實現 + 已實現 + 股息一次看,中間顯示總報酬與報酬率。</p></div>
+      <div class="card"><div class="ico">📊</div><h3>資產走勢(堆疊)</h3><p>成本 + 未實現損益堆疊,合計≈總市值,並標出區間最高 / 最低點。</p></div>
+      <div class="card"><div class="ico">📈</div><h3>報酬對比大盤</h3><p>你的組合 vs 加權指數 vs 台積電,以起點為 0% 正規化,贏沒贏一眼看穿。</p></div>
+      <div class="card"><div class="ico">📅</div><h3>每日市值變動</h3><p>紅漲綠跌的柱狀圖,區間內漲最多 / 跌最多自動高亮。</p></div>
+      <div class="card"><div class="ico">🎯</div><h3>目標價 / 停損價</h3><p>每檔可設,到價整列標記 🎯 / ⚠️;持股表可排序、點列展開明細。</p></div>
+      <div class="card"><div class="ico">🔴</div><h3>今日漲跌 % / 過期警示</h3><p>每檔顯示相對昨收的今日漲跌;資料沒即時更新時頁首亮紅字提醒。</p></div>
+      <div class="card"><div class="ico">🐶</div><h3>胖虎吉祥物</h3><p>依「今日 vs 昨日」未實現損益換表情:賺→笑、賠→哭、持平→淡定。</p></div>
+      <div class="card"><div class="ico">📱</div><h3>PWA + 手機優化</h3><p>加到主畫面、全螢幕、離線看上次資料;下拉重新整理、卡片式排版。</p></div>
+    </div>
+  </section>
+
+  <section class="wrap reveal">
+    <h2>市價怎麼<span class="em">自動更新</span></h2>
+    <p class="sub">瀏覽器抓不到證交所(CORS),所以改由伺服器端代勞</p>
+    <div class="flow">
+      <div class="step"><div class="n">1</div><h4>Cloudflare Worker</h4><p>cron 準時觸發(盤中每 15 分)</p></div>
+      <div class="arrow">➜</div>
+      <div class="step"><div class="n">2</div><h4>GitHub Action</h4><p>跑 update-prices.mjs 抓 Yahoo / 證交所</p></div>
+      <div class="arrow">➜</div>
+      <div class="step"><div class="n">3</div><h4>寫回 data.json</h4><p>更新價格、昨收、加權指數並 commit</p></div>
+      <div class="arrow">➜</div>
+      <div class="step"><div class="n">4</div><h4>GitHub Pages</h4><p>重新部署,儀表板讀到最新價</p></div>
+    </div>
+  </section>
+
+  <section class="wrap reveal">
+    <h2>三張<span class="em">走勢圖</span></h2>
+    <p class="sub">同一組時間範圍,週末與休市日自動不畫</p>
+    <div class="charts">
+      <div class="chart">
+        <h3>資產走勢</h3><div class="desc">成本 + 未實現(堆疊)· 總市值天花板</div>
+        <svg viewBox="0 0 260 110" preserveAspectRatio="none">
+          <polygon points="0,80 40,74 80,78 120,64 160,70 200,58 260,62 260,110 0,110" fill="rgba(148,163,184,.28)"/>
+          <polygon points="0,80 40,74 80,78 120,64 160,70 200,58 260,62 260,40 200,30 160,40 120,28 80,44 40,38 0,42" fill="rgba(255,107,129,.32)"/>
+          <polyline points="0,42 40,38 80,44 120,28 160,40 200,30 260,40" fill="none" stroke="#e8edf7" stroke-width="2" stroke-dasharray="5 4"/>
+          <circle cx="120" cy="28" r="4" fill="#f59e0b"/><circle cx="200" cy="30" r="4" fill="#38bdf8"/>
+        </svg>
+      </div>
+      <div class="chart">
+        <h3>每日市值變動</h3><div class="desc">紅漲綠跌 · 漲最多 / 跌最多高亮</div>
+        <svg viewBox="0 0 260 110">
+          <line x1="0" y1="60" x2="260" y2="60" stroke="rgba(148,163,184,.25)"/>
+          <rect x="14" y="42" width="22" height="18" rx="3" fill="#ff6b81"/>
+          <rect x="48" y="60" width="22" height="16" rx="3" fill="#34d399"/>
+          <rect x="82" y="30" width="22" height="30" rx="3" fill="#f59e0b"/>
+          <rect x="116" y="60" width="22" height="24" rx="3" fill="#34d399"/>
+          <rect x="150" y="48" width="22" height="12" rx="3" fill="#ff6b81"/>
+          <rect x="184" y="60" width="22" height="34" rx="3" fill="#38bdf8"/>
+          <rect x="218" y="40" width="22" height="20" rx="3" fill="#ff6b81"/>
+        </svg>
+      </div>
+      <div class="chart">
+        <h3>報酬對比</h3><div class="desc">我的組合 vs 加權指數 vs 台積電</div>
+        <svg viewBox="0 0 260 110" preserveAspectRatio="none">
+          <polyline points="0,70 50,60 100,52 150,38 200,30 260,18" fill="none" stroke="#e0b34d" stroke-width="2.5"/>
+          <polyline points="0,70 50,66 100,60 150,54 200,50 260,44" fill="none" stroke="#93a3c0" stroke-width="2" stroke-dasharray="6 4"/>
+          <polyline points="0,70 50,58 100,64 150,42 200,34 260,26" fill="none" stroke="#4fd0ff" stroke-width="2" stroke-dasharray="2 3"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap reveal">
+    <h2>換個<span class="em">心情</span></h2>
+    <p class="sub">7 種主題,標題會發光</p>
+    <div class="themes">
+      <span class="theme" style="background:rgba(2,132,199,.18);color:#4fd0ff;border-color:#0284c7">🌊 海洋藍</span>
+      <span class="theme" style="background:rgba(249,115,22,.18);color:#fb9d5b;border-color:#f97316">🌅 珊瑚暖陽</span>
+      <span class="theme" style="background:rgba(77,124,69,.22);color:#8fce7e;border-color:#4d7c45">🌿 抹茶清新</span>
+      <span class="theme" style="background:rgba(224,179,77,.2);color:#e0b34d;border-color:#e0b34d">🌌 午夜金</span>
+      <span class="theme" style="background:rgba(244,143,177,.18);color:#ff9ec4;border-color:#f48fb1">🍡 馬卡龍</span>
+      <span class="theme" style="background:rgba(255,143,184,.16);color:#ff8fb8;border-color:#ff8fb8">🌙 美少女</span>
+      <span class="theme" style="background:rgba(139,92,246,.2);color:#b79dff;border-color:#8b5cf6">🧬 Agent Neon</span>
+    </div>
+  </section>
+
+  <section class="wrap reveal">
+    <h2>技術與<span class="em">安全</span></h2>
+    <div class="cols">
+      <div class="info">
+        <h3>🛠️ 怎麼做的</h3>
+        <ul>
+          <li><b>單一 HTML 檔</b>:HTML + CSS + JS 全內嵌,好部署、好離線</li>
+          <li><b>Chart.js</b> 畫所有圖表,配色隨主題變</li>
+          <li><b>GitHub Pages</b> 靜態託管,<b>資料存 data.json</b></li>
+          <li><b>GitHub Action + Cloudflare Worker</b> 排程更新市價</li>
+          <li><b>PWA</b>:manifest + Service Worker 離線快取</li>
+        </ul>
+      </div>
+      <div class="info">
+        <h3>🔒 安全性</h3>
+        <ul>
+          <li>資料防竄改靠 <b>GitHub 寫入權限 / token</b>,沒 token 誰都存不回</li>
+          <li>密碼用 <b>PBKDF2-SHA256 + 隨機鹽</b>(前端遮罩用)</li>
+          <li>token 只存你裝置瀏覽器與 Cloudflare Secret,不進 repo</li>
+          <li>data.json 在公開 repo,金額資訊留意隱私</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="big">胖虎的小財庫 🐶📈</div>
+    <div>台股庫存儀表板 · 純前端 · 自動更新 · 可安裝</div>
+    <div style="margin-top:14px"><a href="https://jye-tsai.github.io/stock-dashboard/" target="_blank" rel="noopener">jye-tsai.github.io/stock-dashboard ↗</a></div>
+  </footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
