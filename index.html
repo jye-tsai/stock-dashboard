@@ -619,7 +619,7 @@
           <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
-          <div class="chart-subtitle" style="margin-top:18px">報酬對比大盤（以區間起點為 0%；我的組合 vs 加權指數）</div>
+          <div class="chart-subtitle" style="margin-top:18px">報酬對比（以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
           <div class="chart-box" style="height:170px"><canvas id="navbench"></canvas></div>
         </div>
       </div>
@@ -1925,13 +1925,20 @@ function drawCharts(held, ys) {
       const baseM = mvData[firstT] || 1, baseT = taiexRaw[firstT] || 1;
       const meLine = mvData.slice(firstT).map(v => baseM ? (v / baseM - 1) * 100 : null);
       const twLine = taiexRaw.slice(firstT).map(v => v > 0 ? (v / baseT - 1) * 100 : null);
-      const meColor = palette.slices[0], twColor = muted;
+      const meColor = palette.slices[0], twColor = palette.slices[3] || palette.dividend;
+      // 台積電單獨拉一條(以同一起點正規化;沒有 tsmc 資料就不畫)
+      const tsmcRaw = hist.map(p => Number(p.tsmc) || 0);
+      const baseS = tsmcRaw[firstT] || 0;
+      const tsmcLine = baseS > 0 ? tsmcRaw.slice(firstT).map(v => v > 0 ? (v / baseS - 1) * 100 : null) : null;
+      const tsmcColor = palette.slices[1] || palette.gain;
+      const benchSets = [
+        { label: '我的組合', data: meLine, borderColor: meColor, backgroundColor: meColor + '22', borderWidth: 2.5, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
+        { label: '加權指數', data: twLine, borderColor: twColor, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
+      ];
+      if (tsmcLine) benchSets.push({ label: '台積電', data: tsmcLine, borderColor: tsmcColor, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
       navBenchChart = new Chart(navBenchCanvas, {
         type: 'line',
-        data: { labels: bLabels, datasets: [
-          { label: '我的組合', data: meLine, borderColor: meColor, backgroundColor: meColor + '22', borderWidth: 2, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
-          { label: '加權指數', data: twLine, borderColor: twColor, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
-        ] },
+        data: { labels: bLabels, datasets: benchSets },
         options: {
           responsive: true, maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },

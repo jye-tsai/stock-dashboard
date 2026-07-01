@@ -94,11 +94,11 @@ async function fromTaiex() {
   } catch (e) { return 0; }
 }
 
-// 加權指數歷史日收盤(用來回補 history 裡還沒有 taiex 的舊日期);回傳 { 'YYYY-MM-DD': close }
-async function fetchTaiexHistory() {
+// 某 Yahoo symbol 的歷史日收盤(回補用);回傳 { 'YYYY-MM-DD': close }
+async function fetchYahooDailyClose(symbol) {
   const map = {};
   try {
-    const j = await fetchJson('https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=6mo');
+    const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=6mo`);
     const r = j && j.chart && j.chart.result && j.chart.result[0];
     const ts = r && r.timestamp;
     const cl = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
@@ -202,18 +202,24 @@ async function main() {
     data.history = Array.isArray(data.history) ? data.history : [];
     const entry = { date: day, mv: tot.mv, cost: tot.cost, un: tot.unreal, real: tot.realized, div: tot.dividend, ret: tot.totalReturn };
     if (taiex > 0) entry.taiex = taiex;
+    const tsmcH = holdings.find(h => h.code === '2330');          // 台積電當前價(單獨拉出來比)
+    if (tsmcH && tsmcH.price > 0) entry.tsmc = tsmcH.price;
     const last = data.history[data.history.length - 1];
     if (last && last.date === day) data.history[data.history.length - 1] = entry;
     else data.history.push(entry);
     if (data.history.length > 400) data.history = data.history.slice(-400);
 
-    // 回補:history 裡還沒有 taiex 的舊日期,用歷史日收盤補齊(一次抓,自我修復)
-    const needTaiex = data.history.filter(h => !(h.taiex > 0));
-    if (needTaiex.length) {
-      const th = await fetchTaiexHistory();
-      let filled = 0;
-      for (const h of data.history) { if (!(h.taiex > 0) && th[h.date] > 0) { h.taiex = th[h.date]; filled++; } }
-      if (filled) console.log(`回補大盤點位 ${filled} 天`);
+    // 回補:history 裡還沒有 taiex / tsmc 的舊日期,用歷史日收盤補齊(一次抓,自我修復)
+    const needFill = data.history.some(h => !(h.taiex > 0) || !(h.tsmc > 0));
+    if (needFill) {
+      const th = await fetchYahooDailyClose('%5ETWII');
+      const sh = await fetchYahooDailyClose('2330.TW');
+      let f1 = 0, f2 = 0;
+      for (const h of data.history) {
+        if (!(h.taiex > 0) && th[h.date] > 0) { h.taiex = th[h.date]; f1++; }
+        if (!(h.tsmc > 0) && sh[h.date] > 0) { h.tsmc = sh[h.date]; f2++; }
+      }
+      if (f1 || f2) console.log(`回補 大盤 ${f1} 天、台積電 ${f2} 天`);
     }
 
     fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
