@@ -266,6 +266,7 @@
   .card .sub { font-size: 13px; margin-top: 7px; font-variant-numeric: tabular-nums; font-weight: 700; }
 
   .up { color: var(--up); } .down { color: var(--down); }
+  .today-chg { font-size: 11px; font-weight: 700; margin-top: 2px; line-height: 1.2; }
 
   .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
   .panel:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 28px rgba(20,30,50,.14); }
@@ -617,6 +618,10 @@
           <div class="chart-subtitle" style="margin-top:18px">每日市值變動（紅漲綠跌，較前一日；區間內漲最多、跌最多以高亮色標示）</div>
           <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
         </div>
+        <div id="navbench-wrap" style="display:none">
+          <div class="chart-subtitle" style="margin-top:18px">報酬對比大盤（以區間起點為 0%；我的組合 vs 加權指數）</div>
+          <div class="chart-box" style="height:170px"><canvas id="navbench"></canvas></div>
+        </div>
       </div>
 
       <div class="panel full-panel pl-panel">
@@ -838,7 +843,24 @@ function render() {
     ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
     : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
 
-  document.getElementById('updated').textContent = '更新時間:' + (d.priceUpdated || d.updated || '-');
+  // 更新時間 + 資料新鮮度提示(以台北時間判斷;週末/開盤前不算過期)
+  const upEl = document.getElementById('updated');
+  const pu = d.priceUpdated || d.updated || '';
+  if (pu) {
+    const tpe = new Date(Date.now() + 8 * 3600 * 1000);
+    const z = n => String(n).padStart(2, '0');
+    const tDate = `${tpe.getUTCFullYear()}-${z(tpe.getUTCMonth() + 1)}-${z(tpe.getUTCDate())}`;
+    const dow = tpe.getUTCDay(), hh = tpe.getUTCHours();
+    const puDate = String(pu).slice(0, 10);
+    let tag = '';
+    if (puDate === tDate) tag = ' <span title="今日已更新" style="color:#22c55e">●</span>';
+    else if (dow === 0 || dow === 6) tag = ' <span style="opacity:.7">・週末休市</span>';
+    else if (hh < 9) tag = ' <span style="opacity:.7">・開盤前</span>';
+    else tag = ' <span title="今日尚未收到更新,排程可能漏跑" style="background:#dc2626;color:#fff;padding:1px 8px;border-radius:10px;font-weight:700">⚠ 資料可能未更新</span>';
+    upEl.innerHTML = '更新時間:' + esc(pu) + tag;
+  } else {
+    upEl.textContent = '更新時間:-';
+  }
   const puEl = document.getElementById('price-updated');
   if (puEl) puEl.textContent = d.priceUpdated
     ? `📈 市價更新時間:${d.priceUpdated}(台北時間，由 GitHub Action 更新）`
@@ -877,6 +899,9 @@ function render() {
     return `<th class="th-sort" onclick="sortHoldings('${key}')" title="點擊排序">${label}${arrow}</th>`;
   }).join('') + (E ? '<th></th>' : '');
   const ptimeCell = r => `<td title="${r.priceTime ? esc(r.priceTime) : '尚未由 Action 更新'}" style="color:var(--muted);font-size:12px">${r.priceTime ? esc(r.priceTime.slice(5)) : '—'}</td>`;
+  // 今日漲跌%(相對昨收 prevClose;缺昨收就不顯示)
+  const todayChg = r => (r.prevClose > 0 && r.price > 0) ? (r.price - r.prevClose) / r.prevClose : null;
+  const todayHtml = r => { const c = todayChg(r); return c == null ? '' : `<div class="today-chg ${c > 0 ? 'up' : c < 0 ? 'down' : ''}" title="相對昨收 ${fmt2(r.prevClose)}">今日 ${c > 0 ? '+' : ''}${(c * 100).toFixed(2)}%</div>`; };
   // 排序(僅檢視模式;編輯模式維持原順序,避免欄位索引錯位)
   if (holdSort.key && !E) {
     const k = holdSort.key, dir = holdSort.dir;
@@ -902,7 +927,7 @@ function render() {
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
         <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
-        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
+        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       const sellNet = r.mv - r.sellCost;
       const colspan = cols.length + (E ? 1 : 0);
       const dstat = (k, v) => `<span class="d-stat"><span class="d-k">${k}</span><span class="d-v">${v}</span></span>`;
@@ -947,6 +972,7 @@ function render() {
       </div>
       <div class="h-stats">
         ${stat('市價', fmt2(r.price))}
+        ${todayChg(r) != null ? stat('今日', `<span class="${todayChg(r) > 0 ? 'up' : todayChg(r) < 0 ? 'down' : ''}">${todayChg(r) > 0 ? '+' : ''}${(todayChg(r) * 100).toFixed(2)}%</span>`) : ''}
         ${stat('成本', fmt2(r.cost))}
         ${stat('張數', r.lots.toLocaleString('zh-TW', { minimumFractionDigits: 3 }))}
         ${stat('市值', fmt(r.mv))}
@@ -1013,7 +1039,7 @@ function render() {
   if (typeof hideSplash === 'function') hideSplash();
 }
 
-let pieChart, costPlChart, barChart, plChart, navChart, navChgChart;
+let pieChart, costPlChart, barChart, plChart, navChart, navChgChart, navBenchChart;
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
   localStorage.setItem('pf-pie-mode', m === 'costpl' ? 'value' : 'costpl');
@@ -1765,12 +1791,15 @@ function drawCharts(held, ys) {
   let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date && !isWeekend(p.date));
   if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   const navChgWrap = document.getElementById('navchg-wrap');
+  const navBenchWrap = document.getElementById('navbench-wrap');
   if (navChart) { navChart.destroy(); navChart = null; }
   if (navChgChart) { navChgChart.destroy(); navChgChart = null; }
+  if (navBenchChart) { navBenchChart.destroy(); navBenchChart = null; }
   if (!hist.length) {
     if (navBox) navBox.style.display = 'none';
     if (navEmpty) navEmpty.style.display = 'block';
     if (navChgWrap) navChgWrap.style.display = 'none';
+    if (navBenchWrap) navBenchWrap.style.display = 'none';
   } else if (navCanvas) {
     if (navBox) navBox.style.display = '';
     if (navEmpty) navEmpty.style.display = 'none';
@@ -1884,6 +1913,46 @@ function drawCharts(held, ys) {
     } else if (navChgWrap) {
       navChgWrap.style.display = 'none';
     }
+
+    // 報酬對比大盤:我的組合(總市值)vs 加權指數,都以「區間內第一個有大盤資料的點」為 0%
+    const navBenchCanvas = document.getElementById('navbench');
+    const taiexRaw = hist.map(p => Number(p.taiex) || 0);
+    const firstT = taiexRaw.findIndex(v => v > 0);
+    const taiexCount = taiexRaw.filter(v => v > 0).length;
+    if (navBenchWrap && navBenchCanvas && firstT >= 0 && taiexCount >= 2) {
+      navBenchWrap.style.display = '';
+      const bLabels = navLabels.slice(firstT);
+      const baseM = mvData[firstT] || 1, baseT = taiexRaw[firstT] || 1;
+      const meLine = mvData.slice(firstT).map(v => baseM ? (v / baseM - 1) * 100 : null);
+      const twLine = taiexRaw.slice(firstT).map(v => v > 0 ? (v / baseT - 1) * 100 : null);
+      const meColor = palette.slices[0], twColor = muted;
+      navBenchChart = new Chart(navBenchCanvas, {
+        type: 'line',
+        data: { labels: bLabels, datasets: [
+          { label: '我的組合', data: meLine, borderColor: meColor, backgroundColor: meColor + '22', borderWidth: 2, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
+          { label: '加權指數', data: twLine, borderColor: twColor, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
+        ] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
+            y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + v.toFixed(1) + '%' } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
+            tooltip: {
+              backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+              borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
+              callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}：${c.parsed.y > 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` }
+            }
+          }
+        }
+      });
+    } else if (navBenchWrap) {
+      navBenchWrap.style.display = 'none';
+    }
   }
 }
 
@@ -1899,6 +1968,7 @@ function switchTab(tab) {
       if (plChart) plChart.resize();
       if (navChart) navChart.resize();
       if (navChgChart) navChgChart.resize();
+      if (navBenchChart) navBenchChart.resize();
     }, 60);
   }
 }
@@ -2081,87 +2151,7 @@ function lockUI() {
   toast('🔒 已登出');
 }
 
-/* ---------- 市價查詢(多來源備援;每個請求都有逾時,不會再卡住) ---------- */
-// 公用 CORS 代理:MIS / Yahoo 即時價需要;依序嘗試,任一通就用
-const CORS_PROXIES = [
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
-];
-// 帶逾時的 fetch→JSON:逾時自動 abort,流程立刻往下一個來源走(這就是解決「卡住」的關鍵)
-async function fetchJson(url, ms = 8000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const r = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } finally { clearTimeout(timer); }
-}
-// 透過多個代理輪流抓,任一成功即回傳(每個代理各自有逾時)
-async function fetchJsonViaProxy(url, ms = 4500) {
-  let lastErr;
-  for (const wrap of CORS_PROXIES) {
-    try { return await fetchJson(wrap(url), ms); } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('代理皆失敗');
-}
-// 先直連(支援 CORS 的來源最快),失敗再走代理
-async function fetchJsonSmart(url, ms = 9000) {
-  try { return await fetchJson(url, ms); } catch (e) {}
-  return fetchJsonViaProxy(url, ms);
-}
-
-// 來源 1:證交所 MIS 即時報價(上市 tse_ + 上櫃 otc_ 一起查);z=成交價 → pz → y=昨收
-async function priceFromMis(codes) {
-  if (!codes.length) return {};
-  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
-  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
-  const j = await fetchJsonViaProxy(url);
-  if (!j || !j.msgArray || !j.msgArray.length) throw new Error('無資料');
-  const map = {};
-  j.msgArray.forEach(s => {
-    const p = parseFloat(s.z) || parseFloat(s.pz) || parseFloat(s.y);
-    if (p > 0) map[s.c] = p;
-  });
-  return map;
-}
-// 來源 2:Yahoo 財經即時價(逐檔,先試上市 .TW 再試上櫃 .TWO),經代理避免 CORS
-async function priceFromYahoo(codes) {
-  if (!codes.length) return {};
-  const map = {};
-  await Promise.all(codes.map(async c => {
-    for (const suf of ['.TW', '.TWO']) {
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`;
-        const j = await fetchJsonViaProxy(url);
-        const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
-        const p = m && (m.regularMarketPrice || m.previousClose || m.chartPreviousClose);
-        if (p > 0) { map[c] = p; return; }
-      } catch (e) {}
-    }
-  }));
-  if (!Object.keys(map).length) throw new Error('無資料');
-  return map;
-}
-// 來源 3:證交所 OpenAPI 上市收盤價(直連支援 CORS,最穩定)
-async function priceFromTwseEod() {
-  const list = await fetchJsonSmart('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
-  const map = {};
-  (list || []).forEach(s => { const p = parseFloat(s.ClosingPrice); if (p > 0) map[s.Code] = p; });
-  return map;
-}
-// 來源 4:櫃買中心 OpenAPI 上櫃收盤價
-async function priceFromTpexEod() {
-  const list = await fetchJsonSmart('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
-  const map = {};
-  (list || []).forEach(s => {
-    const code = s.SecuritiesCompanyCode || s.Code || s.code;
-    const p = parseFloat(s.Close || s.ClosingPrice || s.close);
-    if (code && p > 0) map[code] = p;
-  });
-  return map;
-}
-
+/* ---------- 市價更新:一律由 GitHub Action 伺服器端處理 ---------- */
 // 按下「更新市價」→ 觸發 GitHub Action 在伺服器端抓價並寫回 data.json。
 // 瀏覽器受 CORS 限制無法自己抓(證交所/櫃買/Yahoo 都不允許跨站讀取),所以改由 Action 代勞;
 // 約 1 分鐘後 Action 會 commit 新價,重新整理頁面即可看到。

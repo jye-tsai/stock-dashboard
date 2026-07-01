@@ -48,7 +48,7 @@ async function fetchJson(url, ms = 12000) {
 }
 
 // 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價),先試上市 .TW 再試上櫃 .TWO
-async function fromYahoo(codes) {
+async function fromYahoo(codes, prev) {
   const live = {};
   for (const c of codes) {
     for (const suf of ['.TW', '.TWO']) {
@@ -56,7 +56,12 @@ async function fromYahoo(codes) {
         const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`);
         const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
         const p = m && m.regularMarketPrice;
-        if (p > 0) { live[c] = p; break; }
+        if (p > 0) {
+          live[c] = p;
+          const pc = m.previousClose || m.chartPreviousClose;   // 昨收 → 算今日漲跌%
+          if (prev && pc > 0) prev[c] = pc;
+          break;
+        }
       } catch (e) {}
     }
   }
@@ -64,7 +69,7 @@ async function fromYahoo(codes) {
 }
 
 // 即時來源 2:證交所 MIS(z=成交 → pz=最後揭示;不取昨收 y,以免用舊價倒退)
-async function fromMis(codes) {
+async function fromMis(codes, prev) {
   const live = {};
   if (!codes.length) return live;
   const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
@@ -73,8 +78,41 @@ async function fromMis(codes) {
   (j.msgArray || []).forEach(s => {
     const p = parseFloat(s.z) || parseFloat(s.pz);
     if (p > 0) live[s.c] = p;
+    const y = parseFloat(s.y);                     // y=昨收 → 算今日漲跌%
+    if (prev && y > 0) prev[s.c] = y;
   });
   return live;
+}
+
+// 加權指數(TAIEX,^TWII)當前點位 → 供前端「對比大盤」
+async function fromTaiex() {
+  try {
+    const j = await fetchJson('https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=1d');
+    const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
+    const p = m && m.regularMarketPrice;
+    return p > 0 ? p : 0;
+  } catch (e) { return 0; }
+}
+
+// 加權指數歷史日收盤(用來回補 history 裡還沒有 taiex 的舊日期);回傳 { 'YYYY-MM-DD': close }
+async function fetchTaiexHistory() {
+  const map = {};
+  try {
+    const j = await fetchJson('https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=6mo');
+    const r = j && j.chart && j.chart.result && j.chart.result[0];
+    const ts = r && r.timestamp;
+    const cl = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
+    if (ts && cl) {
+      const z = n => String(n).padStart(2, '0');
+      for (let i = 0; i < ts.length; i++) {
+        const c = cl[i];
+        if (!(c > 0)) continue;
+        const d = new Date(ts[i] * 1000 + 8 * 3600 * 1000);   // 轉台北日期
+        map[`${d.getUTCFullYear()}-${z(d.getUTCMonth() + 1)}-${z(d.getUTCDate())}`] = Math.round(c * 100) / 100;
+      }
+    }
+  } catch (e) {}
+  return map;
 }
 
 // 收盤價(只用來初始化「完全沒有價格」的新標的)
@@ -108,10 +146,10 @@ async function main() {
   const stamp = taipeiStamp();
   console.log(`時間 ${stamp}`);
 
-  // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的
-  const live = {};
+  // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的;prevClose 收集各檔昨收(算今日漲跌%)
+  const live = {}, prevClose = {};
   try {
-    const y = await fromYahoo(codes);
+    const y = await fromYahoo(codes, prevClose);
     Object.assign(live, y);
     console.log(`Yahoo 即時: 取得 ${Object.keys(y).length}/${codes.length}`);
   } catch (e) { console.log(`Yahoo 失敗(${e.message})`); }
@@ -119,7 +157,7 @@ async function main() {
   const misCodes = codes.filter(c => !(live[c] > 0));
   if (misCodes.length) {
     try {
-      const m = await fromMis(misCodes);
+      const m = await fromMis(misCodes, prevClose);
       Object.assign(live, m);
       console.log(`MIS 即時: 補抓 ${Object.keys(m).length}/${misCodes.length}`);
     } catch (e) { console.log(`MIS 失敗(${e.message})`); }
@@ -138,6 +176,7 @@ async function main() {
   let changed = 0, liveHit = 0;
   for (const h of holdings) {
     if (!h.code) continue;
+    if (prevClose[h.code] > 0) h.prevClose = prevClose[h.code];   // 昨收(供前端算今日漲跌%)
     if (live[h.code] > 0) {
       liveHit++;
       h.priceTime = stamp;                                   // 最後抓到即時價的時間(有抓到就更新)
@@ -153,15 +192,29 @@ async function main() {
     data.updated = stamp.slice(0, 10);
     data.priceUpdated = stamp;     // 最後成功抓到即時價的時間 → 判斷是否真的在即時更新
 
+    // 加權指數(對比大盤用);抓不到就不寫,前端會自動略過
+    let taiex = 0;
+    try { taiex = await fromTaiex(); if (taiex) console.log(`加權指數: ${taiex}`); } catch (e) {}
+
     // 記錄每日資產走勢(同一天只留最新一筆,供前端畫淨值曲線)
     const tot = computeTotals(data);
     const day = stamp.slice(0, 10);
     data.history = Array.isArray(data.history) ? data.history : [];
     const entry = { date: day, mv: tot.mv, cost: tot.cost, un: tot.unreal, real: tot.realized, div: tot.dividend, ret: tot.totalReturn };
+    if (taiex > 0) entry.taiex = taiex;
     const last = data.history[data.history.length - 1];
     if (last && last.date === day) data.history[data.history.length - 1] = entry;
     else data.history.push(entry);
     if (data.history.length > 400) data.history = data.history.slice(-400);
+
+    // 回補:history 裡還沒有 taiex 的舊日期,用歷史日收盤補齊(一次抓,自我修復)
+    const needTaiex = data.history.filter(h => !(h.taiex > 0));
+    if (needTaiex.length) {
+      const th = await fetchTaiexHistory();
+      let filled = 0;
+      for (const h of data.history) { if (!(h.taiex > 0) && th[h.date] > 0) { h.taiex = th[h.date]; filled++; } }
+      if (filled) console.log(`回補大盤點位 ${filled} 天`);
+    }
 
     fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
     console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
@@ -171,3 +224,4 @@ async function main() {
 }
 
 main().catch(e => { console.error('執行失敗:', e); process.exit(1); });
+// end
