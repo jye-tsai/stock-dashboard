@@ -1761,7 +1761,8 @@ function drawCharts(held, ys) {
   const navCanvas = document.getElementById('nav');
   const navBox = navCanvas ? navCanvas.closest('.chart-box') : null;
   const navEmpty = document.getElementById('nav-empty');
-  let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date);
+  const isWeekend = ds => { const m = String(ds).split('-'); const dow = new Date(+m[0], +m[1] - 1, +m[2]).getDay(); return dow === 0 || dow === 6; };
+  let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date && !isWeekend(p.date));
   if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   const navChgWrap = document.getElementById('navchg-wrap');
   if (navChart) { navChart.destroy(); navChart = null; }
