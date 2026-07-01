@@ -1296,6 +1296,10 @@ function drawCharts(held, ys) {
   const isDarkChart = styleKey === 'agent' || styleKey === 'midnight';
   const tooltipBg = isAgentChart ? 'rgba(7,10,22,.99)' : (styleKey === 'midnight' ? 'rgba(18,27,48,.98)' : '#ffffff');
   const tooltipBorder = isAgentChart ? 'rgba(53,213,255,.72)' : border;
+  // tooltip 文字色跟著 tooltip 底色走(深底→亮字、白底→深字),不受頁面主題影響,避免淺字白底看不見
+  const tooltipDark = isAgentChart || styleKey === 'midnight';
+  const tipTitle = isAgentChart ? '#67e8f9' : (tooltipDark ? '#f0f4ff' : '#1e293b');
+  const tipBody = isAgentChart ? '#eef4ff' : (tooltipDark ? '#e6ecff' : '#334155');
   const chartFont = isAgentChart
     ? 'Trebuchet MS, Segoe UI, Microsoft JhengHei, sans-serif'
     : 'Segoe UI, Microsoft JhengHei, sans-serif';
@@ -1330,7 +1334,7 @@ function drawCharts(held, ys) {
         plugins: {
           legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, font: { size: 12 }, color: muted } },
           centerText: { text: fmt(totalMv), subText: '總市值', color: isAgentChart ? '#dfe7ff' : text, subColor: isAgentChart ? '#8ea0c7' : muted, fontSize: isAgentChart ? 18 : 17, subFontSize: isAgentChart ? 12.5 : 12, fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined, weight: isAgentChart ? 900 : 800, subWeight: 700 },
-          tooltip: { backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: isAgentChart ? '#eef4ff' : text, borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, bodySpacing: 6, titleFont: { size: 13, weight: '700' }, bodyFont: { size: 12, weight: '600' },
+          tooltip: { backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody, borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, bodySpacing: 6, titleFont: { size: 13, weight: '700' }, bodyFont: { size: 12, weight: '600' },
             callbacks: { title: items => items[0]?.label || '', label: c => { const ratio = totalMv ? c.parsed / totalMv : 0; return [`市值 ${fmt(c.parsed)}`, `占比 ${pct(ratio)}`]; } } }
         }
       },
@@ -1389,8 +1393,8 @@ function drawCharts(held, ys) {
         },
         tooltip: {
           backgroundColor: tooltipBg,
-          titleColor: isAgentChart ? '#67e8f9' : text,
-          bodyColor: isAgentChart ? '#eef4ff' : text,
+          titleColor: tipTitle,
+          bodyColor: tipBody,
           borderColor: tooltipBorder,
           borderWidth: 1.5,
           cornerRadius: 12,
@@ -1497,8 +1501,8 @@ function drawCharts(held, ys) {
         },
         tooltip: {
           backgroundColor: tooltipBg,
-          titleColor: isAgentChart ? '#67e8f9' : text,
-          bodyColor: isAgentChart ? '#eef4ff' : text,
+          titleColor: tipTitle,
+          bodyColor: tipBody,
           borderColor: tooltipBorder,
           borderWidth: 1.5,
           cornerRadius: 12,
@@ -1600,8 +1604,8 @@ function drawCharts(held, ys) {
         },
         tooltip: {
           backgroundColor: tooltipBg,
-          titleColor: isAgentChart ? '#67e8f9' : text,
-          bodyColor: isAgentChart ? '#eef4ff' : text,
+          titleColor: tipTitle,
+          bodyColor: tipBody,
           borderColor: tooltipBorder,
           borderWidth: 1.5,
           cornerRadius: 12,
@@ -1750,9 +1754,9 @@ function drawCharts(held, ys) {
         },
         tooltip: {
           backgroundColor: tooltipBg,
-          titleColor: isAgentChart ? '#67e8f9' : text,
-          bodyColor: isAgentChart ? '#eef4ff' : text,
-          footerColor: isAgentChart ? '#f8e7ff' : text,
+          titleColor: tipTitle,
+          bodyColor: tipBody,
+          footerColor: tipBody,
           borderColor: tooltipBorder,
           borderWidth: 1.5,
           cornerRadius: 14,
@@ -1855,7 +1859,7 @@ function drawCharts(held, ys) {
         plugins: {
           legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
           tooltip: {
-            backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text, footerColor: text,
+            backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody, footerColor: tipBody,
             borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
             callbacks: {
               label: c => c.dataset.label === '總市值' ? ` 總市值：${fmt(c.parsed.y)}` : ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}`
@@ -1903,7 +1907,7 @@ function drawCharts(held, ys) {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+              backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
               borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: false,
               callbacks: { label: c => ` 市值變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
             }
@@ -1948,9 +1952,9 @@ function drawCharts(held, ys) {
             y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + v.toFixed(1) + '%' } }
           },
           plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
+            legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: text, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
             tooltip: {
-              backgroundColor: tooltipBg, titleColor: isAgentChart ? '#67e8f9' : text, bodyColor: text,
+              backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
               borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: true,
               callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}：${c.parsed.y > 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` }
             }
