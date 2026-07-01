@@ -614,7 +614,7 @@
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
         <div id="navchg-wrap" style="display:none">
-          <div class="chart-subtitle" style="margin-top:18px">每日市值變動（紅漲綠跌，較前一日的增減）</div>
+          <div class="chart-subtitle" style="margin-top:18px">每日市值變動（紅漲綠跌，較前一日；區間內漲最多、跌最多以高亮色標示）</div>
           <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
         </div>
       </div>
@@ -1024,37 +1024,37 @@ const CHART_PALETTES = {
   'ocean': {
     name: '海洋藍',
     slices: ['#0284c7', '#e11d48', '#0d9488', '#7c3aed', '#f59e0b', '#64748b'],
-    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)'
+    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)', hi: '#f59e0b', lo: '#8b5cf6'
   },
   'coral': {
     name: '珊瑚暖陽',
     slices: ['#f97316', '#e0394e', '#0f9d76', '#d97706', '#fb7185', '#a8a29e'],
-    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)'
+    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)', hi: '#7c3aed', lo: '#0891b2'
   },
   'matcha': {
     name: '抹茶清新',
     slices: ['#4d7c45', '#d6443b', '#15803d', '#7c9a3f', '#a16207', '#9ca99b'],
-    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)'
+    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)', hi: '#ea580c', lo: '#2563eb'
   },
   'midnight': {
     name: '午夜金',
     slices: ['#e0b34d', '#ff6b81', '#34d399', '#60a5fa', '#c084fc', '#94a3b8'],
-    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)'
+    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)', hi: '#c084fc', lo: '#38bdf8'
   },
   'cute': {
     name: '馬卡龍',
     slices: ['#ff9ec4', '#8fe0c8', '#ffd98c', '#b9a7ff', '#9fd0ff', '#ffc2a0'],
-    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)'
+    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)', hi: '#f59e0b', lo: '#8b5cf6'
   },
   'sailor': {
     name: '美少女',
     slices: ['#2b3f9e', '#e11d48', '#eab308', '#ec4899', '#0ea5a4', '#a78bdb'],
-    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)'
+    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)', hi: '#f59e0b', lo: '#c084fc'
   },
   'agent': {
     name: 'Agent Neon',
     slices: ['#8b5cf6', '#35d5ff', '#ff4fb8', '#2ee6b8', '#facc15', '#94a3b8'],
-    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
+    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)', hi: '#facc15', lo: '#818cf8'
   }
 };
 
@@ -1781,7 +1781,7 @@ function drawCharts(held, ys) {
     const many = hist.length > 60;
     const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
     // 在目前期間內找總市值的最高/最低點(資料 >=2 筆且高低不同才標)
-    const hiCol = '#f59e0b', loCol = '#38bdf8';  // 高=琥珀、低=天藍(中性,避免和漲跌色混淆)
+    const hiCol = palette.hi || '#f59e0b', loCol = palette.lo || '#38bdf8';  // 極值高亮色,依主題(避免和漲跌色混淆)
     let hiIdx = 0, loIdx = 0;
     mvData.forEach((v, i) => { if (v > mvData[hiIdx]) hiIdx = i; if (v < mvData[loIdx]) loIdx = i; });
     const showPeaks = mvData.length >= 2 && hiIdx !== loIdx;
@@ -1842,15 +1842,31 @@ function drawCharts(held, ys) {
       navChgWrap.style.display = '';
       const chgData = mvData.map((v, i) => i === 0 ? 0 : v - mvData[i - 1]);
       const upC = palette.gain || '#ef4444', downC = palette.loss || '#22c55e';
+      const upHiC = palette.hi || '#f59e0b', dnHiC = palette.lo || '#38bdf8';  // 漲最多/跌最多高亮,依主題(與上圖高低點一致)
+      // 找區間內漲最多(最大正值)、跌最多(最小負值);第一天無前值不列入
+      let upIdx = -1, dnIdx = -1, upMax = 0, dnMin = 0;
+      chgData.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
       navChgChart = new Chart(navChgCanvas, {
+        plugins: [{
+          id: 'chgExtremes',
+          afterDatasetsDraw(chart) {
+            const meta = chart.getDatasetMeta(0), x = chart.ctx;
+            x.save();
+            x.font = '700 10px ' + chartFont;
+            x.textAlign = 'center';
+            if (upIdx >= 0) { const b = meta.data[upIdx]; x.fillStyle = upHiC; x.textBaseline = 'bottom'; x.fillText('漲最多', b.x, b.y - 4); }
+            if (dnIdx >= 0) { const b = meta.data[dnIdx]; x.fillStyle = dnHiC; x.textBaseline = 'top'; x.fillText('跌最多', b.x, b.y + 4); }
+            x.restore();
+          }
+        }],
         type: 'bar',
         data: { labels: navLabels, datasets: [
-          { label: '市值變動', data: chgData, backgroundColor: chgData.map(v => v >= 0 ? upC : downC), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
+          { label: '市值變動', data: chgData, backgroundColor: chgData.map((v, i) => i === upIdx ? upHiC : i === dnIdx ? dnHiC : (v >= 0 ? upC : downC)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
         ] },
         options: {
           responsive: true, maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
-          layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+          layout: { padding: { top: 18, right: 10, bottom: 14, left: 2 } },
           scales: {
             x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
             y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + (v / 10000) + '萬' } }
