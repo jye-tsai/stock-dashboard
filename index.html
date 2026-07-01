@@ -738,6 +738,20 @@
 <div id="toast"></div>
 
 <script>
+/* ============================================================
+   胖虎的小財庫 — 主程式索引(用 § 搜尋可快速跳到各段)
+   §1  全域狀態、常數、小工具      §10 市價更新(觸發 Action)
+   §2  數字跳動動畫                §11 持股/年度編輯操作
+   §3  計算(市值/損益)            §12 儲存 / 載入 / 快取
+   §4  畫面 render                 §13 GitHub 同步
+   §5  圖表繪製與風格              §14 檔案存取(存檔/選檔)
+   §6  分頁切換                    §15 主題 / 圖表風格切換
+   §7  編輯模式                    §16 下拉重新整理(PWA)
+   §8  密碼(PBKDF2)              §17 啟動(splash + init)
+   §9  解鎖 / 權限 UI
+   ============================================================ */
+
+/* ==================== §1. 全域狀態、常數、小工具 ==================== */
 let DATA = null;
 let editMode = false;
 let holdSort = { key: null, dir: -1 };           // 持股表排序狀態
@@ -770,7 +784,7 @@ const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
 const sign = n => n > 0 ? '+' : '';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 
-/* ---------- 數字跳動動畫 ---------- */
+/* ==================== §2. 數字跳動動畫 ==================== */
 const countCache = {};
 function animateCounts() {
   document.querySelectorAll('#cards .value[data-count]').forEach(el => {
@@ -794,7 +808,7 @@ function animateCounts() {
   });
 }
 
-/* ---------- 計算 ---------- */
+/* ==================== §3. 計算(市值 / 損益 / 比例) ==================== */
 function compute(d) {
   const f = d.fees;
   const rows = d.holdings.map(h => {
@@ -813,7 +827,7 @@ function compute(d) {
   return { rows, t };
 }
 
-/* ---------- 畫面 ---------- */
+/* ==================== §4. 畫面 render(卡片 / 持股表 / 標題) ==================== */
 function render() {
   const d = DATA;
   const { rows, t } = compute(d);
@@ -1040,6 +1054,7 @@ function render() {
 }
 
 let pieChart, costPlChart, barChart, plChart, navChart, navChgChart, navBenchChart;
+/* ==================== §5. 圖表繪製與風格(甜甜圈/比例/走勢/對比) ==================== */
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
   localStorage.setItem('pf-pie-mode', m === 'costpl' ? 'value' : 'costpl');
@@ -1792,7 +1807,10 @@ function drawCharts(held, ys) {
   const navBox = navCanvas ? navCanvas.closest('.chart-box') : null;
   const navEmpty = document.getElementById('nav-empty');
   const isWeekend = ds => { const m = String(ds).split('-'); const dow = new Date(+m[0], +m[1] - 1, +m[2]).getDay(); return dow === 0 || dow === 6; };
-  let hist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date && !isWeekend(p.date));
+  const allHist = (Array.isArray(DATA.history) ? DATA.history : []).filter(p => p && p.date);
+  // 沒有大盤指數的日期視為休市(國定假日),整天不畫;但要等資料開始有 taiex 才啟用,否則舊資料會被全清空
+  const hasTaiex = allHist.some(p => Number(p.taiex) > 0);
+  let hist = allHist.filter(p => !isWeekend(p.date) && (!hasTaiex || Number(p.taiex) > 0));
   if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   const navChgWrap = document.getElementById('navchg-wrap');
   const navBenchWrap = document.getElementById('navbench-wrap');
@@ -1967,6 +1985,7 @@ function drawCharts(held, ys) {
   }
 }
 
+/* ==================== §6. 分頁切換 ==================== */
 function switchTab(tab) {
   document.querySelectorAll('.tab-page').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
@@ -1992,14 +2011,14 @@ function restoreActiveTab() {
   switchTab(tab);
 }
 
-/* ---------- 編輯 ---------- */
+/* ==================== §7. 編輯模式 ==================== */
 async function sha256Text(text) {
   const data = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/* ---------- 密碼:PBKDF2-SHA256 + 隨機鹽(相容舊版 SHA-256) ---------- */
+/* ==================== §8. 密碼:PBKDF2-SHA256 + 隨機鹽(相容舊版 SHA-256) ==================== */
 const PBKDF2_ITER = 210000;
 const b64enc = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
 const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
@@ -2133,7 +2152,7 @@ function closePwdModal(ok) {
   if (r) r(!!ok);
 }
 
-/* ---------- 解鎖後才顯示 編輯/載入/GitHub 按鈕 ---------- */
+/* ==================== §9. 解鎖 / 權限 UI(解鎖後才顯示 編輯/載入/GitHub) ==================== */
 function isUnlocked() {
   try { return Date.now() < Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0); }
   catch (e) { return false; }
@@ -2162,7 +2181,7 @@ function lockUI() {
   toast('🔒 已登出');
 }
 
-/* ---------- 市價更新:一律由 GitHub Action 伺服器端處理 ---------- */
+/* ==================== §10. 市價更新:一律由 GitHub Action 伺服器端處理 ==================== */
 // 按下「更新市價」→ 觸發 GitHub Action 在伺服器端抓價並寫回 data.json。
 // 瀏覽器受 CORS 限制無法自己抓(證交所/櫃買/Yahoo 都不允許跨站讀取),所以改由 Action 代勞;
 // 約 1 分鐘後 Action 會 commit 新價,重新整理頁面即可看到。
@@ -2209,6 +2228,7 @@ async function autoTriggerPrices(c) {
   } catch (e) {}
 }
 
+/* ==================== §11. 持股 / 年度 編輯操作 ==================== */
 async function toggleEdit() {
   if (!editMode) {
     const ok = await verifyEditPassword();
@@ -2246,7 +2266,7 @@ document.addEventListener('change', e => {
   cache(); render();
 });
 
-/* ---------- 儲存 / 載入 ---------- */
+/* ==================== §12. 儲存 / 載入 / 快取 ==================== */
 function cache() { try { localStorage.setItem('portfolio-data', JSON.stringify(DATA)); } catch (e) {} }
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -2269,7 +2289,7 @@ const idb = {
     tx.objectStore('kv').put(v, k); tx.oncomplete = res; }); }
 };
 
-/* ---------- GitHub 同步 ---------- */
+/* ==================== §13. GitHub 同步(讀取 / commit) ==================== */
 function ghCfg() { try { return JSON.parse(localStorage.getItem('pf-gh')) || null; } catch (e) { return null; } }
 function ghReady(c) { return c && c.owner && c.repo && c.token; }
 function ghUrl(c) {
@@ -2426,6 +2446,7 @@ async function pickFile() {
   document.getElementById('file-input').click();
 }
 
+/* ==================== §14. 檔案存取(存檔 / 選檔 / 拖放) ==================== */
 function normalizeData(json) {
   if (!json.title && json.dashboardTitle) json.title = json.dashboardTitle;
   if (!json.title) json.title = DEFAULT_TITLE;
@@ -2448,7 +2469,7 @@ document.addEventListener('drop', async e => {
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
 
-/* ---------- 主題 / 圖表風格 ---------- */
+/* ==================== §15. 主題 / 圖表風格切換 ==================== */
 function applyTheme(t) {
   if (!THEME_KEYS.includes(t)) t = 'ocean';
   document.documentElement.dataset.theme = t;
@@ -2471,7 +2492,7 @@ document.getElementById('chart-style-sel').addEventListener('change', e => apply
 applyTheme(localStorage.getItem('pf-theme') || 'ocean');
 applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
 
-/* ---------- 下拉重新整理(手機/PWA) ---------- */
+/* ==================== §16. 下拉重新整理(手機 / PWA) ==================== */
 (function () {
   if (!document.body) return;
   const ind = document.createElement('div');
@@ -2510,7 +2531,8 @@ applyChartStyle(localStorage.getItem('pf-chart-style') || 'match');
   }, { passive: true });
 })();
 
-/* ---------- 啟動畫面(splash):至少停留 SPLASH_MIN,載入完成後再收起 ---------- */
+/* ==================== §17. 啟動(splash + init 載入資料) ==================== */
+/* 啟動畫面(splash):至少停留 SPLASH_MIN,載入完成後再收起 */
 const SPLASH_MIN = 1200;             // 最少停留毫秒(想更久就調大)
 const splashStart = Date.now();
 function hideSplash() {
