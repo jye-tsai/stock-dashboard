@@ -17,7 +17,7 @@
       "cost": 1707.96,
       "price": 2460,
       "lots": 2.33,
-      "priceTime": "2026-07-07 09:01",
+      "priceTime": "2026-07-07 09:08",
       "target": 5000,
       "stop": 1600,
       "prevClose": 2445
@@ -29,7 +29,7 @@
       "cost": 16.18,
       "price": 31.2,
       "lots": 160,
-      "priceTime": "2026-07-07 09:01",
+      "priceTime": "2026-07-07 09:08",
       "target": 60,
       "stop": 15,
       "prevClose": 32.26
@@ -44,7 +44,7 @@
       "target": 25,
       "stop": 18,
       "prevClose": 20.73,
-      "priceTime": "2026-07-07 09:01"
+      "priceTime": "2026-07-07 09:08"
     }
   ],
   "account": {
@@ -87,7 +87,7 @@
     }
   ],
   "title": "胖虎的小財庫",
-  "priceUpdated": "2026-07-07 09:01",
+  "priceUpdated": "2026-07-07 09:08",
   "history": [
     {
       "date": "2026-06-15",
