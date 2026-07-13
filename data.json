@@ -17,7 +17,7 @@
       "cost": 1707.96,
       "price": 2440,
       "lots": 2.33,
-      "priceTime": "2026-07-13 13:50",
+      "priceTime": "2026-07-13 15:02",
       "target": 5000,
       "stop": 1600,
       "prevClose": 2415
@@ -29,7 +29,7 @@
       "cost": 16.18,
       "price": 29.35,
       "lots": 160,
-      "priceTime": "2026-07-13 13:50",
+      "priceTime": "2026-07-13 15:02",
       "target": 60,
       "stop": 15,
       "prevClose": 29.95
@@ -44,7 +44,7 @@
       "target": 25,
       "stop": 18,
       "prevClose": 19.51,
-      "priceTime": "2026-07-13 13:50"
+      "priceTime": "2026-07-13 15:02"
     }
   ],
   "account": {
@@ -87,7 +87,7 @@
     }
   ],
   "title": "胖虎的小財庫",
-  "priceUpdated": "2026-07-13 13:50",
+  "priceUpdated": "2026-07-13 15:02",
   "history": [
     {
       "date": "2026-06-15",
@@ -304,7 +304,7 @@
       "real": 465709,
       "div": 231270,
       "ret": 4467865,
-      "taiex": 45541.34,
+      "taiex": 45380.52,
       "tsmc": 2440
     }
   ],
