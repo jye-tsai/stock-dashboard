@@ -615,7 +615,7 @@
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
         <div id="navchg-wrap" style="display:none">
-          <div class="chart-subtitle" style="margin-top:18px">每日市值變動（紅漲綠跌，較前一日；區間內漲最多、跌最多以高亮色標示）</div>
+          <div class="chart-subtitle" style="margin-top:18px">每日損益變動（紅賺綠賠，較前一日未實現損益；區間內賺最多、賠最多以高亮色標示）</div>
           <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
@@ -1887,11 +1887,11 @@ function drawCharts(held, ys) {
       }
     });
 
-    // 每日市值變動(較前一日增減;紅漲綠跌,沿用台股慣例色)
+    // 每日損益變動(較前一日未實現損益增減;紅賺綠賠,沿用台股慣例色)
     const navChgCanvas = document.getElementById('navchg');
     if (navChgWrap && navChgCanvas && mvData.length >= 2) {
       navChgWrap.style.display = '';
-      const chgData = mvData.map((v, i) => i === 0 ? 0 : v - mvData[i - 1]);
+      const chgData = unData.map((v, i) => i === 0 ? 0 : v - unData[i - 1]);   // 每日未實現損益變動
       const upC = palette.gain || '#ef4444', downC = palette.loss || '#22c55e';
       const upHiC = palette.hi || '#f59e0b', dnHiC = palette.lo || '#38bdf8';  // 漲最多/跌最多高亮,依主題(與上圖高低點一致)
       // 找區間內漲最多(最大正值)、跌最多(最小負值);第一天無前值不列入
@@ -1905,14 +1905,14 @@ function drawCharts(held, ys) {
             x.save();
             x.font = '700 10px ' + chartFont;
             x.textAlign = 'center';
-            if (upIdx >= 0) { const b = meta.data[upIdx]; x.fillStyle = upHiC; x.textBaseline = 'bottom'; x.fillText('漲最多', b.x, b.y - 4); }
-            if (dnIdx >= 0) { const b = meta.data[dnIdx]; x.fillStyle = dnHiC; x.textBaseline = 'top'; x.fillText('跌最多', b.x, b.y + 4); }
+            if (upIdx >= 0) { const b = meta.data[upIdx]; x.fillStyle = upHiC; x.textBaseline = 'bottom'; x.fillText('賺最多', b.x, b.y - 4); }
+            if (dnIdx >= 0) { const b = meta.data[dnIdx]; x.fillStyle = dnHiC; x.textBaseline = 'top'; x.fillText('賠最多', b.x, b.y + 4); }
             x.restore();
           }
         }],
         type: 'bar',
         data: { labels: navLabels, datasets: [
-          { label: '市值變動', data: chgData, backgroundColor: chgData.map((v, i) => i === upIdx ? upHiC : i === dnIdx ? dnHiC : (v >= 0 ? upC : downC)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
+          { label: '損益變動', data: chgData, backgroundColor: chgData.map((v, i) => i === upIdx ? upHiC : i === dnIdx ? dnHiC : (v >= 0 ? upC : downC)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
         ] },
         options: {
           responsive: true, maintainAspectRatio: false,
@@ -1927,7 +1927,7 @@ function drawCharts(held, ys) {
             tooltip: {
               backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
               borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: false,
-              callbacks: { label: c => ` 市值變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
+              callbacks: { label: c => ` 損益變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` }
             }
           }
         }
@@ -1947,7 +1947,7 @@ function drawCharts(held, ys) {
       const baseM = mvData[firstT] || 1, baseT = taiexRaw[firstT] || 1;
       const meLine = mvData.slice(firstT).map(v => baseM ? (v / baseM - 1) * 100 : null);
       const twLine = taiexRaw.slice(firstT).map(v => v > 0 ? (v / baseT - 1) * 100 : null);
-      const meColor = palette.slices[0], twColor = palette.slices[3] || palette.dividend;
+      const meColor = palette.slices[0], twColor = muted;   // 加權指數用中性灰(基準線)，與台積電區隔
       // 台積電單獨拉一條(以同一起點正規化;沒有 tsmc 資料就不畫)
       const tsmcRaw = hist.map(p => Number(p.tsmc) || 0);
       const baseS = tsmcRaw[firstT] || 0;
