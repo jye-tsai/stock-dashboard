@@ -17,7 +17,7 @@
       "cost": 1707.96,
       "price": 2470,
       "lots": 2.33,
-      "priceTime": "2026-07-17 09:10",
+      "priceTime": "2026-07-17 09:09",
       "target": 5000,
       "stop": 1600,
       "prevClose": 2440
@@ -29,7 +29,7 @@
       "cost": 16.18,
       "price": 28.95,
       "lots": 160,
-      "priceTime": "2026-07-17 09:10",
+      "priceTime": "2026-07-17 09:09",
       "target": 60,
       "stop": 15,
       "prevClose": 29.38
@@ -38,13 +38,13 @@
       "type": "ETF",
       "code": "00991A",
       "name": "主動復華未來50",
-      "cost": 19.09,
+      "cost": 18.92,
       "price": 18.53,
-      "lots": 40,
+      "lots": 45,
       "target": 25,
       "stop": 18,
       "prevClose": 19.13,
-      "priceTime": "2026-07-17 09:10"
+      "priceTime": "2026-07-17 09:09"
     }
   ],
   "account": {
@@ -87,7 +87,7 @@
     }
   ],
   "title": "胖虎的小財庫",
-  "priceUpdated": "2026-07-17 09:10",
+  "priceUpdated": "2026-07-17 09:09",
   "history": [
     {
       "date": "2026-06-15",
