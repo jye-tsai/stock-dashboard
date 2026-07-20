@@ -15,24 +15,24 @@
       "code": "2330",
       "name": "台積電",
       "cost": 1707.96,
-      "price": 2290,
+      "price": 2310,
       "lots": 2.33,
-      "priceTime": "2026-07-20 09:10",
+      "priceTime": "2026-07-20 09:20",
       "target": 5000,
       "stop": 1600,
-      "prevClose": 2470
+      "prevClose": 2290
     },
     {
       "type": "ETF",
       "code": "00981A",
       "name": "主動統一台股增長",
       "cost": 16.18,
-      "price": 26.43,
+      "price": 26.53,
       "lots": 160,
-      "priceTime": "2026-07-20 09:10",
+      "priceTime": "2026-07-20 09:20",
       "target": 60,
       "stop": 15,
-      "prevClose": 28.95
+      "prevClose": 26.43
     },
     {
       "type": "ETF",
@@ -44,7 +44,7 @@
       "target": 25,
       "stop": 18,
       "prevClose": 18.53,
-      "priceTime": "2026-07-20 09:10"
+      "priceTime": "2026-07-20 09:20"
     }
   ],
   "account": {
@@ -87,7 +87,7 @@
     }
   ],
   "title": "胖虎的小財庫",
-  "priceUpdated": "2026-07-20 09:10",
+  "priceUpdated": "2026-07-20 09:20",
   "history": [
     {
       "date": "2026-06-15",
@@ -353,14 +353,14 @@
     },
     {
       "date": "2026-07-20",
-      "mv": 10489600,
+      "mv": 10552200,
       "cost": 7592447,
-      "un": 2870014,
+      "un": 2932422,
       "real": 465709,
       "div": 231270,
-      "ret": 3566993,
-      "taiex": 42671.27,
-      "tsmc": 2290
+      "ret": 3629401,
+      "taiex": 42822.69,
+      "tsmc": 2310
     }
   ],
   "auth": {
