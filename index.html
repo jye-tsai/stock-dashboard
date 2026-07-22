@@ -1863,7 +1863,8 @@ function drawCharts(held, ys) {
         datasets: [
           { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
           { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
-          { label: '總市值', data: mvData, stack: 'mv', borderColor: text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 }
+          { label: '總市值', data: mvData, stack: 'mv', borderColor: text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 },
+          { label: '未實現損益(線)', data: unData, stack: 'unl', borderColor: '#b794f6', backgroundColor: '#b794f6', borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, pointRadius: 0, pointHoverRadius: 5, hidden: true }
         ]
       },
       options: {
