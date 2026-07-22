@@ -4,11 +4,29 @@
 //         所以「時間有沒有前進」可用來判斷即時更新是否真的在運作。
 // 防還原:只有即時價能覆蓋現有價格;收盤價(OpenAPI)只用來初始化「完全沒有價格」的新標的。
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 
 const FILE = process.env.DATA_FILE || 'data.json';
+// 混淆金鑰（與前端 index.html 相同；AES-256-GCM，防君子不防小人）
+const OBF_KEY = Buffer.from('3Nr6TNQZewwC/3wye+lwc60BCeWcaPRmQddHyAbS+uc=', 'base64');
 
 function readData() {
-  return JSON.parse(fs.readFileSync(FILE, 'utf8'));
+  const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+  if (raw && raw.enc) {                       // 加密檔 → 解開
+    const iv = Buffer.from(raw.iv, 'base64');
+    const all = Buffer.from(raw.ct, 'base64');
+    const tag = all.subarray(all.length - 16), ct = all.subarray(0, all.length - 16);
+    const d = crypto.createDecipheriv('aes-256-gcm', OBF_KEY, iv); d.setAuthTag(tag);
+    return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
+  }
+  return raw;                                 // 舊明文檔 → 直接用(下次寫回自動變加密)
+}
+function writeData(data) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', OBF_KEY, iv);
+  const ct = Buffer.concat([c.update(JSON.stringify(data), 'utf8'), c.final()]);
+  const all = Buffer.concat([ct, c.getAuthTag()]);
+  fs.writeFileSync(FILE, JSON.stringify({ enc: 1, iv: iv.toString('base64'), ct: all.toString('base64') }));
 }
 
 // 計算總成本 / 總市值 / 總報酬(與前端 compute 邏輯一致)
@@ -222,7 +240,7 @@ async function main() {
       if (f1 || f2) console.log(`回補 大盤 ${f1} 天、台積電 ${f2} 天`);
     }
 
-    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+    writeData(data);
     console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
   } else {
     console.log('完全沒抓到即時價,維持原狀不寫檔(時間戳不前進=即時來源不通)');

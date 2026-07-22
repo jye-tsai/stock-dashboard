@@ -2022,6 +2022,22 @@ async function sha256Text(text) {
 const PBKDF2_ITER = 210000;
 const b64enc = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
 const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+// data.json 混淆：固定金鑰 AES-256-GCM（與 scripts/update-prices.mjs 相同）。
+// 目的：網站對所有人正常顯示，但 repo 上的 data.json 不是明文。金鑰在公開程式內＝防君子不防小人。
+const OBF_KEY_B64 = '3Nr6TNQZewwC/3wye+lwc60BCeWcaPRmQddHyAbS+uc=';
+let _obfKey = null;
+async function obfKey() { return _obfKey || (_obfKey = await crypto.subtle.importKey('raw', b64dec(OBF_KEY_B64), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])); }
+async function encData(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await obfKey(), new TextEncoder().encode(JSON.stringify(obj)));
+  return { enc: 1, iv: b64enc(iv), ct: b64enc(ct) };
+}
+async function decData(o) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64dec(o.iv) }, await obfKey(), b64dec(o.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function decodeMaybe(x) { return (x && x.enc === 1) ? await decData(x) : x; }
 async function pbkdf2Hash(pwd, saltBytes, iter) {
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pwd), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: iter, hash: 'SHA-256' }, km, 256);
@@ -2380,7 +2396,7 @@ function updateGhBtn() {
 async function saveFile() {
   DATA.updated = new Date().toISOString().slice(0, 10);
   cache();
-  const json = JSON.stringify(DATA, null, 2);
+  const json = JSON.stringify(await encData(DATA));
 
   // 已設定 GitHub → 直接 commit 回 repo
   const c = ghCfg();
@@ -2439,7 +2455,7 @@ async function pickFile() {
       fsHandle = h;
       await idb.set('handle', h);
       const file = await h.getFile();
-      load(JSON.parse(await file.text()));
+      load(await decodeMaybe(JSON.parse(await file.text())));
       return;
     }
   } catch (err) { if (err.name === 'AbortError') return; }
@@ -2456,7 +2472,7 @@ function load(json) { DATA = normalizeData(json); cache(); render(); }
 
 document.getElementById('file-input').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) file.text().then(t => load(JSON.parse(t)));
+  if (file) file.text().then(async t => load(await decodeMaybe(JSON.parse(t))));
 });
 document.addEventListener('dragover', e => e.preventDefault());
 document.addEventListener('drop', async e => {
@@ -2464,7 +2480,7 @@ document.addEventListener('drop', async e => {
   const file = e.dataTransfer.files[0];
   if (file && file.name.endsWith('.json')) {
     if (!await verifyEditPassword()) return;
-    load(JSON.parse(await file.text()));
+    load(await decodeMaybe(JSON.parse(await file.text())));
   }
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
@@ -2565,7 +2581,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
   const ghc = ghCfg();
   if (ghReady(ghc)) {
     autoTriggerPrices(ghc);            // 刷新時自動送出更新市價（不等待，不影響載入）
-    try { load(await ghLoad(ghc)); return; }
+    try { load(await decodeMaybe(await ghLoad(ghc))); return; }
     catch (e) { toast('GitHub 讀取失敗,改用其他來源'); }
   }
   try {
@@ -2574,7 +2590,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
     const r = await fetch('data.json', { cache: 'no-store', signal: controller.signal });
     clearTimeout(timer);
     if (!r.ok) throw 0;
-    load(await r.json());
+    load(await decodeMaybe(await r.json()));
     return;
   } catch (e) {}
   try {
@@ -2582,7 +2598,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
     if (h && await h.queryPermission({ mode: 'read' }) === 'granted') {
       fsHandle = h;
       const file = await h.getFile();
-      load(JSON.parse(await file.text()));
+      load(await decodeMaybe(JSON.parse(await file.text())));
       return;
     }
   } catch (e) {}
