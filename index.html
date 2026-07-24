@@ -495,6 +495,62 @@
   @media (display-mode: standalone) {
     body { padding-top: calc(env(safe-area-inset-top) + 12px); padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
   }
+  /* 總覽 Hero:今日損益大字 + 總市值 / 總報酬 */
+  .hero-panel { margin-bottom: 20px; }
+  #hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 26px; flex-wrap: wrap; }
+  #hero .label { color: var(--label, var(--muted)); font-size: 13px; font-weight: 750; margin-bottom: 4px; }
+  .hero-num { font-size: clamp(30px, 3vw, 40px); font-weight: 880; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: .01em; }
+  .hero-pct { font-size: .5em; font-weight: 750; }
+  .hero-side { display: flex; gap: 14px 30px; flex-wrap: wrap; }
+  .hero-sub { font-size: clamp(16px, 1.3vw, 19px); font-weight: 800; font-variant-numeric: tabular-nums; }
+  /* 總報酬:橫向堆疊條(取代甜甜圈) */
+  .ret-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 2px 0 10px; }
+  .ret-total { font-size: clamp(24px, 2vw, 30px); font-weight: 880; font-variant-numeric: tabular-nums; }
+  .ret-rate { font-size: 14px; font-weight: 750; }
+  .ret-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; gap: 2px; margin-bottom: 10px; background: var(--total-bg); }
+  .ret-seg { min-width: 6px; }
+  .ret-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ret-leg { display: inline-flex; align-items: center; gap: 6px; }
+  .ret-sw { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  /* 每日變動 + 報酬對比:桌機並排、手機堆疊 */
+  .sub-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
+  @media (max-width: 800px) { .sub-charts { grid-template-columns: 1fr; } }
+  /* 帳戶資訊小卡(併入摘要卡片列) */
+  .card.acct .value { font-size: clamp(18px, 1.4vw, 22px); }
+
+  /* ⚙️ 設定視窗:風格下拉與動作按鈕 */
+  .modal label select { display: block; width: 100%; margin-top: 4px; padding: 8px 10px; font-size: 14px; }
+  .settings-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .settings-actions .btn { text-align: left; padding: 9px 12px; font-size: 13.5px; }
+  body:not(.locked) #settings-locked-hint { display: none; }
+
+  /* 手機底部分頁列:取代頂部頁籤;固定下緣、避開 iOS 安全區 */
+  #bottom-nav { display: none; }
+  @media (max-width: 600px) {
+    .view-tabs { display: none; }
+    body { padding-bottom: calc(env(safe-area-inset-bottom) + 78px); }
+    #toast { bottom: calc(env(safe-area-inset-bottom) + 86px); }
+    #bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+      display: flex; gap: 4px;
+      padding: 6px 10px calc(env(safe-area-inset-bottom) + 6px);
+      background: color-mix(in srgb, var(--card) 92%, var(--bg));
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -6px 20px rgba(20,30,50,.14);
+      backdrop-filter: blur(12px);
+    }
+    .bnav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      background: transparent; border: none; border-radius: 10px;
+      color: var(--muted); font-size: 11.5px; font-weight: 800;
+      padding: 5px 0 4px; cursor: pointer; font-family: inherit;
+    }
+    .bnav-btn .bnav-ico { font-size: 18px; line-height: 1; }
+    .bnav-btn.active { color: var(--accent); background: var(--total-bg); }
+  }
+  /* App 還沒載好(骨架屏)時不秀底部列 */
+  body:has(#app.hidden) #bottom-nav { display: none !important; }
+
   /* 下拉重新整理指示器 */
   #ptr { position: fixed; top: calc(env(safe-area-inset-top) + 4px); left: 50%; transform: translateX(-50%) translateY(-60px);
     z-index: 95; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
@@ -544,38 +600,11 @@
       <h1 id="dashboard-title"></h1>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="meta" id="updated"></span>
-        <div class="select-group">
-          <span class="toolbar-label">頁面</span>
-          <select class="btn" id="theme-sel" title="切換頁面風格">
-            <option value="ocean">🌊 海洋藍</option>
-            <option value="coral">🌅 珊瑚暖陽</option>
-            <option value="matcha">🌿 抹茶清新</option>
-            <option value="midnight">🌌 午夜金</option>
-            <option value="cute">🍡 馬卡龍</option>
-            <option value="sailor">🌙 美少女</option>
-            <option value="agent">🧬 Agent Neon</option>
-          </select>
-        </div>
-        <div class="select-group">
-          <span class="toolbar-label">圖表</span>
-          <select class="btn" id="chart-style-sel" title="切換圖表風格">
-            <option value="match">跟隨頁面</option>
-            <option value="ocean">🌊 海洋藍</option>
-            <option value="coral">🌅 珊瑚暖陽</option>
-            <option value="matcha">🌿 抹茶清新</option>
-            <option value="midnight">🌌 午夜金</option>
-            <option value="cute">🍡 馬卡龍</option>
-            <option value="sailor">🌙 美少女</option>
-            <option value="agent">🧬 Agent Neon</option>
-          </select>
-        </div>
         <button class="btn" id="unlock-btn" onclick="unlockUI()">🔒 解鎖</button>
         <button class="btn hidden auth-only" id="edit-btn" onclick="toggleEdit()">✏️ 編輯</button>
         <button class="btn primary hidden" id="save-btn" onclick="saveFile()">💾 儲存 JSON</button>
-        <button class="btn hidden auth-only" id="load-btn" onclick="pickFile()">載入 JSON</button>
-        <button class="btn hidden auth-only" id="gh-btn" onclick="openGhModal()">⚙️ GitHub</button>
         <button class="btn hidden auth-only" id="price-btn" onclick="updatePrices()">📈 更新市價</button>
-        <button class="btn hidden auth-only" id="pwd-btn" onclick="setPassword()">🔑 設定密碼</button>
+        <button class="btn" id="settings-btn" onclick="openSettingsModal()">⚙️ 設定</button>
         <button class="btn hidden auth-only" id="logout-btn" onclick="lockUI()">🚪 登出</button>
       </div>
     </header>
@@ -589,18 +618,17 @@
     </div>
 
     <section id="tab-overview" class="tab-page active">
-      <div class="charts">
-        <div class="panel"><h2>總報酬</h2><div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div><div class="chart-box"><canvas id="costpl"></canvas></div></div>
-        <div class="panel"><h2>市值比例 <span style="float:right;font-weight:400"><button class="btn sm" id="pie-mode-btn" onclick="togglePieMode()">切換</button></span></h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
-        <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
+      <div class="panel hero-panel" id="hero-panel" style="display:none"><div id="hero"></div></div>
+
+      <div class="panel full-panel">
+        <h2>總報酬</h2>
+        <div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div>
+        <div id="retbar"></div>
       </div>
 
-      <div class="dashboard-top summary-after-charts">
-        <div class="cards" id="cards"></div>
-        <div class="panel account-panel sec-protected">
-          <h2>帳戶資訊</h2>
-          <div class="tbl-wrap"><table id="account"></table></div>
-        </div>
+      <div class="charts">
+        <div class="panel"><h2>市值比例 <span style="float:right;font-weight:400"><button class="btn sm" id="pie-mode-btn" onclick="togglePieMode()">切換</button></span></h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
+        <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
       <div class="panel full-panel">
@@ -614,6 +642,7 @@
         <div class="chart-subtitle">成本 + 未實現損益（堆疊，合計 ≈ 總市值；每天累積）</div>
         <div class="chart-box"><canvas id="nav"></canvas></div>
         <div id="nav-empty" class="chart-subtitle" style="display:none;text-align:center;padding:24px 8px">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
+        <div class="sub-charts">
         <div id="navchg-wrap" style="display:none">
           <div class="chart-subtitle" style="margin-top:18px">每日損益變動（紅賺綠賠，較前一日未實現損益；區間內賺最多、賠最多以高亮色標示）</div>
           <div class="chart-box" style="height:150px"><canvas id="navchg"></canvas></div>
@@ -622,7 +651,10 @@
           <div class="chart-subtitle" style="margin-top:18px">報酬對比（以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
           <div class="chart-box" style="height:170px"><canvas id="navbench"></canvas></div>
         </div>
+        </div>
       </div>
+
+      <div class="cards" id="cards"></div>
 
       <div class="panel full-panel pl-panel">
         <h2>持股損益</h2>
@@ -652,6 +684,52 @@
         <div class="tbl-wrap"><table id="yearly"></table></div>
       </div>
     </section>
+  </div>
+</div>
+
+<!-- 手機底部分頁列(桌機隱藏;手機取代頂部頁籤,拇指好按) -->
+<nav id="bottom-nav" aria-label="底部分頁">
+  <button class="bnav-btn active" type="button" data-tab="overview" onclick="switchTab('overview')"><span class="bnav-ico">📊</span>總覽</button>
+  <button class="bnav-btn" type="button" data-tab="holdings" onclick="switchTab('holdings')"><span class="bnav-ico">📋</span>持股</button>
+  <button class="bnav-btn sec-protected" type="button" data-tab="yearly" onclick="switchTab('yearly')"><span class="bnav-ico">🗓</span>年度</button>
+</nav>
+
+<!-- ⚙️ 設定視窗:頁面/圖表風格 + GitHub / 載入 / 密碼(從 header 收納進來) -->
+<div id="settings-modal" class="modal-bg hidden" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="modal">
+    <h3>⚙️ 設定</h3>
+    <label>頁面風格
+      <select class="btn" id="theme-sel" title="切換頁面風格">
+            <option value="ocean">🌊 海洋藍</option>
+            <option value="coral">🌅 珊瑚暖陽</option>
+            <option value="matcha">🌿 抹茶清新</option>
+            <option value="midnight">🌌 午夜金</option>
+            <option value="cute">🍡 馬卡龍</option>
+            <option value="sailor">🌙 美少女</option>
+            <option value="agent">🧬 Agent Neon</option>
+          </select>
+    </label>
+    <label>圖表風格
+      <select class="btn" id="chart-style-sel" title="切換圖表風格">
+            <option value="match">跟隨頁面</option>
+            <option value="ocean">🌊 海洋藍</option>
+            <option value="coral">🌅 珊瑚暖陽</option>
+            <option value="matcha">🌿 抹茶清新</option>
+            <option value="midnight">🌌 午夜金</option>
+            <option value="cute">🍡 馬卡龍</option>
+            <option value="sailor">🌙 美少女</option>
+            <option value="agent">🧬 Agent Neon</option>
+          </select>
+    </label>
+    <div class="settings-actions">
+      <button class="btn hidden auth-only" id="gh-btn" onclick="closeSettingsModal();openGhModal()">⚙️ GitHub 同步</button>
+      <button class="btn hidden auth-only" id="load-btn" onclick="closeSettingsModal();pickFile()">📂 載入 JSON</button>
+      <button class="btn hidden auth-only" id="pwd-btn" onclick="closeSettingsModal();setPassword()">🔑 設定密碼</button>
+    </div>
+    <p class="modal-hint" id="settings-locked-hint">🔒 解鎖後這裡會多出 GitHub 同步、載入 JSON 與設定密碼。</p>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button class="btn primary" onclick="closeSettingsModal()">完成</button>
+    </div>
   </div>
 </div>
 
@@ -882,6 +960,35 @@ function render() {
   document.body.classList.toggle('editing', E);
   document.querySelectorAll('.edit-only').forEach(el => el.classList.toggle('hidden', !E));
 
+  // Hero:今日損益(各檔 prevClose 加總;缺 prevClose 退回 history 前一交易日市值差,都沒有就整塊隱藏)
+  let heroChg = null, heroBase = 0;
+  const pcRows = rows.filter(r => r.prevClose > 0 && r.price > 0 && r.lots > 0);
+  if (pcRows.length) {
+    heroChg = pcRows.reduce((sum, r) => sum + Math.round((r.price - r.prevClose) * 1000 * r.lots), 0);
+    heroBase = pcRows.reduce((sum, r) => sum + Math.round(r.prevClose * 1000 * r.lots), 0);
+  } else if (prevDay && typeof prevDay.mv === 'number' && prevDay.mv > 0) {
+    heroChg = t.mv - prevDay.mv;
+    heroBase = prevDay.mv;
+  }
+  const heroPanel = document.getElementById('hero-panel');
+  if (heroPanel) {
+    if (heroChg == null) heroPanel.style.display = 'none';
+    else {
+      heroPanel.style.display = '';
+      const heroPct = heroBase ? heroChg / heroBase : 0;
+      const heroRate = t.costAmt ? totalPL / t.costAmt : 0;
+      document.getElementById('hero').innerHTML = `
+      <div class="hero-main">
+        <div class="label">今日損益</div>
+        <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)})</span></div>
+      </div>
+      <div class="hero-side">
+        <div><div class="label">總市值</div><div class="hero-sub">${fmt(t.mv)}</div></div>
+        <div><div class="label">總報酬</div><div class="hero-sub ${cls(totalPL)}">${sign(totalPL)}${fmt(totalPL)} · ${sign(heroRate)}${pct(heroRate)}</div></div>
+      </div>`;
+    }
+  }
+
   // 摘要卡片(編輯模式下 已實現損益/股息收入 可改)
   const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
   // [label, 顯示值, 著色值, 副標, 原始數值, 是否帶正負號]
@@ -893,6 +1000,18 @@ function render() {
     ['股息收入', E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
     ['總損益', sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
   ];
+  // 帳戶資訊小卡(解鎖後顯示;編輯模式沿用 data-path 寫回 account.*)
+  const acc = d.account || (d.account = {});
+  const accCardsHtml = (() => {
+    const item = (label, key) => {
+      const val = acc[key] || 0;
+      const shown = E ? `<input class="ed" type="number" step="any" data-path="account.${key}" value="${val}">` : (val > 0 ? '+' : '') + fmt(val);
+      return `<div class="card acct sec-protected"><div class="label">${label}</div><div class="value ${cls(val)}">${shown}</div></div>`;
+    };
+    const avail = (acc['餘額'] || 0) + (acc['交割款T1'] || 0) + (acc['交割款T2'] || 0);
+    return item('帳戶餘額', '餘額') + item('交割款項 T+1', '交割款T1') + item('交割款項 T+2', '交割款T2')
+      + `<div class="card acct sec-protected"><div class="label">可用餘額</div><div class="value ${cls(avail)}">${(avail > 0 ? '+' : '') + fmt(avail)}</div></div>`;
+  })();
   document.getElementById('cards').innerHTML = cards.map(([label, val, colorVal, sub, raw, signed]) => {
     const cnt = String(val).includes('<input') ? '' : ` data-count="${raw}" data-signed="${signed ? 1 : 0}" data-key="${label}"`;
     return `
@@ -901,7 +1020,7 @@ function render() {
       <div class="value ${colorVal === null ? '' : cls(colorVal)}"${cnt}>${val}</div>
       ${sub ? `<div class="sub ${cls(colorVal)}">${sub}</div>` : ''}
     </div>`;
-  }).join('');
+  }).join('') + accCardsHtml;
   animateCounts();
 
   // 持股表
@@ -1027,25 +1146,6 @@ function render() {
       <td class="${cls(ys.reduce((s,y)=>s+y.capitalGain,0))}">${fmt(ys.reduce((s,y)=>s+y.capitalGain,0))}</td>
       <td>${fmt(ys.reduce((s,y)=>s+(y.dividend||0),0))}</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
-  // 帳戶
-  const acc = d.account || (d.account = {});
-  const fmtSigned = n => n > 0 ? '+' + fmt(n) : fmt(n);
-  const accValueCell = (key) => {
-    const val = acc[key] || 0;
-    return E
-      ? `<input class="ed ${cls(val)}" type="number" step="any" data-path="account.${key}" value="${val}">`
-      : fmtSigned(val);
-  };
-  const accRow = (label, key) => {
-    const val = acc[key] || 0;
-    return `<tr><td style="text-align:left">${label}</td><td class="${cls(val)}">${accValueCell(key)}</td></tr>`;
-  };
-  const avail = (acc['餘額']||0) + (acc['交割款T1']||0) + (acc['交割款T2']||0);
-  document.getElementById('account').innerHTML =
-    `<tr><th style="text-align:left">項目</th><th>金額</th></tr>` +
-    accRow('帳戶餘額', '餘額') + accRow('交割款項 T+1', '交割款T1') + accRow('交割款項 T+2', '交割款T2') +
-    `<tr class="total"><td style="text-align:left">可用餘額</td><td class="${cls(avail)}">${fmtSigned(avail)}</td></tr>`;
-
   drawCharts(rows.filter(r => r.mv > 0), ys);
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -1053,7 +1153,7 @@ function render() {
   if (typeof hideSplash === 'function') hideSplash();
 }
 
-let pieChart, costPlChart, barChart, plChart, navChart, navChgChart, navBenchChart;
+let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart;
 /* ==================== §5. 圖表繪製與風格(甜甜圈/比例/走勢/對比) ==================== */
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
@@ -1438,7 +1538,7 @@ function drawCharts(held, ys) {
   });
   }
 
-  // 總報酬:未實現 + 已實現 + 股息,依來源拆成甜甜圈;中央顯示報酬金額 + 報酬率,圖例標各來源占比
+  // 總報酬:未實現 + 已實現 + 股息,橫向堆疊條;上方大字報酬金額 + 報酬率,圖例標各來源金額與占比
   const unrealizedTotal = held.reduce((s, r) => s + r.unrealized, 0);
   const realizedPL = (DATA && DATA['已實現損益']) || 0;
   const dividendInc = (DATA && DATA['股息收入']) || 0;
@@ -1452,98 +1552,18 @@ function drawCharts(held, ys) {
   ];
   const retColor = totalReturn > 0 ? palette.gain : totalReturn < 0 ? palette.loss : (isAgentChart ? '#dfe7ff' : text);
 
-  if (costPlChart) costPlChart.destroy();
-  costPlChart = new Chart(document.getElementById('costpl'), {
-    type: 'doughnut',
-    data: {
-      labels: retComps.map(c => c.label),
-      datasets: [{
-        data: retComps.map(c => Math.abs(c.value)),
-        backgroundColor: retComps.map(c => c.color),
-        borderColor: card,
-        borderWidth: isAgentChart ? 4 : 5,
-        borderRadius: 12,
-        hoverOffset: isAgentChart ? 16 : 10,
-        hoverBorderWidth: isAgentChart ? 5 : 6,
-        spacing: isAgentChart ? 3 : 2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: isAgentChart ? '56%' : '58%',
-      layout: { padding: { top: 10, right: 56, bottom: 8, left: 56 } },
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            usePointStyle: true,
-            pointStyle: 'circle',
-            boxWidth: 8,
-            boxHeight: 8,
-            padding: 14,
-            font: { size: 12 },
-            color: muted,
-            generateLabels: chart => {
-              const ds = chart.data.datasets[0];
-              return chart.data.labels.map((lab, i) => {
-                const v = retComps[i] ? retComps[i].value : 0;
-                const ratio = totalReturn ? v / totalReturn : 0;
-                return {
-                  text: `${lab}　${pct(ratio)}`,
-                  fontColor: muted,
-                  fillStyle: ds.backgroundColor[i],
-                  strokeStyle: ds.backgroundColor[i],
-                  lineWidth: 0,
-                  pointStyle: 'circle',
-                  hidden: false,
-                  index: i
-                };
-              });
-            }
-          }
-        },
-        centerText: {
-          text: `${sign(totalReturn)}${fmt(totalReturn)}`,
-          subText: `報酬率 ${sign(returnRate)}${pct(returnRate)}`,
-          color: retColor,
-          subColor: retColor,
-          fontSize: isAgentChart ? 19 : 18,
-          subFontSize: isAgentChart ? 12.5 : 12,
-          fontFamily: isAgentChart ? '"Trebuchet MS", "Segoe UI", "Microsoft JhengHei", sans-serif' : undefined,
-          weight: isAgentChart ? 900 : 850,
-          subWeight: 750
-        },
-        tooltip: {
-          backgroundColor: tooltipBg,
-          titleColor: tipTitle,
-          bodyColor: tipBody,
-          borderColor: tooltipBorder,
-          borderWidth: 1.5,
-          cornerRadius: 12,
-          caretSize: 7,
-          padding: 12,
-          bodySpacing: 6,
-          titleSpacing: 4,
-          displayColors: true,
-          boxWidth: 10,
-          boxHeight: 10,
-          boxPadding: 6,
-          titleFont: { size: 13, weight: '700' },
-          bodyFont: { size: 12, weight: '600' },
-          callbacks: {
-            title: items => items[0]?.label || '',
-            label: c => {
-              const v = retComps[c.dataIndex] ? retComps[c.dataIndex].value : 0;
-              const ratio = totalReturn ? v / totalReturn : 0;
-              return [`金額：${sign(v)}${fmt(v)}`, `占總報酬：${pct(ratio)}`];
-            }
-          }
-        }
-      }
-    },
-    plugins: [centerTextPlugin]
-  });
+  const retEl = document.getElementById('retbar');
+  if (retEl) {
+    const absSum = retComps.reduce((sum, c) => sum + Math.abs(c.value), 0);
+    const segs = retComps.filter(c => Math.abs(c.value) > 0).map(c =>
+      `<div class="ret-seg" style="width:${absSum ? (Math.abs(c.value) / absSum * 100).toFixed(2) : 0}%;background:${c.color}" title="${c.label} ${sign(c.value)}${fmt(c.value)}"></div>`).join('');
+    const legend = retComps.map(c =>
+      `<span class="ret-leg"><span class="ret-sw" style="background:${c.color}"></span>${c.label} ${sign(c.value)}${fmt(c.value)} · ${pct(totalReturn ? c.value / totalReturn : 0)}</span>`).join('');
+    retEl.innerHTML = `
+    <div class="ret-head"><span class="ret-total" style="color:${retColor}">${sign(totalReturn)}${fmt(totalReturn)}</span><span class="ret-rate" style="color:${retColor}">報酬率 ${sign(returnRate)}${pct(returnRate)}</span></div>
+    <div class="ret-bar">${segs}</div>
+    <div class="ret-legend">${legend}</div>`;
+  }
 
   // 持股損益(水平條,依損益排序)
   const plRows = [...held].sort((a, b) => b.unrealized - a.unrealized);
@@ -1989,12 +2009,11 @@ function drawCharts(held, ys) {
 /* ==================== §6. 分頁切換 ==================== */
 function switchTab(tab) {
   document.querySelectorAll('.tab-page').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.tab-btn, .bnav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
   try { localStorage.setItem('pf-active-tab', tab); } catch (e) {}
   if (tab === 'overview') {
     setTimeout(() => {
       if (pieChart) pieChart.resize();
-      if (costPlChart) costPlChart.resize();
       if (barChart) barChart.resize();
       if (plChart) plChart.resize();
       if (navChart) navChart.resize();
@@ -2391,7 +2410,7 @@ async function clearGh() {
   }
 }
 function updateGhBtn() {
-  document.getElementById('gh-btn').textContent = ghReady(ghCfg()) ? '🔗 GitHub' : '⚙️ GitHub';
+  document.getElementById('gh-btn').textContent = ghReady(ghCfg()) ? '🔗 GitHub 同步' : '⚙️ GitHub 同步';
 }
 
 async function saveFile() {
@@ -2487,6 +2506,9 @@ document.addEventListener('drop', async e => {
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
 
 /* ==================== §15. 主題 / 圖表風格切換 ==================== */
+// ⚙️ 設定視窗(主題 / 圖表 / GitHub / 載入 / 密碼 的收納處)
+function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
+function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
 function applyTheme(t) {
   if (!THEME_KEYS.includes(t)) t = 'ocean';
   document.documentElement.dataset.theme = t;
