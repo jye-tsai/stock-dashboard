@@ -1,8 +1,10 @@
 name: update-stock-prices
  
 on:
-  # 排程改由 Cloudflare Worker 準時觸發(GitHub 內建 schedule 不準時,已移除)。
-  # 保留 workflow_dispatch:讓 Cloudflare、儀表板按鈕、GitHub「Run workflow」都能觸發。
+  # 備援排程:與 Cloudflare Worker 雙保險,任一邊漏跑另一邊補。
+  # UTC(台北 = +8);分鐘錯開整點避開 GitHub 尖峰;hours 1-6 = 台北 09:00–14:50;每天跑、週末由腳本擋掉。
+  schedule:
+    - cron: "5,20,35,50 1-6 * * *"
   workflow_dispatch:
  
 permissions:
@@ -15,6 +17,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -34,7 +37,14 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data.json
             git commit -m "auto update prices $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
-            git push
+            # 儀表板手動「儲存」會直接 PUT 到 repo,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次
+            pushed=0
+            for i in 1 2 3; do
+              if git pull --rebase origin main && git push; then pushed=1; break; fi
+              git rebase --abort 2>/dev/null || true
+              echo "push 失敗,重試 $i"; sleep 5
+            done
+            [ "$pushed" = 1 ] || { echo "push 失敗三次,放棄"; exit 1; }
             echo "pushed data.json"
           else
             echo "no change"
