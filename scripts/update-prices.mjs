@@ -234,6 +234,8 @@ async function main() {
     if (taiex > 0) entry.taiex = taiex;
     const tsmcH = holdings.find(h => h.code === '2330');          // 台積電當前價(單獨拉出來比)
     if (tsmcH && tsmcH.price > 0) entry.tsmc = tsmcH.price;
+    entry.prices = {};                                             // 各檔當日價(前端持股表 sparkline 用)
+    for (const h of holdings) if (h.code && h.price > 0) entry.prices[h.code] = h.price;
     const last = data.history[data.history.length - 1];
     if (last && last.date === day) data.history[data.history.length - 1] = entry;
     else data.history.push(entry);
@@ -257,6 +259,23 @@ async function main() {
         }
       }
       if (f1 || f2 || miss) console.log(`回補 大盤 ${f1} 天、台積電 ${f2} 天;標記補不到 ${miss} 項`);
+    }
+
+    // 回補各檔歷史日收盤 → history[].prices[code](sparkline 用):只補近 90 筆,一檔一次 Yahoo 6 個月日線;
+    // 補不到的日期標 pricesMiss[code],之後不再為它重抓;今日那筆不標(盤中會再寫)
+    const RECENT = data.history.slice(-90);
+    for (const c of codes) {
+      const need = RECENT.some(h => h.date !== day && !(h.prices && h.prices[c] > 0) && !(h.pricesMiss && h.pricesMiss[c]));
+      if (!need) continue;
+      const closes = await fetchYahooDailyClose(c + (yahooSym[c] || symHint[c] || '.TW'));
+      const ok = Object.keys(closes).length > 0;                   // 來源掛掉時不亂標 miss
+      let f = 0, m = 0;
+      for (const h of RECENT) {
+        if (h.date === day || (h.prices && h.prices[c] > 0) || (h.pricesMiss && h.pricesMiss[c])) continue;
+        if (closes[h.date] > 0) { h.prices = h.prices || {}; h.prices[c] = closes[h.date]; f++; }
+        else if (ok) { h.pricesMiss = h.pricesMiss || {}; h.pricesMiss[c] = 1; m++; }
+      }
+      if (f || m) console.log(`回補 ${c} 歷史價 ${f} 天;補不到 ${m} 天`);
     }
 
     writeData(data);

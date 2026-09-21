@@ -471,6 +471,10 @@
   #app:not(.hidden) { animation: appFadeIn .4s ease both; }
   #loader p { color: var(--muted); margin-bottom: 16px; }
   .hidden { display: none; }
+  /* 系統要求減少動態:所有 CSS 動畫 / 過場縮到幾乎為零(splash 彈出、下拉旋轉、卡片 hover 等) */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--total-bg); color: var(--accent); }
   .code-link { color: var(--accent); text-decoration: none; font-weight: 700; }
   .code-link:hover { text-decoration: underline; }
@@ -503,6 +507,12 @@
   .hero-num { font-size: clamp(30px, 3vw, 40px); font-weight: 880; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: .01em; }
   .hero-pct { font-size: .5em; font-weight: 750; }
   .hero-side { display: flex; gap: 14px 30px; flex-wrap: wrap; }
+  .hero-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .hero-opt { cursor: pointer; user-select: none; }
+  /* 持股表 / 手機卡片的近 30 日小走勢(inline SVG,漲紅跌綠) */
+  td.spark { padding: 2px 6px; }
+  svg.spark-svg { display: inline-block; vertical-align: middle; }
+  svg.spark-svg.up { color: var(--up); } svg.spark-svg.down { color: var(--down); }
   .hero-sub { font-size: clamp(16px, 1.3vw, 19px); font-weight: 800; font-variant-numeric: tabular-nums; }
   /* 總報酬:橫向堆疊條(取代甜甜圈) */
   .ret-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 2px 0 10px; }
@@ -514,8 +524,18 @@
   .ret-leg { display: inline-flex; align-items: center; gap: 6px; }
   .ret-sw { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
   /* 每日變動 + 報酬對比:桌機並排、手機堆疊 */
-  .sub-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
+  .sub-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 20px; align-items: start; }
   @media (max-width: 800px) { .sub-charts { grid-template-columns: 1fr; } }
+  /* 每日損益月曆熱圖:CSS grid,欄 = 週、列 = 週一~週五;格色由 JS 依損益金額算(diverging:賺紅 / 賠綠 / 0 底色) */
+  .heatmap { display: grid; gap: 3px; align-items: center; justify-content: start; padding-bottom: 4px; }   /* 欄數與 max-width 由 JS 依週數設定,格子最大 24px、窄螢幕等比縮 */
+  .hm-cell { aspect-ratio: 1; border-radius: 3px; background: var(--total-bg); min-width: 0; cursor: default; }
+  .hm-cell.hm-nodata { background: transparent; border: 1px dashed var(--border); opacity: .55; }
+  .hm-cell:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hm-dow, .hm-mon { font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .hm-dow { padding-right: 4px; text-align: right; }
+  .hm-mon { align-self: end; }
+  .hm-legend { display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .hm-legend .hm-sw { width: 14px; height: 10px; border-radius: 2px; }
   /* 帳戶資訊小卡(併入摘要卡片列) */
   .card.acct .value { font-size: clamp(18px, 1.4vw, 22px); }
 
@@ -619,12 +639,15 @@
     </div>
 
     <section id="tab-overview" class="tab-page active">
-      <div class="panel hero-panel" id="hero-panel" style="display:none"><div id="hero"></div></div>
+      <div class="panel hero-panel" id="hero-panel" style="display:none"><div id="hero"></div>
+        <div class="hero-actions"><label class="hero-opt"><input type="checkbox" id="share-pct-only"> 分享只顯示 %</label><button class="btn sm" type="button" onclick="shareCard()">📤 分享今日戰報</button></div>
+      </div>
 
       <div class="panel full-panel">
         <h2>總報酬</h2>
         <div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div>
         <div id="retbar"></div>
+        <div class="chart-box" style="height:190px"><canvas id="wf"></canvas></div>
       </div>
 
       <div class="charts">
@@ -635,8 +658,10 @@
       <div class="panel full-panel">
         <h2>資產走勢
           <span class="nav-range" style="float:right;font-weight:400">
+            <button class="btn sm" data-r="5" onclick="setNavRange(5)">近1週</button>
             <button class="btn sm" data-r="30" onclick="setNavRange(30)">近1月</button>
             <button class="btn sm primary" data-r="90" onclick="setNavRange(90)">近3月</button>
+            <button class="btn sm" data-r="ytd" onclick="setNavRange('ytd')">今年</button>
             <button class="btn sm" data-r="0" onclick="setNavRange(0)">全部</button>
           </span>
         </h2>
@@ -652,7 +677,18 @@
           <div class="chart-subtitle" style="margin-top:18px">報酬對比（以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
           <div class="chart-box" style="height:170px"><canvas id="navbench"></canvas></div>
         </div>
+        <div id="navdd-wrap" style="display:none">
+          <div class="chart-subtitle" style="margin-top:18px" id="navdd-sub">回撤(總報酬距前高,佔成本 %)</div>
+          <div class="chart-box" style="height:170px"><canvas id="navdd"></canvas></div>
         </div>
+        </div>
+      </div>
+
+      <div class="panel full-panel" id="heat-panel" style="display:none">
+        <h2>每日損益月曆</h2>
+        <div class="chart-subtitle">一格一天(週一~週五),紅賺綠賠、顏色越深金額越大;較前一交易日的未實現損益變動,近 26 週;滑過看金額</div>
+        <div id="heatmap" class="heatmap" role="img" aria-label="每日損益月曆熱圖"></div>
+        <div class="hm-legend" id="heat-legend"></div>
       </div>
 
       <div class="cards" id="cards"></div>
@@ -834,7 +870,8 @@
 let DATA = null;
 let editMode = false;
 let holdSort = { key: null, dir: -1 };           // 持股表排序狀態
-let navRangeDays = 90;                            // 資產走勢顯示天數(0=全部)
+let navRangeDays = 90;                            // 資產走勢顯示筆數(交易日;0=全部;'ytd'=今年)
+let HERO = null;                                  // render 算出的今日損益狀態(分享戰報用)
 function sortHoldings(key) {
   if (holdSort.key === key) holdSort.dir *= -1;
   else { holdSort.key = key; holdSort.dir = -1; }
@@ -842,7 +879,7 @@ function sortHoldings(key) {
 }
 function setNavRange(d) {
   navRangeDays = d;
-  document.querySelectorAll('.nav-range .btn').forEach(b => b.classList.toggle('primary', Number(b.dataset.r) === d));
+  document.querySelectorAll('.nav-range .btn').forEach(b => b.classList.toggle('primary', String(b.dataset.r) === String(d)));
   if (DATA) render();
 }
 // 點持股列展開/收合明細(點到輸入框/連結/按鈕時不觸發)
@@ -866,6 +903,8 @@ const sign = n => n > 0 ? '+' : '';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 // UTF-8 字串 → base64(GitHub Contents API 用);不靠已棄用的 unescape,也不 spread 大陣列免爆 call stack
 const b64utf8 = s => btoa(Array.from(new TextEncoder().encode(s), b => String.fromCharCode(b)).join(''));
+// 系統「減少動態效果」:數字不跳動、圖表不動畫、CSS 過場關掉(見 style 內 prefers-reduced-motion)
+const REDUCED_MOTION = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 // 台北時間狀態(週末 / 開盤前 / 交易時段):render 的資料新鮮度標記與自動觸發更新市價共用
 function tpeNow() {
@@ -887,7 +926,7 @@ function animateCounts() {
     const from = (key in countCache) ? countCache[key] : 0;
     countCache[key] = to;
     const finalText = (signed ? sign(to) : '') + fmt(to);
-    if (from === to) { el.textContent = finalText; return; }   // 值沒變(如換主題)就不重播
+    if (from === to || REDUCED_MOTION) { el.textContent = finalText; return; }   // 值沒變(如換主題)或減少動態 → 直接落定
     const dur = 650, t0 = performance.now();
     const ease = x => 1 - Math.pow(1 - x, 3);
     const tick = now => {
@@ -907,6 +946,13 @@ function animateCounts() {
 const compute = d => PfCalc.compute(d);
 
 /* ==================== §4. 畫面 render(卡片 / 持股表 / 標題) ==================== */
+// 下一幀執行;背景分頁 / 視窗被遮住時 requestAnimationFrame 會暫停,所以 300ms 內沒輪到就用 setTimeout 補跑,兩者只跑一次
+function deferFrame(fn) {
+  let done = false;
+  const run = () => { if (done) return; done = true; fn(); };
+  requestAnimationFrame(run);
+  setTimeout(run, 300);
+}
 function render(opts) {
   const d = DATA;
   const withCharts = !(opts && opts.charts === false);   // 只動表格(排序 / 隱藏零股)時不重畫圖表
@@ -972,11 +1018,12 @@ function render(opts) {
   }
   const heroPanel = document.getElementById('hero-panel');
   if (heroPanel) {
-    if (heroChg == null) heroPanel.style.display = 'none';
+    if (heroChg == null) { heroPanel.style.display = 'none'; HERO = null; }
     else {
       heroPanel.style.display = '';
       const heroPct = heroBase ? heroChg / heroBase : 0;
       const heroRate = t.costAmt ? totalPL / t.costAmt : 0;
+      HERO = { heroChg, heroPct, heroMissing, totalPL, heroRate, mv: t.mv };
       document.getElementById('hero').innerHTML = `
       <div class="hero-main">
         <div class="label">今日損益</div>
@@ -1026,8 +1073,9 @@ function render(opts) {
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
   const types = Object.keys(d.fees.taxRates);
-  const cols = [['類型','type'],['代號','code'],['名稱','name'],['成本','cost'],['市價','price'],['張數','lots'],['成本金額','costAmt'],['市值','mv'],['賣出(稅+費)','sellCost'],['未實現損益','unrealized'],['損益比例','plRatio'],['成本比例','costPctOfTotal'],['市值比例','mvPctOfTotal'],['更新時間','priceTime']];
+  const cols = [['類型','type'],['代號','code'],['名稱','name'],['成本','cost'],['市價','price'],['走勢','spark'],['張數','lots'],['成本金額','costAmt'],['市值','mv'],['賣出(稅+費)','sellCost'],['未實現損益','unrealized'],['損益比例','plRatio'],['成本比例','costPctOfTotal'],['市值比例','mvPctOfTotal'],['更新時間','priceTime']];
   const headHtml = cols.map(([label, key]) => {
+    if (key === 'spark') return `<th title="近 30 個交易日收盤走勢(由 Action 寫入 history[].prices)">${label}</th>`;
     const arrow = holdSort.key === key ? (holdSort.dir < 0 ? ' ▼' : ' ▲') : '';
     return `<th class="th-sort" onclick="sortHoldings('${key}')" title="點擊排序">${label}${arrow}</th>`;
   }).join('') + (E ? '<th></th>' : '');
@@ -1035,6 +1083,15 @@ function render(opts) {
   // 今日漲跌%(相對昨收 prevClose;缺昨收就不顯示)
   const todayChg = r => (r.prevClose > 0 && r.price > 0) ? (r.price - r.prevClose) / r.prevClose : null;
   const todayHtml = r => { const c = todayChg(r); return c == null ? '' : `<div class="today-chg ${c > 0 ? 'up' : c < 0 ? 'down' : ''}" title="相對昨收 ${fmt2(r.prevClose)}">今日 ${c > 0 ? '+' : ''}${(c * 100).toFixed(2)}%</div>`; };
+  // 近 30 個交易日小走勢:history[].prices[code](Action 每日寫入 + 回補);不足 2 點就空白。回傳 svg 字串
+  const sparkSvg = r => {
+    const pts = histArr.map(h => h && h.prices && h.prices[r.code]).filter(x => x > 0).slice(-30);
+    if (pts.length < 2) return '';
+    const w = 72, hgt = 22, lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+    const d = pts.map((x, i) => `${(i / (pts.length - 1) * w).toFixed(1)},${(hgt - 2 - (x - lo) / span * (hgt - 4)).toFixed(1)}`).join(' ');
+    const chgP = (pts[pts.length - 1] / pts[0] - 1) * 100;
+    return `<svg class="spark-svg ${chgP >= 0 ? 'up' : 'down'}" viewBox="0 0 ${w} ${hgt}" width="${w}" height="${hgt}" role="img" aria-label="近 ${pts.length} 日 ${chgP >= 0 ? '+' : ''}${chgP.toFixed(2)}%"><title>近 ${pts.length} 個交易日 ${chgP >= 0 ? '+' : ''}${chgP.toFixed(2)}%</title><polyline points="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  };
   // 排序(僅檢視模式;編輯模式維持原順序,避免欄位索引錯位)
   if (holdSort.key && !E) {
     const k = holdSort.key, dir = holdSort.dir;
@@ -1058,9 +1115,10 @@ function render(opts) {
         <td><input class="ed wide" data-path="holdings.${i}.name" value="${esc(r.name)}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.cost" value="${r.cost}"></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
+        <td></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
         <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
-        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
+        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td class="spark">${sparkSvg(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       const sellNet = r.mv - r.sellCost;
       const colspan = cols.length + (E ? 1 : 0);
       const dstat = (k, v) => `<span class="d-stat"><span class="d-k">${k}</span><span class="d-v">${v}</span></span>`;
@@ -1086,7 +1144,7 @@ function render(opts) {
       </tr>
       <tr class="hold-detail" style="display:${E ? '' : 'none'}"><td colspan="${colspan}">${detailInner}</td></tr>`;
     }).join('') +
-    `<tr class="total"><td colspan="6">合計</td>
+    `<tr class="total"><td colspan="7">合計</td>
       <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td>${fmt(t.sellCost)}</td>
       <td class="${cls(t.unrealized)}">${sign(t.unrealized)}${fmt(t.unrealized)}</td>
       <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
@@ -1102,6 +1160,7 @@ function render(opts) {
         <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
         <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}</span>
         <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
+        ${sparkSvg(r)}
       </div>
       <div class="h-stats">
         ${stat('市價', fmt2(r.price))}
@@ -1146,14 +1205,19 @@ function render(opts) {
       <td class="${cls(ys.reduce((s,y)=>s+y.capitalGain,0))}">${fmt(ys.reduce((s,y)=>s+y.capitalGain,0))}</td>
       <td>${fmt(ys.reduce((s,y)=>s+(y.dividend||0),0))}</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
-  if (withCharts) drawCharts(rows.filter(r => r.mv > 0), ys);
+  // 圖表延到下一幀:Hero / 卡片 / 表格先上畫面;#app 顯示後 canvas 才有真實尺寸,不會先畫 0×0 再 resize
+  if (withCharts) deferFrame(() => { if (DATA) drawCharts(rows.filter(r => r.mv > 0), ys); });
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   restoreActiveTab();
   if (typeof hideSplash === 'function') hideSplash();
 }
 
-let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart;
+let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart, navDdChart, wfChart;
+
+// 全域一次性設定:高 DPI 上限 2(iPhone 3x 畫 2x 肉眼無差,像素量少一半);系統要求減少動態就關掉圖表動畫
+Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+if (REDUCED_MOTION) Chart.defaults.animation = false;
 
 // 同一個 canvas、同一種 type → 換 data / options 後 update()(有過場動畫、不重建 canvas context);
 // canvas 被換掉(innerHTML 重畫)或 type 不同才 destroy 重建。plugins 陣列 update 不會換,所以 inline plugin
@@ -1167,6 +1231,11 @@ function upsertChart(chart, canvas, config) {
   }
   if (chart) chart.destroy();
   return new Chart(canvas, config);
+}
+// 容器 display:none(如鎖住時 body.locked 藏起來的 sec-protected 年度長條)就不畫,等解鎖 render 再畫;已有實例先留著
+function upsertChartIfVisible(chart, canvas, config) {
+  if (!canvas || canvas.offsetParent === null) return chart;
+  return upsertChart(chart, canvas, config);
 }
 
 // 資產走勢:在總市值線上標「▲ 最高 / ▼ 最低」;參數由 options.plugins.navPeaks 傳入,update 時跟著換
@@ -1202,6 +1271,140 @@ const chgExtremesPlugin = {
     x.restore();
   }
 };
+// 回撤圖:在谷底點上方標「▼ 最大回撤 -X%」;參數由 options.plugins.ddLabel 傳入
+const ddLabelPlugin = {
+  id: 'ddLabel',
+  afterDatasetsDraw(chart, args, o) {
+    if (!o || !(o.idx >= 0) || !o.text) return;
+    const meta = chart.getDatasetMeta(0); const pt = meta.data[o.idx]; if (!pt) return;
+    const c = chart.ctx, n = meta.data.length - 1;
+    c.save();
+    c.font = '700 10px ' + o.chartFont; c.fillStyle = o.color; c.textBaseline = 'bottom';
+    c.textAlign = o.idx === 0 ? 'left' : o.idx === n ? 'right' : 'center';
+    c.fillText(o.text, pt.x, pt.y - 6);
+    c.restore();
+  }
+};
+
+// 走勢圖群(資產 / 每日變動 / 對比 / 回撤)hover 同步:滑到某一天,其他幾張同一天一起亮 tooltip 並畫垂直十字線。
+// 各圖 labels 都是 MM-DD;對比圖從第一個有大盤的日子起算,index 對不上,所以用 label 比對。同一格不重複 update。
+const NAV_SYNC_GROUP = () => [navChart, navChgChart, navBenchChart, navDdChart].filter(Boolean);
+let _navSyncing = false;
+const navSyncPlugin = {
+  id: 'navSync',
+  afterEvent(chart, args) {
+    if (_navSyncing) return;
+    const ev = args.event;
+    if (!ev || (ev.type !== 'mousemove' && ev.type !== 'mouseout')) return;
+    const act = chart.getActiveElements();
+    const label = ev.type === 'mousemove' && act.length ? chart.data.labels[act[0].index] : null;
+    _navSyncing = true;
+    try {
+      NAV_SYNC_GROUP().forEach(other => {
+        if (other === chart) return;
+        const idx = label == null ? -1 : other.data.labels.indexOf(label);
+        if (other._syncIdx === idx) return;                        // 同一格,不重畫
+        other._syncIdx = idx;
+        if (idx < 0) {
+          other.setActiveElements([]);
+          other.tooltip.setActiveElements([], { x: 0, y: 0 });
+        } else {
+          const els = other.data.datasets.map((ds, di) => ({ datasetIndex: di, index: idx }))
+            .filter(e => other.isDatasetVisible(e.datasetIndex) && other.getDatasetMeta(e.datasetIndex).data[idx]);
+          other.setActiveElements(els);
+          const first = els.length ? other.getDatasetMeta(els[0].datasetIndex).data[idx] : null;
+          other.tooltip.setActiveElements(els, first ? { x: first.x, y: first.y } : { x: 0, y: 0 });
+        }
+        other.update('none');
+      });
+    } finally { _navSyncing = false; }
+  },
+  afterDraw(chart, args, o) {                                        // 垂直十字線:有 active 點就在該 x 畫一條細線
+    const act = chart.getActiveElements(); if (!act.length || !act[0].element) return;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.strokeStyle = (o && o.color) || 'rgba(127,127,127,.45)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(act[0].element.x, chartArea.top); ctx.lineTo(act[0].element.x, chartArea.bottom); ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// 總報酬瀑布:每根長條端點標金額、相鄰分項間畫接續線(本條終點 → 下一條起點);參數由 options.plugins.wfLabel 傳入
+const wfLabelPlugin = {
+  id: 'wfLabel',
+  afterDatasetsDraw(chart, args, o) {
+    if (!o || !o.bars) return;
+    const meta = chart.getDatasetMeta(0), ctx = chart.ctx;
+    ctx.save();
+    ctx.font = '700 11px ' + o.chartFont; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    meta.data.forEach((el, i) => {
+      const b = o.bars[i]; if (!el || !b) return;
+      const p = el.getProps(['x', 'y', 'base', 'width'], true);
+      ctx.fillStyle = o.color;
+      ctx.fillText((b.total ? '' : sign(b.v)) + fmt(b.v), p.x, Math.min(p.y, p.base) - 5);
+      const nx = meta.data[i + 1];
+      if (nx && o.bars[i + 1] && !o.bars[i + 1].total) {
+        const q = nx.getProps(['x', 'width'], true);
+        ctx.strokeStyle = o.connector; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(p.x + p.width / 2, p.y); ctx.lineTo(q.x - q.width / 2, p.y); ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+};
+
+// 每日損益月曆熱圖:CSS grid(欄 = 週一起算的週、列 = 週一~週五),格色 diverging:賺 = palette.gain、賠 = palette.loss、0 = 底色;
+// 深淺 = √(|金額| / 區間最大) 讓小額也看得見。近 26 週。金額走 title tooltip;完整數字在「每日損益變動」圖與持股表
+function drawHeatmap(histFull, palette) {
+  const panel = document.getElementById('heat-panel'), box = document.getElementById('heatmap'), leg = document.getElementById('heat-legend');
+  if (!panel || !box) return;
+  const pts = histFull.filter(p => p && p.date);
+  if (pts.length < 2) { panel.style.display = 'none'; return; }
+  const days = [];                                                  // 日變動 = 當日未實現 − 前一交易日未實現(第一筆沒前值)
+  for (let i = 1; i < pts.length; i++) days.push({ date: String(pts[i].date), chg: (Number(pts[i].un) || 0) - (Number(pts[i - 1].un) || 0) });
+  const MAX_WEEKS = 26;
+  const toDate = ds => { const m = ds.split('-'); return new Date(+m[0], +m[1] - 1, +m[2]); };
+  const monday = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); x.setHours(0, 0, 0, 0); return x; };
+  const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const lastMon = monday(toDate(days[days.length - 1].date));
+  const capMon = new Date(lastMon); capMon.setDate(capMon.getDate() - 7 * (MAX_WEEKS - 1));
+  const dataMon = monday(toDate(days[0].date));
+  const startMon = dataMon > capMon ? dataMon : capMon;
+  const weeks = []; for (let d = new Date(startMon); d <= lastMon; d.setDate(d.getDate() + 7)) weeks.push(new Date(d));
+  const byDate = new Map(days.map(x => [x.date, x.chg]));
+  const shown = days.filter(x => toDate(x.date) >= startMon);
+  const maxAbs = Math.max(1, ...shown.map(x => Math.abs(x.chg)));
+  const gain = palette.gain || '#e11d48', loss = palette.loss || '#0d9488';
+  const alpha = v => Math.round((0.18 + 0.82 * Math.sqrt(Math.min(1, Math.abs(v) / maxAbs))) * 255).toString(16).padStart(2, '0');
+  const today = tpeNow().date;
+  const dows = ['一', '二', '三', '四', '五'];
+  let html = '<div class="hm-mon" style="grid-column:1;grid-row:1"></div>';
+  let lastM = -1;                                                   // 月份列:該週一所在月份變了才標
+  weeks.forEach((w, ci) => { const m = w.getMonth(); if (m !== lastM) { html += `<div class="hm-mon" style="grid-column:${ci + 2};grid-row:1">${m + 1}月</div>`; lastM = m; } });
+  dows.forEach((t, ri) => { html += `<div class="hm-dow" style="grid-column:1;grid-row:${ri + 2}">${t}</div>`; });
+  weeks.forEach((w, ci) => {
+    for (let ri = 0; ri < 5; ri++) {
+      const d = new Date(w); d.setDate(d.getDate() + ri); const k = key(d);
+      if (k > today) continue;                                      // 未來的日子不畫
+      const v = byDate.get(k);
+      if (v === undefined) { html += `<div class="hm-cell hm-nodata" style="grid-column:${ci + 2};grid-row:${ri + 2}" title="${k}(週${dows[ri]}) 無資料:休市或未記錄"></div>`; continue; }
+      const bg = v > 0 ? gain + alpha(v) : v < 0 ? loss + alpha(v) : '';
+      html += `<div class="hm-cell" style="grid-column:${ci + 2};grid-row:${ri + 2}${bg ? ';background:' + bg : ''}" title="${k}(週${dows[ri]}) ${sign(v)}${fmt(v)}"></div>`;
+    }
+  });
+  box.style.gridTemplateColumns = `28px repeat(${weeks.length}, minmax(0, 1fr))`;
+  box.style.maxWidth = `${28 + weeks.length * 27}px`;              // 格子最大 24px + 3px 間距;週數少時不放大、螢幕窄時等比縮小
+  box.innerHTML = html;
+  if (leg) {
+    const steps = [1, .55, .25];
+    leg.innerHTML = '<span>賠</span>'
+      + steps.map(t => `<span class="hm-sw" style="background:${loss}${alpha(t * maxAbs)}"></span>`).join('')
+      + '<span class="hm-sw" style="background:var(--total-bg)"></span>'
+      + steps.slice().reverse().map(t => `<span class="hm-sw" style="background:${gain}${alpha(t * maxAbs)}"></span>`).join('')
+      + `<span>賺</span><span style="margin-left:8px">最深 = ${fmt(maxAbs)}</span>`;
+  }
+  panel.style.display = '';
+}
 /* ==================== §5. 圖表繪製與風格(甜甜圈/比例/走勢/對比) ==================== */
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
@@ -1463,6 +1666,7 @@ function drawCharts(held, ys) {
   const tooltipDark = isAgentChart || styleKey === 'midnight';
   const tipTitle = isAgentChart ? '#67e8f9' : (tooltipDark ? '#f0f4ff' : '#1e293b');
   const tipBody = isAgentChart ? '#eef4ff' : (tooltipDark ? '#e6ecff' : '#334155');
+  const syncCol = isAgentChart ? 'rgba(103,232,249,.55)' : (tooltipDark ? 'rgba(255,255,255,.32)' : 'rgba(15,23,42,.26)');   // 走勢圖群十字線
   const chartFont = isAgentChart
     ? 'Trebuchet MS, Segoe UI, Microsoft JhengHei, sans-serif'
     : 'Segoe UI, Microsoft JhengHei, sans-serif';
@@ -1601,15 +1805,47 @@ function drawCharts(held, ys) {
 
   const retEl = document.getElementById('retbar');
   if (retEl) {
-    const absSum = retComps.reduce((sum, c) => sum + Math.abs(c.value), 0);
-    const segs = retComps.filter(c => Math.abs(c.value) > 0).map(c =>
-      `<div class="ret-seg" style="width:${absSum ? (Math.abs(c.value) / absSum * 100).toFixed(2) : 0}%;background:${c.color}" title="${c.label} ${sign(c.value)}${fmt(c.value)}"></div>`).join('');
     const legend = retComps.map(c =>
       `<span class="ret-leg"><span class="ret-sw" style="background:${c.color}"></span>${c.label} ${sign(c.value)}${fmt(c.value)} · ${pct(totalReturn ? c.value / totalReturn : 0)}</span>`).join('');
     retEl.innerHTML = `
     <div class="ret-head"><span class="ret-total" style="color:${retColor}">${sign(totalReturn)}${fmt(totalReturn)}</span><span class="ret-rate" style="color:${retColor}">報酬率 ${sign(returnRate)}${pct(returnRate)}</span></div>
-    <div class="ret-bar">${segs}</div>
     <div class="ret-legend">${legend}</div>`;
+  }
+  // 總報酬瀑布:0 → +未實現 → +已實現 → +股息 → 總報酬。浮動長條 [起, 迄],正紅負綠、總計用主題主色;
+  // 分項是負的就往下走(舊的橫向堆疊條把絕對值疊在一起,負的分項看起來像正的)
+  const wfCanvas = document.getElementById('wf');
+  if (wfCanvas) {
+    let run = 0;
+    const wfBars = retComps.map(c => { const from = run; run += c.value; return { label: c.label, from, to: run, v: c.value, total: false }; });
+    wfBars.push({ label: '總報酬', from: 0, to: totalReturn, v: totalReturn, total: true });
+    const wfColor = b => b.total ? (isAgentChart ? '#67e8f9' : palette.slices[0]) : (b.v >= 0 ? palette.gain : palette.loss);
+    wfChart = upsertChart(wfChart, wfCanvas, {
+      plugins: [wfLabelPlugin],
+      type: 'bar',
+      data: { labels: wfBars.map(b => b.label), datasets: [{
+        data: wfBars.map(b => [b.from, b.to]),
+        backgroundColor: wfBars.map(b => wfColor(b) + (b.total ? '' : 'cc')),
+        hoverBackgroundColor: wfBars.map(wfColor),
+        borderWidth: 0, borderRadius: 6, borderSkipped: false, barPercentage: .62, categoryPercentage: .8
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 22, right: 8, bottom: 0, left: 2 } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: text, font: { family: chartFont, size: 12, weight: '700' } } },
+          y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
+        },
+        plugins: {
+          wfLabel: { bars: wfBars, color: text, chartFont, connector: border },
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
+            borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: false,
+            callbacks: { label: c => { const b = wfBars[c.dataIndex]; return b.total ? ` 總報酬 ${sign(b.v)}${fmt(b.v)}` : [` ${b.label} ${sign(b.v)}${fmt(b.v)}`, ` 累計 ${sign(b.to)}${fmt(b.to)}`]; } }
+          }
+        }
+      }
+    });
   }
 
   // 持股損益(水平條,依損益排序)
@@ -1724,7 +1960,7 @@ function drawCharts(held, ys) {
   const capitalData = years.map(y => y.capitalGain);
   const dividendData = years.map(y => y.dividend);
   const yearlyTotals = years.map(y => y.total);
-  barChart = upsertChart(barChart, document.getElementById('bar'), {
+  barChart = upsertChartIfVisible(barChart, document.getElementById('bar'), {
     type: 'bar',
     data: {
       labels: years.map(y => y.year + (y.note ? ` ${y.note}` : '')),
@@ -1876,15 +2112,19 @@ function drawCharts(held, ys) {
   // 沒有大盤指數的日期視為休市(國定假日),整天不畫;但要等資料開始有 taiex 才啟用,否則舊資料會被全清空
   const hasTaiex = allHist.some(p => Number(p.taiex) > 0);
   let hist = allHist.filter(p => !isWeekend(p.date) && (!hasTaiex || Number(p.taiex) > 0));
-  if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
+  const histFull = hist;                                            // 未切區間的全史(月曆熱圖、回撤前高都看全史)
+  if (navRangeDays === 'ytd') hist = hist.filter(p => String(p.date) >= tpeNow().date.slice(0, 4) + '-01-01');
+  else if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   const navChgWrap = document.getElementById('navchg-wrap');
+  const navDdWrap = document.getElementById('navdd-wrap');
   const navBenchWrap = document.getElementById('navbench-wrap');
-  let navDrawn = false, chgDrawn = false, benchDrawn = false;   // 這一輪有畫到的走 update,沒畫到的最後 destroy
+  let navDrawn = false, chgDrawn = false, benchDrawn = false, ddDrawn = false;   // 這一輪有畫到的走 update,沒畫到的最後 destroy
   if (!hist.length) {
     if (navBox) navBox.style.display = 'none';
     if (navEmpty) navEmpty.style.display = 'block';
     if (navChgWrap) navChgWrap.style.display = 'none';
     if (navBenchWrap) navBenchWrap.style.display = 'none';
+    if (navDdWrap) navDdWrap.style.display = 'none';
   } else if (navCanvas) {
     if (navBox) navBox.style.display = '';
     if (navEmpty) navEmpty.style.display = 'none';
@@ -1894,6 +2134,12 @@ function drawCharts(held, ys) {
     const mvData = hist.map((p, i) => costData[i] + unData[i]);
     const many = hist.length > 60;
     const costColor = palette.slices[5] || palette.slices[palette.slices.length - 1];
+    // 面積填色上→下淡出(scriptable,依 chartArea 建漸層;chartArea 尚未就緒時退回單色)
+    const areaGrad = (hex, top, bottom) => c => {
+      const area = c.chart.chartArea; if (!area) return hex + top;
+      const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+      g.addColorStop(0, hex + top); g.addColorStop(1, hex + bottom); return g;
+    };
     // 在目前期間內找總市值的最高/最低點(資料 >=2 筆且高低不同才標)
     const hiCol = palette.hi || '#f59e0b', loCol = palette.lo || '#38bdf8';  // 極值高亮色,依主題(避免和漲跌色混淆)
     let hiIdx = 0, loIdx = 0;
@@ -1903,13 +2149,13 @@ function drawCharts(held, ys) {
     const mvPointBg = mvData.map((_, i) => i === hiIdx ? hiCol : i === loIdx ? loCol : 'transparent');
     navDrawn = true;
     navChart = upsertChart(navChart, navCanvas, {
-      plugins: [navPeaksPlugin],
+      plugins: [navPeaksPlugin, navSyncPlugin],
       type: 'line',
       data: {
         labels: navLabels,
         datasets: [
-          { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: costColor + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
-          { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: palette.gain + '66', borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
+          { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: areaGrad(costColor, '7a', '14'), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
+          { label: '未實現損益', data: unData, stack: 'comp', borderColor: palette.gain, backgroundColor: areaGrad(palette.gain, '99', '1a'), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5 },
           { label: '總市值', data: mvData, stack: 'mv', borderColor: text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointRadius: mvPointR, pointBackgroundColor: mvPointBg, pointBorderColor: mvPointBg, pointHoverRadius: 5 },
           { label: '未實現損益(線)', data: unData, stack: 'unl', borderColor: '#b794f6', backgroundColor: '#b794f6', borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, pointRadius: 0, pointHoverRadius: 5, hidden: true }
         ]
@@ -1924,6 +2170,7 @@ function drawCharts(held, ys) {
         },
         plugins: {
           navPeaks: { showPeaks, hiIdx, loIdx, hiCol, loCol, mvData, chartFont },
+          navSync: { color: syncCol },
           legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
           tooltip: {
             backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody, footerColor: tipBody,
@@ -1948,7 +2195,7 @@ function drawCharts(held, ys) {
       chgData.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
       chgDrawn = true;
       navChgChart = upsertChart(navChgChart, navChgCanvas, {
-        plugins: [chgExtremesPlugin],
+        plugins: [chgExtremesPlugin, navSyncPlugin],
         type: 'bar',
         data: { labels: navLabels, datasets: [
           { label: '損益變動', data: chgData, backgroundColor: chgData.map((v, i) => i === upIdx ? upHiC : i === dnIdx ? dnHiC : (v >= 0 ? upC : downC)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
@@ -1963,6 +2210,7 @@ function drawCharts(held, ys) {
           },
           plugins: {
             chgExtremes: { upIdx, dnIdx, upHiC, dnHiC, chartFont },
+            navSync: { color: syncCol },
             legend: { display: false },
             tooltip: {
               backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
@@ -2000,6 +2248,7 @@ function drawCharts(held, ys) {
       if (tsmcLine) benchSets.push({ label: '台積電', data: tsmcLine, borderColor: tsmcColor, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
       benchDrawn = true;
       navBenchChart = upsertChart(navBenchChart, navBenchCanvas, {
+        plugins: [navSyncPlugin],
         type: 'line',
         data: { labels: bLabels, datasets: benchSets },
         options: {
@@ -2011,6 +2260,7 @@ function drawCharts(held, ys) {
             y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + v.toFixed(1) + '%' } }
           },
           plugins: {
+            navSync: { color: syncCol },
             legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'line', color: text, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
             tooltip: {
               backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
@@ -2023,11 +2273,67 @@ function drawCharts(held, ys) {
     } else if (navBenchWrap) {
       navBenchWrap.style.display = 'none';
     }
+
+    // 回撤:總報酬(ret)距「截至當日的歷史最高」掉了多少,佔當日成本的 %;前高看全史,畫面只看區間
+    const navDdCanvas = document.getElementById('navdd');
+    const ddSub = document.getElementById('navdd-sub');
+    if (navDdWrap && navDdCanvas && hist.length >= 2) {
+      const retAll = histFull.map(p => Number(p.ret) || 0), costAll = histFull.map(p => Number(p.cost) || 0);
+      let peak = -Infinity, peakIdx = 0;
+      const ddAll = retAll.map((r, i) => { if (r > peak) { peak = r; peakIdx = i; } const amt = r - peak; return { amt, pct: costAll[i] ? amt / costAll[i] * 100 : 0, peakIdx }; });
+      const off = histFull.length - hist.length;                    // 區間在全史中的起點
+      const dd = ddAll.slice(off);
+      let worst = 0; dd.forEach((x, i) => { if (x.pct < dd[worst].pct) worst = i; });
+      const w = dd[worst], cur = dd[dd.length - 1];
+      const ddCol = palette.loss || '#0d9488', ddHi = palette.lo || '#38bdf8';
+      if (ddSub) {
+        const peakDate = histFull[w.peakIdx] ? String(histFull[w.peakIdx].date).slice(5) : '';
+        const worstTxt = w.pct < 0
+          ? `最大回撤 ${w.pct.toFixed(1)}%(${fmt(w.amt)};${peakDate} 高點 → ${navLabels[worst]} 谷底,${worst + off - w.peakIdx} 個交易日)`
+          : '區間內沒有回撤';
+        const curTxt = cur.pct < 0 ? `目前 ${cur.pct.toFixed(1)}%(${fmt(cur.amt)})` : '目前在新高 ●';
+        ddSub.textContent = `回撤(總報酬距前高,佔成本 %):${worstTxt};${curTxt}`;
+      }
+      navDdWrap.style.display = '';
+      ddDrawn = true;
+      navDdChart = upsertChart(navDdChart, navDdCanvas, {
+        plugins: [ddLabelPlugin, navSyncPlugin],
+        type: 'line',
+        data: { labels: navLabels, datasets: [{
+          label: '回撤', data: dd.map(x => Math.round(x.pct * 100) / 100), borderColor: ddCol, borderWidth: 1.5, fill: 'origin',
+          backgroundColor: c => { const area = c.chart.chartArea; if (!area) return ddCol + '55'; const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom); g.addColorStop(0, ddCol + '10'); g.addColorStop(1, ddCol + '88'); return g; },
+          tension: .3, pointRadius: dd.map((_, i) => i === worst && w.pct < 0 ? 4 : 0), pointBackgroundColor: ddHi, pointBorderColor: ddHi, pointHoverRadius: 5
+        }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          layout: { padding: { top: 16, right: 10, bottom: 2, left: 2 } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 8, font: { family: chartFont, size: 11 } } },
+            y: { max: 0, suggestedMin: -1, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => v.toFixed(1) + '%' } }
+          },
+          plugins: {
+            ddLabel: { idx: w.pct < 0 ? worst : -1, text: `▼ 最大回撤 ${w.pct.toFixed(1)}%`, color: ddHi, chartFont },
+            navSync: { color: syncCol },
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
+              borderColor: tooltipBorder, borderWidth: 1.5, cornerRadius: 12, padding: 12, displayColors: false,
+              callbacks: { label: c => { const x = dd[c.dataIndex]; return x && x.amt < 0 ? [` 距前高 ${x.pct.toFixed(2)}%`, ` 回吐 ${fmt(x.amt)}`] : ' 位於前高'; } }
+            }
+          }
+        }
+      });
+    } else if (navDdWrap) {
+      navDdWrap.style.display = 'none';
+    }
   }
+  drawHeatmap(histFull, palette);
   // 這一輪沒畫到的走勢圖(資料不足 / 隱藏)才 destroy;有畫到的都已走 update()
   if (!navDrawn && navChart) { navChart.destroy(); navChart = null; }
   if (!chgDrawn && navChgChart) { navChgChart.destroy(); navChgChart = null; }
   if (!benchDrawn && navBenchChart) { navBenchChart.destroy(); navBenchChart = null; }
+  if (!ddDrawn && navDdChart) { navDdChart.destroy(); navDdChart = null; }
 }
 
 /* ==================== §6. 分頁切換 ==================== */
@@ -2043,6 +2349,8 @@ function switchTab(tab) {
       if (navChart) navChart.resize();
       if (navChgChart) navChgChart.resize();
       if (navBenchChart) navBenchChart.resize();
+      if (navDdChart) navDdChart.resize();
+      if (wfChart) wfChart.resize();
     }, 60);
   }
 }
@@ -2534,6 +2842,83 @@ document.addEventListener('drop', async e => {
   }
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render({ charts: false }));
+
+/* ==================== §14b. 分享今日戰報:Hero + 走勢圖合成一張圖 → Web Share / 下載 ==================== */
+// 1080×1350(IG 4:5)。canvas 自己排版:標題列(吉祥物 + 標題 + 日期)→ 今日損益大字 → 總市值 / 總報酬 →
+// 資產走勢圖(直接 drawImage 畫面上的 canvas)→ 頁尾。顏色全取目前主題的 CSS 變數,七套主題各有各的戰報長相。
+// 「只顯示 %」勾起來:金額全部改成 % 或「—」,走勢縮圖左側金額刻度用卡片色蓋掉。previewOnly=true 只回傳 canvas 不分享(測試 / 預覽用)。
+async function shareCard(previewOnly) {
+  if (!DATA || !HERO) { toast('今日損益還沒算出來,無法產生戰報'); return null; }
+  const pctOnly = !!(document.getElementById('share-pct-only') || {}).checked;
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const W = 1080, H = 1350, PAD = 60;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  const font = (w, px) => `${w} ${px}px "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif`;
+  const upC = v('--up'), downC = v('--down'), textC = v('--text'), labelC = v('--label') || v('--muted'), mutedC = v('--muted');
+  const colorOf = n => n > 0 ? upC : n < 0 ? downC : textC;
+  const card = (x, y, w, h) => { c.fillStyle = v('--card'); c.strokeStyle = v('--border'); c.lineWidth = 2; roundedRectPath(c, x, y, w, h, 28); c.fill(); c.stroke(); };
+  c.fillStyle = v('--bg'); c.fillRect(0, 0, W, H);
+  c.textBaseline = 'middle'; c.textAlign = 'left';
+
+  // 標題列
+  const mascot = document.querySelector('img.mascot');
+  let tx = PAD;
+  if (mascot && mascot.complete && mascot.naturalWidth) {
+    c.save(); c.beginPath(); c.arc(PAD + 60, 120, 60, 0, Math.PI * 2); c.closePath(); c.clip();
+    c.drawImage(mascot, PAD, 60, 120, 120); c.restore();
+    c.strokeStyle = v('--title-accent'); c.lineWidth = 5; c.beginPath(); c.arc(PAD + 60, 120, 60, 0, Math.PI * 2); c.stroke();
+    tx = PAD + 150;
+  }
+  const day = String(DATA.priceUpdated || DATA.updated || tpeNow().date).slice(0, 10);
+  c.fillStyle = v('--title'); c.font = font(850, 54); c.fillText(DATA.title || DEFAULT_TITLE, tx, 100);
+  c.fillStyle = mutedC; c.font = font(600, 28); c.fillText(`今日戰報 · ${DATA.priceUpdated || day}`, tx, 152);
+
+  // 今日損益
+  const pctTxt = `${sign(HERO.heroPct)}${pct(HERO.heroPct)}`;
+  card(PAD, 220, W - PAD * 2, 400);
+  c.fillStyle = labelC; c.font = font(700, 32); c.fillText('今日損益' + (HERO.heroMissing ? `(${HERO.heroMissing} 檔缺昨收未計)` : ''), PAD + 48, 285);
+  c.fillStyle = colorOf(HERO.heroChg);
+  if (pctOnly) { c.font = font(880, 150); c.fillText(pctTxt, PAD + 44, 400); }
+  else { c.font = font(880, 118); c.fillText(sign(HERO.heroChg) + fmt(HERO.heroChg), PAD + 44, 392); c.font = font(750, 52); c.fillText(`(${pctTxt})`, PAD + 48, 478); }
+  const col2 = W / 2 + 20, rowY = 560;
+  c.fillStyle = labelC; c.font = font(700, 28); c.fillText('總市值', PAD + 48, rowY - 24); c.fillText('總報酬', col2, rowY - 24);
+  c.font = font(800, 44);
+  c.fillStyle = textC; c.fillText(pctOnly ? '—' : fmt(HERO.mv), PAD + 48, rowY + 28);
+  c.fillStyle = colorOf(HERO.totalPL);
+  const rateTxt = `${sign(HERO.heroRate)}${pct(HERO.heroRate)}`;
+  c.fillText(pctOnly ? rateTxt : `${sign(HERO.totalPL)}${fmt(HERO.totalPL)} · ${rateTxt}`, col2, rowY + 28);
+
+  // 資產走勢:貼畫面上的 canvas(還沒畫出來就放文字)
+  card(PAD, 670, W - PAD * 2, 520);
+  c.fillStyle = labelC; c.font = font(700, 30); c.fillText('資產走勢', PAD + 48, 720);
+  const navCv = navChart && navChart.canvas;
+  if (navCv && navCv.width > 0 && navCv.height > 0) {
+    const iw = W - PAD * 2 - 60, ih = Math.min(400, Math.round(iw * navCv.height / navCv.width));
+    c.drawImage(navCv, PAD + 30, 760, iw, ih);
+    if (pctOnly) { c.fillStyle = v('--card'); c.fillRect(PAD + 30, 760, 76, ih); }
+  } else { c.fillStyle = mutedC; c.font = font(600, 28); c.fillText('(走勢圖尚無資料)', PAD + 48, 900); }
+
+  // 頁尾:站台網址(在 GitHub Pages 上才有)
+  const site = location.hostname.endsWith('.github.io') ? location.host + location.pathname.replace(/index\.html$/, '') : '';
+  c.fillStyle = mutedC; c.font = font(600, 26); c.textAlign = 'center';
+  c.fillText((DATA.title || DEFAULT_TITLE) + (site ? ' · ' + site : ''), W / 2, H - 70);
+  if (previewOnly) return cv;
+
+  // 輸出:能 Web Share 檔案就分享(手機丟 LINE / IG),不能就下載 PNG
+  const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+  if (!blob) { toast('產生圖片失敗'); return null; }
+  const file = new File([blob], `panghu-${day}.png`, { type: 'image/png' });
+  const text = `${DATA.title || DEFAULT_TITLE} ${day} 今日 ${pctTxt}`;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: text, text }); return null; }
+    catch (e) { if (e && e.name === 'AbortError') return null; }   // 使用者取消就靜靜結束;其他錯誤退回下載
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('已下載戰報圖片(此瀏覽器不支援直接分享)');
+  return null;
+}
 
 /* ==================== §15. 主題 / 圖表風格切換 ==================== */
 // ⚙️ 設定視窗(主題 / 圖表 / GitHub / 載入 / 密碼 的收納處)
