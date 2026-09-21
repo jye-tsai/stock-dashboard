@@ -5,6 +5,9 @@
 // 防還原:只有即時價能覆蓋現有價格;收盤價(OpenAPI)只用來初始化「完全沒有價格」的新標的。
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
+// 與前端共用的損益計算模組(scripts/calc.js,UMD):改費率 / 稅率只改那一份,history 的 un / ret 才會跟畫面一致
+const PfCalc = createRequire(import.meta.url)('./calc.js');
 
 const FILE = process.env.DATA_FILE || 'data.json';
 // 混淆金鑰（與前端 index.html 相同；AES-256-GCM，防君子不防小人）
@@ -29,22 +32,6 @@ function writeData(data) {
   fs.writeFileSync(FILE, JSON.stringify({ enc: 1, iv: iv.toString('base64'), ct: all.toString('base64') }));
 }
 
-// 計算總成本 / 總市值 / 總報酬(與前端 compute 邏輯一致)
-function computeTotals(data) {
-  const f = data.fees || {};
-  const feeRate = f.feeRate || 0, feeDiscount = f.feeDiscount || 0, taxRates = f.taxRates || {};
-  let cost = 0, mv = 0, unreal = 0;
-  for (const h of (data.holdings || [])) {
-    const c = Math.round((h.cost || 0) * 1000 * (h.lots || 0));
-    const m = Math.round((h.price || 0) * 1000 * (h.lots || 0));
-    const taxRate = taxRates[h.type] ?? 0.003;
-    const sellCost = Math.round(m * (taxRate + feeRate * feeDiscount));
-    cost += c; mv += m; unreal += m - c - sellCost;
-  }
-  const realized = data['已實現損益'] || 0, dividend = data['股息收入'] || 0;
-  return { cost, mv, unreal, realized, dividend, totalReturn: unreal + realized + dividend };
-}
-
 // 台北時間戳(直接 UTC+8 手算,不依賴 runner 時區資料庫;台灣無日光節約,固定 +8),例:2026-06-15 12:16
 function taipeiStamp() {
   const d = new Date(Date.now() + 8 * 3600 * 1000);
@@ -52,48 +39,68 @@ function taipeiStamp() {
   return `${d.getUTCFullYear()}-${z(d.getUTCMonth() + 1)}-${z(d.getUTCDate())} ${z(d.getUTCHours())}:${z(d.getUTCMinutes())}`;
 }
 
-async function fetchJson(url, ms = 12000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const r = await fetch(url, {
-      signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } finally { clearTimeout(timer); }
-}
-
-// 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價),先試上市 .TW 再試上櫃 .TWO
-async function fromYahoo(codes, prev) {
-  const live = {};
-  for (const c of codes) {
-    for (const suf of ['.TW', '.TWO']) {
-      try {
-        const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`);
-        const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
-        const p = m && m.regularMarketPrice;
-        if (p > 0) {
-          live[c] = p;
-          const pc = m.previousClose || m.chartPreviousClose;   // 昨收 → 算今日漲跌%
-          if (prev && pc > 0) prev[c] = pc;
-          break;
-        }
-      } catch (e) {}
+// 逾時 / 429 / 5xx / 連線錯誤 → 間隔 800ms 重試一次;其他 4xx(如 404 = 該後綴不存在)不重試
+async function fetchJson(url, ms = 12000, retry = 1) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await fetch(url, {
+        signal: AbortSignal.timeout(ms),
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }
+      });
+      if (!r.ok) { const e = new Error('HTTP ' + r.status); e.retryable = r.status === 429 || r.status >= 500; throw e; }
+      return await r.json();
+    } catch (e) {
+      const retryable = e.retryable || e.name === 'TimeoutError' || e.name === 'AbortError' || !!e.cause;
+      if (attempt >= retry || !retryable) throw e;
+      await new Promise(res => setTimeout(res, 800));
     }
   }
-  return live;
+}
+
+// epoch 秒 → 台北日期 'YYYY-MM-DD';判斷來源的「最後成交日」是否為今日(平日休市時 Yahoo / MIS 仍回上一交易日的價)
+function tpeDate(epochSec) {
+  if (!(epochSec > 0)) return '';
+  return new Date(epochSec * 1000 + 8 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+// 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價)
+// - 各檔並行查;後綴先用上次記住的(symHint:上市 .TW / 上櫃 .TWO),沒有才依序試
+// - 只接受 regularMarketTime 落在今日(台北)的價:平日休市 Yahoo 仍回上一交易日收盤,不能當即時價
+// 回傳 { live: {code: price}, sym: {code: suffix} }
+async function fromYahoo(codes, prev, today, symHint = {}) {
+  const live = {}, sym = {};
+  const one = async c => {
+    const sufs = symHint[c] ? [symHint[c], ...['.TW', '.TWO'].filter(s => s !== symHint[c])] : ['.TW', '.TWO'];
+    for (const suf of sufs) {
+      try {
+        const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`);
+        const m = j?.chart?.result?.[0]?.meta;
+        const p = m?.regularMarketPrice;
+        if (!(p > 0)) continue;
+        const tradeDay = tpeDate(m.regularMarketTime);
+        if (tradeDay !== today) { console.log(`${c}${suf}: Yahoo 最後成交日 ${tradeDay || '?'} 非今日,不視為即時價`); return; }
+        live[c] = p; sym[c] = suf;
+        const pc = m.previousClose || m.chartPreviousClose;   // 昨收 → 算今日漲跌%
+        if (prev && pc > 0) prev[c] = pc;
+        return;
+      } catch (e) { console.log(`${c}${suf}: ${e.message}`); }
+    }
+  };
+  await Promise.all(codes.map(one));
+  return { live, sym };
 }
 
 // 即時來源 2:證交所 MIS(z=成交 → pz=最後揭示;不取昨收 y,以免用舊價倒退)
-async function fromMis(codes, prev) {
+async function fromMis(codes, prev, today) {
   const live = {};
   if (!codes.length) return live;
   const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
   const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
   const j = await fetchJson(url, 15000);
   (j.msgArray || []).forEach(s => {
+    const d = String(s.d || '');                   // 資料日 YYYYMMDD;非今日(休市)不當即時價
+    const tradeDay = d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '';
+    if (tradeDay !== today) { console.log(`${s.c}: MIS 資料日 ${tradeDay || '?'} 非今日,略過`); return; }
     const p = parseFloat(s.z) || parseFloat(s.pz);
     if (p > 0) live[s.c] = p;
     const y = parseFloat(s.y);                     // y=昨收 → 算今日漲跌%
@@ -162,20 +169,24 @@ async function main() {
   if (!codes.length) { console.log('沒有可查詢的代號,結束。'); return; }
 
   const stamp = taipeiStamp();
+  const today = stamp.slice(0, 10);
   console.log(`時間 ${stamp}`);
 
   // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的;prevClose 收集各檔昨收(算今日漲跌%)
-  const live = {}, prevClose = {};
+  // 兩個來源都只接受「最後成交日 = 今日」的價,平日休市(國定假日)不會把昨日收盤當即時價寫進 history
+  const live = {}, prevClose = {}, yahooSym = {};
+  const symHint = {};
+  holdings.forEach(h => { if (h.code && h.yahooSym) symHint[h.code] = h.yahooSym; });
   try {
-    const y = await fromYahoo(codes, prevClose);
-    Object.assign(live, y);
-    console.log(`Yahoo 即時: 取得 ${Object.keys(y).length}/${codes.length}`);
+    const y = await fromYahoo(codes, prevClose, today, symHint);
+    Object.assign(live, y.live); Object.assign(yahooSym, y.sym);
+    console.log(`Yahoo 即時: 取得 ${Object.keys(y.live).length}/${codes.length}`);
   } catch (e) { console.log(`Yahoo 失敗(${e.message})`); }
 
   const misCodes = codes.filter(c => !(live[c] > 0));
   if (misCodes.length) {
     try {
-      const m = await fromMis(misCodes, prevClose);
+      const m = await fromMis(misCodes, prevClose, today);
       Object.assign(live, m);
       console.log(`MIS 即時: 補抓 ${Object.keys(m).length}/${misCodes.length}`);
     } catch (e) { console.log(`MIS 失敗(${e.message})`); }
@@ -195,6 +206,7 @@ async function main() {
   for (const h of holdings) {
     if (!h.code) continue;
     if (prevClose[h.code] > 0) h.prevClose = prevClose[h.code];   // 昨收(供前端算今日漲跌%)
+    if (yahooSym[h.code]) h.yahooSym = yahooSym[h.code];           // 記住上市/上櫃後綴,下次省一次必失敗的查詢
     if (live[h.code] > 0) {
       liveHit++;
       h.priceTime = stamp;                                   // 最後抓到即時價的時間(有抓到就更新)
@@ -215,7 +227,7 @@ async function main() {
     try { taiex = await fromTaiex(); if (taiex) console.log(`加權指數: ${taiex}`); } catch (e) {}
 
     // 記錄每日資產走勢(同一天只留最新一筆,供前端畫淨值曲線)
-    const tot = computeTotals(data);
+    const tot = PfCalc.totals(data);     // 與前端同一份計算(scripts/calc.js)
     const day = stamp.slice(0, 10);
     data.history = Array.isArray(data.history) ? data.history : [];
     const entry = { date: day, mv: tot.mv, cost: tot.cost, un: tot.unreal, real: tot.realized, div: tot.dividend, ret: tot.totalReturn };
@@ -228,22 +240,29 @@ async function main() {
     if (data.history.length > 400) data.history = data.history.slice(-400);
 
     // 回補:history 裡還沒有 taiex / tsmc 的舊日期,用歷史日收盤補齊(一次抓,自我修復)
-    const needFill = data.history.some(h => !(h.taiex > 0) || !(h.tsmc > 0));
+    // 補不到的(Yahoo 該日無 bar、或超出 6 個月範圍)標 *Miss,之後不再為它重抓;今日那筆不標(盤中還會補)
+    const needFill = data.history.some(h => (!(h.taiex > 0) && !h.taiexMiss) || (!(h.tsmc > 0) && !h.tsmcMiss));
     if (needFill) {
-      const th = await fetchYahooDailyClose('%5ETWII');
-      const sh = await fetchYahooDailyClose('2330.TW');
-      let f1 = 0, f2 = 0;
+      const [th, sh] = await Promise.all([fetchYahooDailyClose('%5ETWII'), fetchYahooDailyClose('2330.TW')]);
+      const thOk = Object.keys(th).length > 0, shOk = Object.keys(sh).length > 0;   // 來源整個掛掉時不亂標 miss
+      let f1 = 0, f2 = 0, miss = 0;
       for (const h of data.history) {
-        if (!(h.taiex > 0) && th[h.date] > 0) { h.taiex = th[h.date]; f1++; }
-        if (!(h.tsmc > 0) && sh[h.date] > 0) { h.tsmc = sh[h.date]; f2++; }
+        if (!(h.taiex > 0)) {
+          if (th[h.date] > 0) { h.taiex = th[h.date]; delete h.taiexMiss; f1++; }
+          else if (thOk && h.date !== day && !h.taiexMiss) { h.taiexMiss = 1; miss++; }
+        }
+        if (!(h.tsmc > 0)) {
+          if (sh[h.date] > 0) { h.tsmc = sh[h.date]; delete h.tsmcMiss; f2++; }
+          else if (shOk && h.date !== day && !h.tsmcMiss) { h.tsmcMiss = 1; miss++; }
+        }
       }
-      if (f1 || f2) console.log(`回補 大盤 ${f1} 天、台積電 ${f2} 天`);
+      if (f1 || f2 || miss) console.log(`回補 大盤 ${f1} 天、台積電 ${f2} 天;標記補不到 ${miss} 項`);
     }
 
     writeData(data);
     console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
   } else {
-    console.log('完全沒抓到即時價,維持原狀不寫檔(時間戳不前進=即時來源不通)');
+    console.log('沒有「今日」的即時價(休市日或即時來源不通),維持原狀不寫檔;時間戳不前進');
   }
 }
 

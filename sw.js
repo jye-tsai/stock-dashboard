@@ -1,10 +1,11 @@
 // 胖虎的小財庫 — Service Worker(離線快取)
-// 改了任何圖示 / 靜態檔記得把 CACHE 版號 +1(v2 → v3),activate 會把舊快取整包清掉。
+// 改了任何圖示 / 靜態檔(含 scripts/calc.js)記得把 CACHE 版號 +1,activate 會把舊快取整包清掉。
 // 靜態資源走 stale-while-revalidate:先回快取、背景抓新版寫回;就算忘了改版號,F5 兩次也一定看到新圖。
-const CACHE = 'panghu-v2';
+const CACHE = 'panghu-v3';
 const SHELL = [
   './',
   './index.html',
+  './scripts/calc.js',
   './manifest.json',
   './favicon.png',
   './panghu-icon.png',

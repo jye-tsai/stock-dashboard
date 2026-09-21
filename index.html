@@ -19,6 +19,7 @@
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
+<script src="scripts/calc.js"></script>
 <style>
   /* ===== 主題 ===== */
   :root,
@@ -837,7 +838,7 @@ let navRangeDays = 90;                            // 資產走勢顯示天數(0=
 function sortHoldings(key) {
   if (holdSort.key === key) holdSort.dir *= -1;
   else { holdSort.key = key; holdSort.dir = -1; }
-  if (DATA) render();
+  if (DATA) render({ charts: false });
 }
 function setNavRange(d) {
   navRangeDays = d;
@@ -852,15 +853,29 @@ function toggleHoldDetail(tr, ev) {
 }
 let fsHandle = null;
 const DEFAULT_TITLE = '股票庫存儀表板';
-const EDIT_PASSWORD_SHA256 = 'dac455b49f7330b2b4d5a44422a05c82b14ab9ddee5ca223e44d6386180c469d';
 const EDIT_UNLOCK_MINUTES = 30;
 
-const fmt = n => Math.round(n).toLocaleString('zh-TW');
-const fmt2 = n => n.toLocaleString('zh-TW', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+// 數字格式:formatter 建一次重複用(toLocaleString 每次呼叫都重新解析 locale,數字跳動動畫每 frame 都在叫)
+const NF0 = new Intl.NumberFormat('zh-TW');
+const NF2 = new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = n => NF0.format(Math.round(n));
+const fmt2 = n => NF2.format(n);
 const pct = n => (n * 100).toFixed(2) + '%';
 const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
 const sign = n => n > 0 ? '+' : '';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+// UTF-8 字串 → base64(GitHub Contents API 用);不靠已棄用的 unescape,也不 spread 大陣列免爆 call stack
+const b64utf8 = s => btoa(Array.from(new TextEncoder().encode(s), b => String.fromCharCode(b)).join(''));
+
+// 台北時間狀態(週末 / 開盤前 / 交易時段):render 的資料新鮮度標記與自動觸發更新市價共用
+function tpeNow() {
+  const t = new Date(Date.now() + 8 * 3600 * 1000);
+  const z = n => String(n).padStart(2, '0');
+  return { date: `${t.getUTCFullYear()}-${z(t.getUTCMonth() + 1)}-${z(t.getUTCDate())}`, dow: t.getUTCDay(), hh: t.getUTCHours(), mm: t.getUTCMinutes() };
+}
+const isWeekend = n => n.dow === 0 || n.dow === 6;
+const isPreOpen = n => n.hh < 9 || (n.hh === 9 && n.mm < 10);                 // 排程 09:05 首跑,09:10 前不算「未更新」
+const isTradingWindow = n => !isWeekend(n) && !isPreOpen(n) && (n.hh < 14 || (n.hh === 14 && n.mm <= 10));   // 到 14:00 收盤結算那輪為止
 
 /* ==================== §2. 數字跳動動畫 ==================== */
 const countCache = {};
@@ -887,27 +902,14 @@ function animateCounts() {
 }
 
 /* ==================== §3. 計算(市值 / 損益 / 比例) ==================== */
-function compute(d) {
-  const f = d.fees;
-  const rows = d.holdings.map(h => {
-    const costAmt = Math.round(h.cost * 1000 * h.lots);
-    const mv = Math.round(h.price * 1000 * h.lots);
-    const taxRate = f.taxRates[h.type] ?? 0.003;
-    const sellCost = Math.round(mv * (taxRate + f.feeRate * f.feeDiscount));
-    const unrealized = mv - costAmt - sellCost;
-    return { ...h, costAmt, mv, sellCost, unrealized, plRatio: costAmt ? unrealized / costAmt : 0 };
-  });
-  const t = rows.reduce((a, r) => ({
-    costAmt: a.costAmt + r.costAmt, mv: a.mv + r.mv,
-    sellCost: a.sellCost + r.sellCost, unrealized: a.unrealized + r.unrealized
-  }), { costAmt: 0, mv: 0, sellCost: 0, unrealized: 0 });
-  rows.forEach(r => { r.costPctOfTotal = t.costAmt ? r.costAmt / t.costAmt : 0; r.mvPctOfTotal = t.mv ? r.mv / t.mv : 0; });
-  return { rows, t };
-}
+// 計算邏輯在 scripts/calc.js(UMD),與 GitHub Action 的 update-prices.mjs 共用同一份;
+// 改手續費 / 稅率 / 四捨五入只改那裡,history 的 un / ret 才會跟畫面一致
+const compute = d => PfCalc.compute(d);
 
 /* ==================== §4. 畫面 render(卡片 / 持股表 / 標題) ==================== */
-function render() {
+function render(opts) {
   const d = DATA;
+  const withCharts = !(opts && opts.charts === false);   // 只動表格(排序 / 隱藏零股)時不重畫圖表
   const { rows, t } = compute(d);
   const realized = d['已實現損益'] || 0;
   const dividend = d['股息收入'] || 0;
@@ -939,15 +941,12 @@ function render() {
   const upEl = document.getElementById('updated');
   const pu = d.priceUpdated || d.updated || '';
   if (pu) {
-    const tpe = new Date(Date.now() + 8 * 3600 * 1000);
-    const z = n => String(n).padStart(2, '0');
-    const tDate = `${tpe.getUTCFullYear()}-${z(tpe.getUTCMonth() + 1)}-${z(tpe.getUTCDate())}`;
-    const dow = tpe.getUTCDay(), hh = tpe.getUTCHours();
+    const n = tpeNow();
     const puDate = String(pu).slice(0, 10);
     let tag = '';
-    if (puDate === tDate) tag = ' <span title="今日已更新" style="color:#22c55e">●</span>';
-    else if (dow === 0 || dow === 6) tag = ' <span style="opacity:.7">・週末休市</span>';
-    else if (hh < 9) tag = ' <span style="opacity:.7">・開盤前</span>';
+    if (puDate === n.date) tag = ' <span title="今日已更新" style="color:#22c55e">●</span>';
+    else if (isWeekend(n)) tag = ' <span style="opacity:.7">・週末休市</span>';
+    else if (isPreOpen(n)) tag = ' <span style="opacity:.7">・開盤前</span>';
     else tag = ' <span title="今日尚未收到更新,排程可能漏跑" style="background:#dc2626;color:#fff;padding:1px 8px;border-radius:10px;font-weight:700">⚠ 資料可能未更新</span>';
     upEl.innerHTML = '更新時間:' + esc(pu) + tag;
   } else {
@@ -961,9 +960,10 @@ function render() {
   document.querySelectorAll('.edit-only').forEach(el => el.classList.toggle('hidden', !E));
 
   // Hero:今日損益(各檔 prevClose 加總;缺 prevClose 退回 history 前一交易日市值差,都沒有就整塊隱藏)
-  let heroChg = null, heroBase = 0;
+  let heroChg = null, heroBase = 0, heroMissing = 0;
   const pcRows = rows.filter(r => r.prevClose > 0 && r.price > 0 && r.lots > 0);
   if (pcRows.length) {
+    heroMissing = rows.filter(r => r.price > 0 && r.lots > 0).length - pcRows.length;   // 沒昨收、沒算進今日損益的檔數
     heroChg = pcRows.reduce((sum, r) => sum + Math.round((r.price - r.prevClose) * 1000 * r.lots), 0);
     heroBase = pcRows.reduce((sum, r) => sum + Math.round(r.prevClose * 1000 * r.lots), 0);
   } else if (prevDay && typeof prevDay.mv === 'number' && prevDay.mv > 0) {
@@ -980,7 +980,7 @@ function render() {
       document.getElementById('hero').innerHTML = `
       <div class="hero-main">
         <div class="label">今日損益</div>
-        <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)})</span></div>
+        <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
       <div class="hero-side">
         <div><div class="label">總市值</div><div class="hero-sub">${fmt(t.mv)}</div></div>
@@ -1146,7 +1146,7 @@ function render() {
       <td class="${cls(ys.reduce((s,y)=>s+y.capitalGain,0))}">${fmt(ys.reduce((s,y)=>s+y.capitalGain,0))}</td>
       <td>${fmt(ys.reduce((s,y)=>s+(y.dividend||0),0))}</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
-  drawCharts(rows.filter(r => r.mv > 0), ys);
+  if (withCharts) drawCharts(rows.filter(r => r.mv > 0), ys);
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   restoreActiveTab();
@@ -1154,6 +1154,54 @@ function render() {
 }
 
 let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart;
+
+// 同一個 canvas、同一種 type → 換 data / options 後 update()(有過場動畫、不重建 canvas context);
+// canvas 被換掉(innerHTML 重畫)或 type 不同才 destroy 重建。plugins 陣列 update 不會換,所以 inline plugin
+// 一律做成模組常數、參數走 options.plugins.<id>(見下方 navPeaksPlugin / chgExtremesPlugin)。
+function upsertChart(chart, canvas, config) {
+  if (chart && chart.canvas === canvas && chart.config.type === config.type) {
+    chart.data = config.data;
+    chart.options = config.options;
+    chart.update();
+    return chart;
+  }
+  if (chart) chart.destroy();
+  return new Chart(canvas, config);
+}
+
+// 資產走勢:在總市值線上標「▲ 最高 / ▼ 最低」;參數由 options.plugins.navPeaks 傳入,update 時跟著換
+const navPeaksPlugin = {
+  id: 'navPeaks',
+  afterDatasetsDraw(chart, args, o) {
+    if (!o || !o.showPeaks || !o.mvData) return;
+    const meta = chart.getDatasetMeta(2);
+    if (!meta || meta.hidden) return;
+    const c = chart.ctx, n = o.mvData.length - 1;
+    c.save();
+    c.font = '700 11px ' + o.chartFont;
+    [[o.hiIdx, o.hiCol, '▲ 最高 ' + fmt(o.mvData[o.hiIdx]), -12], [o.loIdx, o.loCol, '▼ 最低 ' + fmt(o.mvData[o.loIdx]), 18]].forEach(([idx, col, txt, dy]) => {
+      const pt = meta.data[idx]; if (!pt) return;
+      c.textAlign = idx === 0 ? 'left' : idx === n ? 'right' : 'center';
+      c.fillStyle = col;
+      c.fillText(txt, pt.x, pt.y + dy);
+    });
+    c.restore();
+  }
+};
+// 每日變動:標「賺最多 / 賠最多」;參數由 options.plugins.chgExtremes 傳入
+const chgExtremesPlugin = {
+  id: 'chgExtremes',
+  afterDatasetsDraw(chart, args, o) {
+    if (!o) return;
+    const meta = chart.getDatasetMeta(0), x = chart.ctx;
+    x.save();
+    x.font = '700 10px ' + o.chartFont;
+    x.textAlign = 'center';
+    if (o.upIdx >= 0) { const b = meta.data[o.upIdx]; if (b) { x.fillStyle = o.upHiC; x.textBaseline = 'bottom'; x.fillText('賺最多', b.x, b.y - 4); } }
+    if (o.dnIdx >= 0) { const b = meta.data[o.dnIdx]; if (b) { x.fillStyle = o.dnHiC; x.textBaseline = 'top'; x.fillText('賠最多', b.x, b.y + 4); } }
+    x.restore();
+  }
+};
 /* ==================== §5. 圖表繪製與風格(甜甜圈/比例/走勢/對比) ==================== */
 function togglePieMode(){
   const m = localStorage.getItem('pf-pie-mode') || 'costpl';
@@ -1429,10 +1477,9 @@ function drawCharts(held, ys) {
 
   const pieMode = localStorage.getItem('pf-pie-mode') || 'costpl';
   { const pmb = document.getElementById('pie-mode-btn'); if (pmb) pmb.textContent = pieMode === 'costpl' ? '切換：純市值比例' : '切換：成本+損益'; }
-  if (pieChart) pieChart.destroy();
   if (pieMode === 'value') {
     // 原本：每檔一段，依市值占比
-    pieChart = new Chart(document.getElementById('pie'), {
+    pieChart = upsertChart(pieChart, document.getElementById('pie'), {
       type: 'doughnut',
       data: {
         labels: pieRows.map(r => `${r.name} (${r.code})`),
@@ -1466,7 +1513,7 @@ function drawCharts(held, ys) {
     segVals.push(costPart); segColors.push(base + '59'); segMeta.push(r);   // 成本：同色淺
     segVals.push(gain);     segColors.push(base);        segMeta.push(r);   // 損益：同色實(深)
   });
-  pieChart = new Chart(document.getElementById('pie'), {
+  pieChart = upsertChart(pieChart, document.getElementById('pie'), {
     type: 'doughnut',
     data: {
       labels: segMeta.map(r => r.name),
@@ -1567,8 +1614,7 @@ function drawCharts(held, ys) {
 
   // 持股損益(水平條,依損益排序)
   const plRows = [...held].sort((a, b) => b.unrealized - a.unrealized);
-  if (plChart) plChart.destroy();
-  plChart = new Chart(document.getElementById('pl'), {
+  plChart = upsertChart(plChart, document.getElementById('pl'), {
     type: 'bar',
     data: {
       labels: plRows.map(r => `${r.name} (${r.code})`),
@@ -1675,11 +1721,10 @@ function drawCharts(held, ys) {
       total: (y.capitalGain || 0) + (y.dividend || 0)
     }));
 
-  if (barChart) barChart.destroy();
   const capitalData = years.map(y => y.capitalGain);
   const dividendData = years.map(y => y.dividend);
   const yearlyTotals = years.map(y => y.total);
-  barChart = new Chart(document.getElementById('bar'), {
+  barChart = upsertChart(barChart, document.getElementById('bar'), {
     type: 'bar',
     data: {
       labels: years.map(y => y.year + (y.note ? ` ${y.note}` : '')),
@@ -1834,9 +1879,7 @@ function drawCharts(held, ys) {
   if (navRangeDays > 0) hist = hist.slice(-navRangeDays);
   const navChgWrap = document.getElementById('navchg-wrap');
   const navBenchWrap = document.getElementById('navbench-wrap');
-  if (navChart) { navChart.destroy(); navChart = null; }
-  if (navChgChart) { navChgChart.destroy(); navChgChart = null; }
-  if (navBenchChart) { navBenchChart.destroy(); navBenchChart = null; }
+  let navDrawn = false, chgDrawn = false, benchDrawn = false;   // 這一輪有畫到的走 update,沒畫到的最後 destroy
   if (!hist.length) {
     if (navBox) navBox.style.display = 'none';
     if (navEmpty) navEmpty.style.display = 'block';
@@ -1858,25 +1901,9 @@ function drawCharts(held, ys) {
     const showPeaks = mvData.length >= 2 && hiIdx !== loIdx;
     const mvPointR = mvData.map((_, i) => showPeaks && (i === hiIdx || i === loIdx) ? 5 : 0);
     const mvPointBg = mvData.map((_, i) => i === hiIdx ? hiCol : i === loIdx ? loCol : 'transparent');
-    navChart = new Chart(navCanvas, {
-      plugins: [{
-        id: 'navPeaks',
-        afterDatasetsDraw(chart) {
-          if (!showPeaks) return;
-          const meta = chart.getDatasetMeta(2);
-          if (!meta || meta.hidden) return;
-          const c = chart.ctx, n = mvData.length - 1;
-          c.save();
-          c.font = '700 11px ' + chartFont;
-          [[hiIdx, hiCol, '▲ 最高 ' + fmt(mvData[hiIdx]), -12], [loIdx, loCol, '▼ 最低 ' + fmt(mvData[loIdx]), 18]].forEach(([idx, col, txt, dy]) => {
-            const pt = meta.data[idx]; if (!pt) return;
-            c.textAlign = idx === 0 ? 'left' : idx === n ? 'right' : 'center';
-            c.fillStyle = col;
-            c.fillText(txt, pt.x, pt.y + dy);
-          });
-          c.restore();
-        }
-      }],
+    navDrawn = true;
+    navChart = upsertChart(navChart, navCanvas, {
+      plugins: [navPeaksPlugin],
       type: 'line',
       data: {
         labels: navLabels,
@@ -1896,6 +1923,7 @@ function drawCharts(held, ys) {
           y: { stacked: true, beginAtZero: true, border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 6, font: { family: chartFont, size: 11 }, callback: v => (v / 10000) + '萬' } }
         },
         plugins: {
+          navPeaks: { showPeaks, hiIdx, loIdx, hiCol, loCol, mvData, chartFont },
           legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', color: muted, padding: 16, font: { family: chartFont, size: 12, weight: '700' } } },
           tooltip: {
             backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody, footerColor: tipBody,
@@ -1918,19 +1946,9 @@ function drawCharts(held, ys) {
       // 找區間內漲最多(最大正值)、跌最多(最小負值);第一天無前值不列入
       let upIdx = -1, dnIdx = -1, upMax = 0, dnMin = 0;
       chgData.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
-      navChgChart = new Chart(navChgCanvas, {
-        plugins: [{
-          id: 'chgExtremes',
-          afterDatasetsDraw(chart) {
-            const meta = chart.getDatasetMeta(0), x = chart.ctx;
-            x.save();
-            x.font = '700 10px ' + chartFont;
-            x.textAlign = 'center';
-            if (upIdx >= 0) { const b = meta.data[upIdx]; x.fillStyle = upHiC; x.textBaseline = 'bottom'; x.fillText('賺最多', b.x, b.y - 4); }
-            if (dnIdx >= 0) { const b = meta.data[dnIdx]; x.fillStyle = dnHiC; x.textBaseline = 'top'; x.fillText('賠最多', b.x, b.y + 4); }
-            x.restore();
-          }
-        }],
+      chgDrawn = true;
+      navChgChart = upsertChart(navChgChart, navChgCanvas, {
+        plugins: [chgExtremesPlugin],
         type: 'bar',
         data: { labels: navLabels, datasets: [
           { label: '損益變動', data: chgData, backgroundColor: chgData.map((v, i) => i === upIdx ? upHiC : i === dnIdx ? dnHiC : (v >= 0 ? upC : downC)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }
@@ -1944,6 +1962,7 @@ function drawCharts(held, ys) {
             y: { border: { display: false }, grid: { color: palette.grid, drawTicks: false }, ticks: { color: muted, padding: 8, maxTicksLimit: 5, font: { family: chartFont, size: 11 }, callback: v => (v > 0 ? '+' : '') + (v / 10000) + '萬' } }
           },
           plugins: {
+            chgExtremes: { upIdx, dnIdx, upHiC, dnHiC, chartFont },
             legend: { display: false },
             tooltip: {
               backgroundColor: tooltipBg, titleColor: tipTitle, bodyColor: tipBody,
@@ -1979,7 +1998,8 @@ function drawCharts(held, ys) {
         { label: '加權指數', data: twLine, borderColor: twColor, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
       ];
       if (tsmcLine) benchSets.push({ label: '台積電', data: tsmcLine, borderColor: tsmcColor, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
-      navBenchChart = new Chart(navBenchCanvas, {
+      benchDrawn = true;
+      navBenchChart = upsertChart(navBenchChart, navBenchCanvas, {
         type: 'line',
         data: { labels: bLabels, datasets: benchSets },
         options: {
@@ -2004,6 +2024,10 @@ function drawCharts(held, ys) {
       navBenchWrap.style.display = 'none';
     }
   }
+  // 這一輪沒畫到的走勢圖(資料不足 / 隱藏)才 destroy;有畫到的都已走 update()
+  if (!navDrawn && navChart) { navChart.destroy(); navChart = null; }
+  if (!chgDrawn && navChgChart) { navChgChart.destroy(); navChgChart = null; }
+  if (!benchDrawn && navBenchChart) { navBenchChart.destroy(); navBenchChart = null; }
 }
 
 /* ==================== §6. 分頁切換 ==================== */
@@ -2069,9 +2093,14 @@ async function verifyPassword(pwd) {
     try { return (await pbkdf2Hash(pwd, b64dec(a.salt), a.iter || PBKDF2_ITER)) === a.hash; }
     catch (e) { return false; }
   }
-  // 舊版相容:無加鹽 SHA-256
-  const expected = (DATA && DATA.passwordHash) || EDIT_PASSWORD_SHA256;
-  try { return (await sha256Text(pwd)) === expected; } catch (e) { return false; }
+  // 舊版相容:無加鹽 SHA-256(data.json 的 passwordHash)
+  if (DATA && DATA.passwordHash) {
+    try { return (await sha256Text(pwd)) === DATA.passwordHash; } catch (e) { return false; }
+  }
+  // 完全沒設密碼(全新 data.json):放行並提醒去設定。
+  // 舊版的內建預設雜湊已移除:寫在公開 repo 裡的固定密碼等於沒鎖,還多一個可離線暴力破解的目標
+  toast('⚠ 這份資料尚未設定密碼,請到 ⚙️ 設定 → 🔑 設定密碼');
+  return true;
 }
 // 設定新密碼:升級為 PBKDF2 並移除舊的弱雜湊
 // 通用確認視窗(取代 confirm),回傳 Promise<boolean>
@@ -2254,6 +2283,7 @@ async function updatePrices() {
 async function autoTriggerPrices(c) {
   try {
     if (!ghReady(c)) return;
+    if (!isTradingWindow(tpeNow())) return;      // 盤後 / 週末 / 09:10 前不浪費 Action(腳本本身也會擋,這裡省掉 dispatch)
     const last = +(localStorage.getItem('pf-autoprice-ts') || 0);
     if (Date.now() - last < 60000) return;
     localStorage.setItem('pf-autoprice-ts', String(Date.now()));
@@ -2360,7 +2390,7 @@ async function ghSave(c, json) {
     else if (g.status !== 404) throw ghErr(g.status, await g.json().catch(() => ({})));
     const body = {
       message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
-      content: btoa(unescape(encodeURIComponent(json))),
+      content: b64utf8(json),
       branch: c.branch || 'main'
     };
     if (sha) body.sha = sha;
@@ -2503,7 +2533,7 @@ document.addEventListener('drop', async e => {
     load(await decodeMaybe(JSON.parse(await file.text())));
   }
 });
-document.getElementById('hide-zero').addEventListener('change', () => DATA && render());
+document.getElementById('hide-zero').addEventListener('change', () => DATA && render({ charts: false }));
 
 /* ==================== §15. 主題 / 圖表風格切換 ==================== */
 // ⚙️ 設定視窗(主題 / 圖表 / GitHub / 載入 / 密碼 的收納處)
@@ -2586,10 +2616,11 @@ function hideSplash() {
 setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
 
 /* ---------- 啟動 ----------
-   1. fetch data.json(經 http 伺服器或同資料夾可讀時)
-   2. 記住的檔案 handle(若權限仍有效)
-   3. localStorage 快取
-   4. 請使用者選檔 */
+   0. localStorage 快取先畫(有的話),下面任一來源成功就無縫換成最新
+   1. GitHub 同步已設定 → 讀 repo 最新 data.json
+   2. fetch data.json(GitHub Pages / http 伺服器),最多等 8 秒
+   3. 記住的檔案 handle(若權限仍有效)
+   4. 都不通 → 停在快取並提示;沒快取請使用者選檔 */
 (async function init() {
   updateAuthUI();
   updateGhBtn();
@@ -2600,33 +2631,39 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
     if (p) p.textContent = '請選擇 data.json 或拖曳檔案到此頁面';
   };
   setTimeout(() => { if (!DATA) showPickHint(); }, 800);
-  // 已設定 GitHub → 優先讀 repo 最新版(不受 Pages 部署延遲影響)
+  // 0. 有上次快取先畫出來(零等待);之後網路來源到了再無縫換成最新,網路慢也不會白畫面、也看得出是不是舊資料
+  const cachedRaw = localStorage.getItem('portfolio-data');
+  let shownCache = false;
+  if (cachedRaw) { try { DATA = JSON.parse(cachedRaw); render(); shownCache = true; } catch (e) {} }
+  const afterFresh = () => { if (shownCache && cachedRaw !== JSON.stringify(DATA)) toast('已更新為最新資料'); };
+  // 1. 已設定 GitHub → 優先讀 repo 最新版(不受 Pages 部署延遲影響)
   const ghc = ghCfg();
   if (ghReady(ghc)) {
-    autoTriggerPrices(ghc);            // 刷新時自動送出更新市價（不等待，不影響載入）
-    try { load(await decodeMaybe(await ghLoad(ghc))); return; }
+    autoTriggerPrices(ghc);            // 交易時段內自動送出更新市價(不等待,不影響載入)
+    try { load(await decodeMaybe(await ghLoad(ghc))); afterFresh(); return; }
     catch (e) { toast('GitHub 讀取失敗,改用其他來源'); }
   }
+  // 2. 同站 data.json(GitHub Pages);最多等 8 秒,弱網也給它機會
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
-    const r = await fetch('data.json', { cache: 'no-store', signal: controller.signal });
-    clearTimeout(timer);
+    const r = await fetch('data.json', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw 0;
     load(await decodeMaybe(await r.json()));
+    afterFresh();
     return;
   } catch (e) {}
+  // 3. 記住的檔案 handle
   try {
     const h = await idb.get('handle');
     if (h && await h.queryPermission({ mode: 'read' }) === 'granted') {
       fsHandle = h;
       const file = await h.getFile();
       load(await decodeMaybe(JSON.parse(await file.text())));
+      afterFresh();
       return;
     }
   } catch (e) {}
-  const cached = localStorage.getItem('portfolio-data');
-  if (cached) { DATA = JSON.parse(cached); render(); toast('顯示上次的資料(快取)'); }
+  // 4. 都不通:有快取就停在快取並明講;沒有才請使用者選檔
+  if (shownCache) toast('⚠ 無法取得最新資料,目前顯示上次快取');
   else {
     document.getElementById('loader-hint').classList.remove('hidden');
     document.querySelector('#loader p').textContent = '無法自動讀取 data.json';

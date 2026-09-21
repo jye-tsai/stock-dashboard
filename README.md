@@ -12,7 +12,7 @@
 
 先讀這段就能接手。細節在後面各節。
 
-- **整個 App 就是一個 `index.html`**(HTML + CSS + JS 全部內嵌,單檔約 2500+ 行)。JS 在檔案下半部的 `<script>` 裡,最上面有「§ 目錄」;用編輯器 **Ctrl+F 搜 `§`** 可跳段(§1~§17,見〈程式碼分段〉)。
+- **整個 App 就是一個 `index.html`**(HTML + CSS + JS 全部內嵌,單檔約 2500+ 行);唯一例外是損益計算抽在 `scripts/calc.js`(前端與 Action 共用)。JS 在檔案下半部的 `<script>` 裡,最上面有「§ 目錄」;用編輯器 **Ctrl+F 搜 `§`** 可跳段(§1~§17,見〈程式碼分段〉)。
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
@@ -50,6 +50,7 @@
 |---|---|
 | `index.html` | 整個儀表板(HTML / CSS / JS 單檔);Chart.js 走 cdnjs 並鎖 `integrity`(SRI),升版要同步換 hash(`https://api.cdnjs.com/libraries/Chart.js/<ver>?fields=sri`) |
 | `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
+| `scripts/calc.js` | **損益計算共用模組**(UMD):成本 / 市值 / 賣出成本 / 未實現 / 總報酬。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
@@ -74,6 +75,7 @@
       "cost": 1707.96, "price": 2490, "lots": 2.33,
       "priceTime": "2026-07-01 11:10",  // 該檔最後即時價時間
       "prevClose": 2475,                // 昨收(算今日漲跌%;由 Action 寫入)
+      "yahooSym": ".TW",                // Yahoo 後綴(上市 .TW / 上櫃 .TWO;由 Action 寫入,下次查價直接用)
       "target": 5000, "stop": 1600 }
   ],
   "account": { "餘額": 0, "交割款T1": 0, "交割款T2": 0 },
@@ -90,8 +92,8 @@
 }
 ```
 
-- `holdings[].prevClose`、`history[].taiex`、`history[].tsmc` 都是**後端寫入的欄位**;前端缺這些欄位時會**優雅略過**(不顯示今日 %、不畫對比線),不會壞掉。
-- `auth` 沒設定時相容舊版 `passwordHash`(無鹽 SHA-256);再舊則用內建預設雜湊。
+- `holdings[].prevClose` / `yahooSym`、`history[].taiex` / `tsmc` / `taiexMiss` / `tsmcMiss` 都是**後端寫入的欄位**;前端缺這些欄位時會**優雅略過**(不顯示今日 %、不畫對比線),不會壞掉。
+- `auth` 沒設定時相容舊版 `passwordHash`(無鹽 SHA-256);兩者都沒有(全新 data.json)→ 解鎖直接放行並提示去「⚙️ 設定 → 🔑 設定密碼」。**內建預設密碼已移除**(公開 repo 裡的固定雜湊等於沒鎖)。
 
 ---
 
@@ -114,10 +116,12 @@ Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
 `update-prices.mjs` 行為重點:
 
 - **價格來源順序**:Yahoo `regularMarketPrice`(即時)→ 證交所 MIS `z`/`pz`(即時)→ 證交所 / 櫃買 OpenAPI 收盤(**僅用來補「完全沒有價格」的新標的**)。**只有即時價能覆蓋現有價格**,避免被舊收盤價蓋回去。
+- **只認「今日」的即時價**:Yahoo 看 `regularMarketTime`、MIS 看 `d`(資料日),最後成交日不是台北今天(平日國定假日休市)就不算即時價 → 不寫檔、不會多一根假日 history、時間戳不前進。
+- **Yahoo 各檔並行查**,查到的後綴記在 `holdings[].yahooSym`(`.TW` 上市 / `.TWO` 上櫃),下次直接用;`fetchJson` 對逾時 / 429 / 5xx 自動重試一次。
 - **昨收**:Yahoo `previousClose` / MIS `y` 存進各檔 `prevClose`(前端算今日漲跌 %)。
-- **加權指數 / 台積電**:每次抓 `^TWII` 現值與 2330 現值寫進當天 history;並用 `fetchYahooDailyClose()` 抓歷史日收盤,**自動回補** history 裡還沒有 `taiex` / `tsmc` 的舊日期(自我修復,一次補齊 6/15 以來)。
+- **加權指數 / 台積電**:每次抓 `^TWII` 現值與 2330 現值寫進當天 history;並用 `fetchYahooDailyClose()` 抓歷史日收盤,**自動回補** history 裡還沒有 `taiex` / `tsmc` 的舊日期(自我修復,一次補齊 6/15 以來)。補不到的(Yahoo 該日無資料或超過 6 個月)標 `taiexMiss` / `tsmcMiss`,之後不再為它重抓;今日那筆不標。
 - **歷史**:每次把 `{date, mv, cost, un, real, div, ret, taiex, tsmc}` 存進 `history`(同一天只留最新一筆)。
-- **週末防呆**:腳本在台北週六 / 日自動跳過。
+- **週末防呆**:腳本在台北週六 / 日直接跳過;平日休市由上面「只認今日」的檢查擋。
 - **時間戳**:`priceUpdated` 與各檔 `priceTime` 用台北時間(`taipeiStamp()`,`Date.now()+8h` 手算,不依賴 runner 時區)。
 - **寫檔條件**:`liveHit>0 || changed>0` 才寫(抓不到即時價就不動,時間戳不前進 = 即時來源不通)。
 
@@ -138,11 +142,11 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 
 ## 前端載入資料的順序(`index.html` §17 `init()`)
 
-1. 若這個瀏覽器有設定 GitHub 同步 → 讀 **repo 上的 data.json**(不受 Pages 部署延遲影響),並順手觸發一次更新市價。
-2. 否則 `fetch('data.json')`(需要 http 伺服器 / GitHub Pages;`file://` 會被瀏覽器擋)。
+0. 有 localStorage 快取(上次成功載入的資料)**先畫出來,零等待**;下面任一來源成功就無縫換成最新(內容有變才 toast「已更新為最新資料」)。
+1. 若這個瀏覽器有設定 GitHub 同步 → 讀 **repo 上的 data.json**(不受 Pages 部署延遲影響),並在**交易時段內**(平日 09:10–14:10 台北)順手觸發一次更新市價;盤後 / 週末不觸發,省 Action。
+2. 否則 `fetch('data.json')`(需要 http 伺服器 / GitHub Pages;`file://` 會被瀏覽器擋),最多等 8 秒。
 3. 否則用記住的檔案 handle(File System Access)。
-4. 否則用 localStorage 快取(上次成功載入的資料)。
-5. 都不行 → 請使用者選檔 / 拖檔。
+4. 都不行 → 有快取就停在快取並提示「⚠ 無法取得最新資料」;沒快取才請使用者選檔 / 拖檔。
 
 ---
 
@@ -152,7 +156,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 |---|---|---|---|
 | §1 | 全域狀態、常數、小工具 | §10 | 市價更新(觸發 Action) |
 | §2 | 數字跳動動畫 | §11 | 持股 / 年度編輯操作 |
-| §3 | 計算(市值 / 損益 / 比例) | §12 | 儲存 / 載入 / 快取 |
+| §3 | 計算(委派 `scripts/calc.js`) | §12 | 儲存 / 載入 / 快取 |
 | §4 | 畫面 render | §13 | GitHub 同步 |
 | §5 | 圖表繪製與風格 | §14 | 檔案存取(存檔 / 選檔) |
 | §6 | 分頁切換 | §15 | 主題 / 圖表風格切換 |
@@ -160,7 +164,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 | §8 | 密碼(PBKDF2) | §17 | 啟動(splash + init) |
 | §9 | 解鎖 / 權限 UI | | |
 
-主題色盤在 `CHART_PALETTES`(§5 上方);每個主題有 `slices / gain / loss / dividend / grid / hi / lo`。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
+主題色盤在 `CHART_PALETTES`(§5 上方);每個主題有 `slices / gain / loss / dividend / grid / hi / lo`。六張圖都經 `upsertChart()`:同 canvas 同 type 就 `update()`(換主題 / 切區間有過場、不重建),inline plugin 參數一律走 `options.plugins.<id>`,不可用 closure 抓外部變數(update 不會換 plugin)。排序持股表 / 隱藏零股走 `render({ charts: false })` 不重畫圖。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
 
 ---
 
@@ -202,6 +206,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 ## 改動後要上傳哪些檔
 
 - 改**畫面 / 圖表 / 互動** → 上傳 `index.html`。
+- 改**損益計算 / 費率規則** → 上傳 `scripts/calc.js` + `sw.js`(CACHE 版號 +1,它在離線快取清單裡)。
 - 改**抓價 / 歷史 / 回補邏輯** → 上傳 `scripts/update-prices.mjs`。
 - 改**排程** → 上傳 `.github/workflows/update-prices.yml`(Cloudflare 那份在 Cloudflare 後台改)。
 - 改**圖示 / 吉祥物圖** → 上傳新圖 + `sw.js`(CACHE 版號 +1);換檔名的話 `index.html` / `manifest.json` / `intro.html` 引用也要一起。
