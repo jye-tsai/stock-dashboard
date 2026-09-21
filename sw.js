@@ -1,10 +1,17 @@
 // 胖虎的小財庫 — Service Worker(離線快取)
-const CACHE = 'panghu-v1';
+// 改了任何圖示 / 靜態檔記得把 CACHE 版號 +1(v2 → v3),activate 會把舊快取整包清掉。
+// 靜態資源走 stale-while-revalidate:先回快取、背景抓新版寫回;就算忘了改版號,F5 兩次也一定看到新圖。
+const CACHE = 'panghu-v2';
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './favicon.png',
   './panghu-icon.png',
+  './panghu-icon.webp',
+  './panghu.webp',
+  './panghu-sad.webp',
+  './panghu-flat.webp',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
 ];
 
@@ -46,14 +53,21 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 靜態資源(圖示、Chart.js):快取優先,沒有再抓網路並補快取
+  // 靜態資源(圖示、Chart.js):stale-while-revalidate
+  // 有快取 → 立刻回快取,同時背景抓網路新版寫回(下次 F5 就是新的);沒快取 → 等網路,抓到補快取。
   e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(res => {
-      if (res && res.ok) {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
-      }
-      return res;
-    }).catch(() => hit))
+    caches.open(CACHE).then(c =>
+      c.match(req).then(hit => {
+        const refresh = fetch(req).then(res => {
+          if (res && res.ok) c.put(req, res.clone()).catch(() => {});
+          return res;
+        }).catch(() => null);
+        if (hit) {
+          e.waitUntil(refresh);
+          return hit;
+        }
+        return refresh.then(res => res || Response.error());
+      })
+    )
   );
 });

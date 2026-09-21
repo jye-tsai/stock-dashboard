@@ -14,7 +14,7 @@
 
 - **整個 App 就是一個 `index.html`**(HTML + CSS + JS 全部內嵌,單檔約 2500+ 行)。JS 在檔案下半部的 `<script>` 裡,最上面有「§ 目錄」;用編輯器 **Ctrl+F 搜 `§`** 可跳段(§1~§17,見〈程式碼分段〉)。
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
-- **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。本機那份常是舊的,**不要拿本機蓋 repo**。
+- **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
 - **驗證 JS 語法**的方法(因為 JS 內嵌在 html):擷取 `<script>let DATA … </script>` 段落丟 `node --check`。
 - **已知環境雷**:某些沙箱 / 掛載會顯示 `index.html` / `.mjs` 的**殘檔或舊版**(行數不對、node 檢查報怪錯)。這不是檔案壞掉——以編輯器/檔案工具讀到的內容為準,別被殘檔誤導。
@@ -48,13 +48,14 @@
 
 | 檔案 | 用途 |
 |---|---|
-| `index.html` | 整個儀表板(HTML / CSS / JS 單檔) |
-| `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo** |
+| `index.html` | 整個儀表板(HTML / CSS / JS 單檔);Chart.js 走 cdnjs 並鎖 `integrity`(SRI),升版要同步換 hash(`https://api.cdnjs.com/libraries/Chart.js/<ver>?fields=sri`) |
+| `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
-| `panghu-icon.png` / `favicon.png` | PWA App 圖示 / 網頁小圖示 |
-| `panghu.png` / `panghu-sad.png` / `panghu-flat.png` | 吉祥物表情(笑 / 哭 / 淡定) |
+| `panghu-icon.png`(192px,iOS apple-touch-icon)/ `panghu-icon.webp`(512px,manifest + splash + intro)/ `favicon.png`(64px) | PWA App 圖示 / 網頁小圖示 |
+| `panghu.webp` / `panghu-sad.webp` / `panghu-flat.webp` | 吉祥物表情(笑 / 哭 / 淡定),512px WebP。**`panghu-flat.webp` 目前是笑臉去飽和的佔位圖**,有真的淡定圖直接同名覆蓋即可 |
+| (repo 外)`../股票庫存儀表版_原圖備份/` | 原始 1254px PNG 大圖 + 改圖前的 sw.js / manifest.json 備份,不上傳 |
 | `cloudflare-worker.js` | **不在 repo**,是貼到 Cloudflare 的外部排程器 |
 
 ---
@@ -187,7 +188,10 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 - **本機雙擊 `index.html`(file://)看不到最新資料**:`file://` 下瀏覽器擋掉 `fetch('data.json')`,會退回讀舊快取。要在本機看最新,開小伺服器:資料夾內 `python -m http.server 8000` → 瀏覽器開 `http://localhost:8000/`;或直接看線上 Pages。
 - **上傳用「Upload files」拖檔,別用網頁編輯器貼**:貼上曾造成檔案截斷 / 前後不一致(YAML、index.html 都發生過)。
 - **`data.json` 以 repo 為正本**:排程會 commit 到 repo,本機那份會落後。**別拿本機蓋 repo**(會蓋掉新價與新歷史)。要同步就從 repo 下載覆蓋本機。
-- **看不到更新**:多半是快取 → `Ctrl + F5`;PWA(加到主畫面)要**關掉 App 重開**才會抓新版。
+- **看不到更新(圖示 / 靜態檔)**:`sw.js` 對圖片走 stale-while-revalidate:第一次 F5 回舊快取、背景抓新版,**再按一次 F5 就是新的**;PWA 關 App 重開兩次同理。
+  改了圖或 `sw.js` 本身,順手把 `sw.js` 的 `CACHE = 'panghu-vN'` 版號 +1,activate 會整包清掉舊快取,一次到位。
+  (`Ctrl + F5` 是繞過 Service Worker 直接打網路,所以看得到新圖,但不會寫回 SW 快取,下次 F5 又舊——這是舊版 cache-first 的症狀,v2 起已改。)
+- **Action push 被 reject**:儀表板手動「儲存」直接 PUT 到 repo,若剛好落在 Action checkout 與 push 之間,push 會被拒。workflow 已加 `git pull --rebase` + 重試 3 次;若三次都失敗(同檔衝突)才會紅,下一輪排程會重抓。
 - **`raw.githubusercontent.com` 有 CDN 快取**(數分鐘),剛 push 完可能抓到舊版,別誤判成「沒上傳成功」。
 - **GitHub Actions 清單時間是 UTC**,+8 才是台北;最準看自動更新 commit 訊息(台北時間)。
 - **盤後 / 假日**:抓到的是收盤價,`價格變動 0` 屬正常;假日無 taiex → 走勢圖該日不畫。
@@ -200,4 +204,5 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 - 改**畫面 / 圖表 / 互動** → 上傳 `index.html`。
 - 改**抓價 / 歷史 / 回補邏輯** → 上傳 `scripts/update-prices.mjs`。
 - 改**排程** → 上傳 `.github/workflows/update-prices.yml`(Cloudflare 那份在 Cloudflare 後台改)。
+- 改**圖示 / 吉祥物圖** → 上傳新圖 + `sw.js`(CACHE 版號 +1);換檔名的話 `index.html` / `manifest.json` / `intro.html` 引用也要一起。
 - `data.json` 一般**不用手動上傳**(交給排程);除非要改持股 / 年度等,建議用儀表板編輯模式存回 repo。

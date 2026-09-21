@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>股票庫存儀表板</title>
+<title>胖虎的小財庫</title>
 <!-- 分頁小圖示(favicon) + PWA:可安裝到手機主畫面、全螢幕、離線 -->
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="manifest" href="manifest.json">
@@ -18,7 +18,7 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
 <style>
   /* ===== 主題 ===== */
   :root,
@@ -576,7 +576,7 @@
 </head>
 <body>
 <div id="splash">
-  <img src="panghu-icon.png" alt="胖虎" onerror="this.style.display='none'">
+  <img src="panghu-icon.webp" alt="胖虎" onerror="this.style.display='none'">
   <div class="s-title">胖虎的小財庫</div>
   <div class="s-spin"></div>
 </div>
@@ -928,9 +928,9 @@ function render() {
   if (prevDay && typeof prevDay.un === 'number') moodVal = t.unrealized - prevDay.un;        // 跟昨日未實現損益比
   else if (prevDay && typeof prevDay.mv === 'number') moodVal = t.mv - prevDay.mv;            // 舊資料沒存 un,退而比市值
   else moodVal = t.unrealized;                                                                // 沒有昨天資料 → 看當前未實現
-  const moodSrc = moodVal > 0 ? 'panghu.png' : moodVal < 0 ? 'panghu-sad.png' : 'panghu-flat.png';
+  const moodSrc = moodVal > 0 ? 'panghu.webp' : moodVal < 0 ? 'panghu-sad.webp' : 'panghu-flat.webp';
   const moodTip = moodVal > 0 ? '今天比昨天賺😆' : moodVal < 0 ? '今天比昨天賠😢' : '跟昨天持平😐';
-  const mascotImg = `<img class="brand-icon mascot" src="${moodSrc}" alt="胖虎" title="${moodTip}" onerror="if(this.src.indexOf('panghu.png')<0){this.src='panghu.png'}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))}">`;
+  const mascotImg = `<img class="brand-icon mascot" src="${moodSrc}" alt="胖虎" title="${moodTip}" onerror="if(this.src.indexOf('panghu.webp')<0){this.src='panghu.webp'}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))}">`;
   document.getElementById('dashboard-title').innerHTML = E
     ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
     : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
