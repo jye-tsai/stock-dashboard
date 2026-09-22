@@ -12,6 +12,12 @@
    "short": 2914,
    "net": 73977,
    "day_net": -42
+  },
+  "外資": {
+   "long": 10740,
+   "short": 86308,
+   "net": -75568,
+   "day_net": -1482
   }
  },
  "mtx": {
@@ -26,6 +32,12 @@
    "short": 104,
    "net": -16,
    "day_net": 45
+  },
+  "外資": {
+   "long": 4162,
+   "short": 1006,
+   "net": 3156,
+   "day_net": -2598
   }
  },
  "tmf": {
@@ -40,6 +52,12 @@
    "short": 0,
    "net": 0,
    "day_net": 0
+  },
+  "外資": {
+   "long": 3254,
+   "short": 572,
+   "net": 2682,
+   "day_net": -10686
   }
  },
  "mtx_retail": null,
@@ -50,12 +68,12 @@
   },
   "投信": {
    "put": 145
+  },
+  "外資": {
+   "put": 5455
   }
  },
- "pc": {
-  "volume_ratio_pct": 76931.0,
-  "oi_ratio_pct": 0
- },
+ "pc": null,
  "index": {
   "close": 47800.17,
   "chg": 81.33,
@@ -75,35 +93,7 @@
   ],
   "台指期盤後快訊": [
    "20260922_spf_post_p1.png",
-   "20260922_spf_post_p2.png",
-   "20260922_spf_post_p3.png",
-   "20260922_spf_post_p4.png",
-   "20260922_spf_post_p5.png",
-   "20260922_spf_post_p6.png",
-   "20260922_spf_post_p7.png",
-   "20260922_spf_post_p8.png",
-   "20260922_spf_post_p9.png",
-   "20260922_spf_post_p10.png",
-   "20260922_spf_post_p11.png",
-   "20260922_spf_post_p12.png",
-   "20260922_spf_post_p13.png",
-   "20260922_spf_post_p14.png",
-   "20260922_spf_post_p15.png",
-   "20260922_spf_post_p16.png",
-   "20260922_spf_post_p17.png",
-   "20260922_spf_post_p18.png",
-   "20260922_spf_post_p19.png",
-   "20260922_spf_post_p20.png",
-   "20260922_spf_post_p21.png",
-   "20260922_spf_post_p22.png",
-   "20260922_spf_post_p23.png",
-   "20260922_spf_post_p24.png",
-   "20260922_spf_post_p25.png",
-   "20260922_spf_post_p26.png",
-   "20260922_spf_post_p27.png",
-   "20260922_spf_post_p28.png",
-   "20260922_spf_post_p29.png",
-   "20260922_spf_post_p30.png"
+   "20260922_spf_post_p2.png"
   ]
  },
  "prev": {
@@ -120,6 +110,12 @@
     "short": 2917,
     "net": 74019,
     "day_net": -1091
+   },
+   "外資": {
+    "long": 10318,
+    "short": 84399,
+    "net": -74081,
+    "day_net": 2034
    }
   },
   "mtx": {
@@ -134,6 +130,12 @@
     "short": 150,
     "net": -61,
     "day_net": 1
+   },
+   "外資": {
+    "long": 6148,
+    "short": 481,
+    "net": 5667,
+    "day_net": 398
    }
   },
   "tmf": {
@@ -148,6 +150,12 @@
     "short": 0,
     "net": 0,
     "day_net": 0
+   },
+   "外資": {
+    "long": 13812,
+    "short": 109,
+    "net": 13703,
+    "day_net": 5373
    }
   },
   "mtx_retail": null,
@@ -158,12 +166,12 @@
    },
    "投信": {
     "put": 145
+   },
+   "外資": {
+    "put": 1832
    }
   },
-  "pc": {
-   "volume_ratio_pct": 59117.0,
-   "oi_ratio_pct": 0
-  },
+  "pc": null,
   "index": {
    "close": 47718.84,
    "chg": 538.09,
@@ -180,9 +188,12 @@
  },
  "log": [
   "今日 2026/09/22｜前一交易日 2026/09/21",
+  "  融資：證交所回 很抱歉，沒有符合條件的資料",
   "  VIX 抓取失敗（IndexError），請以永豐快訊為準",
-  "  VIX 抓取失敗（IndexError），請以永豐快訊為準"
+  "  2026/09/22 缺：pc, margin, mtx_retail, tmf_retail",
+  "  VIX 抓取失敗（IndexError），請以永豐快訊為準",
+  "  2026/09/21 缺：pc, mtx_retail, tmf_retail"
  ],
- "generated_at": "2026-09-22T18:39:05",
- "claude_text": "【台股盤後數據】2026/09/22（前一交易日 2026/09/21）\n加權指數 47,800.17  +81.33（自算 +0.17%，分母前收 47718.84）  成交 10,788 億\n三大法人 +608.21 億｜外資 +447.27｜投信 +2.40｜自營 +158.54\n── 臺股期貨 未平倉（前→今）──\n自營商：多 2,199→2,314（+115）  空 5,553→5,772（+219）  淨 -3,354→-3,458（-104）\n投信：多 76,936→76,891（-45）  空 2,917→2,914（-3）  淨 74,019→73,977（-42）\n全市場 Put/Call（OI）0% → 0%\n永豐 PDF 已轉圖：20260922_spf_chips_p1.png、20260922_spf_post_p1.png、20260922_spf_post_p2.png、20260922_spf_post_p3.png、20260922_spf_post_p4.png、20260922_spf_post_p5.png、20260922_spf_post_p6.png、20260922_spf_post_p7.png、20260922_spf_post_p8.png、20260922_spf_post_p9.png、20260922_spf_post_p10.png、20260922_spf_post_p11.png、20260922_spf_post_p12.png、20260922_spf_post_p13.png、20260922_spf_post_p14.png、20260922_spf_post_p15.png、20260922_spf_post_p16.png、20260922_spf_post_p17.png、20260922_spf_post_p18.png、20260922_spf_post_p19.png、20260922_spf_post_p20.png、20260922_spf_post_p21.png、20260922_spf_post_p22.png、20260922_spf_post_p23.png、20260922_spf_post_p24.png、20260922_spf_post_p25.png、20260922_spf_post_p26.png、20260922_spf_post_p27.png、20260922_spf_post_p28.png、20260922_spf_post_p29.png、20260922_spf_post_p30.png\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）"
+ "generated_at": "2026-09-22T18:55:41",
+ "claude_text": "【台股盤後數據】2026/09/22（前一交易日 2026/09/21）\n加權指數 47,800.17  +81.33（自算 +0.17%，分母前收 47718.84）  成交 10,788 億\n三大法人 +608.21 億｜外資 +447.27｜投信 +2.40｜自營 +158.54\n── 臺股期貨 未平倉（前→今）──\n自營商：多 2,199→2,314（+115）  空 5,553→5,772（+219）  淨 -3,354→-3,458（-104）\n投信：多 76,936→76,891（-45）  空 2,917→2,914（-3）  淨 74,019→73,977（-42）\n外資：多 10,318→10,740（+422）  空 84,399→86,308（+1,909）  淨 -74,081→-75,568（-1,487）\n外資買權淨OI —→None（+0）  賣權淨OI 1832→5455（+3,623）\n永豐 PDF 已轉圖：20260922_spf_chips_p1.png、20260922_spf_post_p1.png、20260922_spf_post_p2.png\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）"
 }
