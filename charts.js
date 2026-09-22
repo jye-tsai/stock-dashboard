@@ -718,7 +718,7 @@ function drawNavGroup(T) {
 
     // 報酬對比:我的組合 vs 加權指數 vs 台積電,以區間內第一個有大盤資料的點為 0%
     const benchCanvas = el('navbench');
-    const B = PfCalc.benchLines(mvData, hist.map(p => Number(p.taiex) || 0), hist.map(p => Number(p.tsmc) || 0));
+    const B = PfCalc.benchLines(mvData, hist.map(p => Number(p.taiex) || 0), hist.map(p => Number(p.tsmc) || 0), costData);   // 我的組合走 TWR,加碼 / 減碼不失真
     if (wraps.bench && benchCanvas && B) {
       show(wraps.bench, true);
       const sets = [

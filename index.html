@@ -17,15 +17,45 @@
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
+  // 全域錯誤保險(刻意內嵌、不依賴 app.js):render 炸掉、快取新舊檔混搭、資料一直載不完 → 頂部出一條橫幅,
+  // 按「清快取重新載入」= unregister Service Worker + 清所有 caches + reload,等同內建 Ctrl+F5。
+  (function () {
+    let shown = false;
+    function heal() {
+      const done = () => location.reload();
+      Promise.all([
+        navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(rs => Promise.all(rs.map(r => r.unregister()))) : null,
+        window.caches ? caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))) : null
+      ]).then(done, done);
+    }
+    window.__pfHeal = heal;
+    function show(msg) {
+      if (shown || !document.body) return; shown = true;
+      const el = document.createElement('div'); el.id = 'fatal'; el.setAttribute('role', 'alert');
+      const t = document.createElement('span'); t.textContent = '載入異常:' + msg;
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = '清快取重新載入'; b.addEventListener('click', heal);
+      el.appendChild(t); el.appendChild(b); document.body.appendChild(el);
+    }
+    window.__pfFatal = show;
+    window.addEventListener('error', e => show((e.error && e.error.message) || e.message || '未知錯誤'));
+    window.addEventListener('unhandledrejection', e => show((e.reason && e.reason.message) || String(e.reason || '未知錯誤')));
+    // 12 秒後還卡在載入畫面、又不是在等使用者選檔 → 也算異常
+    window.addEventListener('load', () => setTimeout(() => {
+      const l = document.getElementById('loader'), hint = document.getElementById('loader-hint');
+      if (l && !l.classList.contains('hidden') && hint && hint.classList.contains('hidden')) show('資料 12 秒還沒載完');
+    }, 12000));
+  })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script src="scripts/calc.js?v=20260922h"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
+<script defer src="scripts/calc.js?v=20260922i"></script>
+<script defer src="charts.js?v=20260922i"></script>
+<script defer src="app.js?v=20260922i"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260922h">
+<link rel="stylesheet" href="styles.css?v=20260922i">
 </head>
 <body>
 <div id="splash">
@@ -109,7 +139,7 @@
           <div class="chart-box h170"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
-          <div class="chart-subtitle">報酬對比（以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
+          <div class="chart-subtitle">報酬對比（時間加權報酬，加碼 / 減碼不影響；以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
           <div class="chart-box h170"><canvas id="navbench"></canvas></div>
         </div>
         <div id="navdd-wrap" style="display:none">
@@ -174,7 +204,7 @@
 </nav>
 
 <!-- ⚙️ 設定視窗:頁面/圖表風格 + GitHub / 載入 / 密碼(從 header 收納進來) -->
-<div id="settings-modal" class="modal-bg hidden" data-action="backdrop" data-args='["closeSettingsModal"]'>
+<div id="settings-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closeSettingsModal"]'>
   <div class="modal">
     <h3>⚙️ 設定</h3>
     <label>頁面風格
@@ -207,6 +237,7 @@
       <button class="btn hidden auth-only" id="load-btn" data-action="seq" data-args='["closeSettingsModal", "pickFile"]'>📂 載入 JSON</button>
       <button class="btn hidden auth-only" id="pwd-btn" data-action="seq" data-args='["closeSettingsModal", "setPassword"]'>🔑 設定密碼</button>
     </div>
+    <div class="settings-actions"><button class="btn" data-action="healApp" title="解除 Service Worker、清空所有快取後重新載入;畫面怪怪的或看不到新版時按這個">🧹 清快取重新載入</button></div>
     <p class="modal-hint" id="settings-locked-hint">🔒 解鎖後這裡會多出 GitHub 同步、載入 JSON 與設定密碼。</p>
     <div class="modal-actions">
       <button class="btn primary" data-action="closeSettingsModal">完成</button>
@@ -215,7 +246,7 @@
 </div>
 
 <!-- GitHub 設定視窗 -->
-<div id="gh-modal" class="modal-bg hidden" data-action="backdrop" data-args='["closeGhModal"]'>
+<div id="gh-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closeGhModal"]'>
   <div class="modal">
     <h3>⚙️ GitHub 同步設定</h3>
     <p class="modal-hint">設定後,「💾 儲存 JSON」會直接 commit 到你的 repo,開啟頁面也會優先讀取 repo 最新的 data.json。</p>
@@ -233,7 +264,7 @@
   </div>
 </div>
 <!-- 解鎖密碼視窗(取代手機上不穩的原生 prompt) -->
-<div id="pwd-modal" class="modal-bg hidden" data-action="backdrop" data-args='["closePwdModal",false]'>
+<div id="pwd-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closePwdModal",false]'>
   <div class="modal">
     <h3>🔒 解鎖</h3>
     <input class="ed pin-input" id="pwd-input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="輸入密碼" data-enter="submitPwd">
@@ -259,7 +290,7 @@
   </div>
 </div>
 <!-- 設定新密碼視窗 -->
-<div id="setpwd-modal" class="modal-bg hidden" data-action="backdrop" data-args='["closeSetPwd"]'>
+<div id="setpwd-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closeSetPwd"]'>
   <div class="modal">
     <h3 id="setpwd-title">🔑 設定新密碼(至少 6 碼)</h3>
     <input class="ed pin-input" id="setpwd-input" type="password" inputmode="numeric" readonly placeholder="輸入新密碼" data-enter="setpwdNext">
@@ -285,7 +316,7 @@
   </div>
 </div>
 <!-- 通用確認視窗(取代手機上不穩的 confirm) -->
-<div id="confirm-modal" class="modal-bg hidden" data-action="backdrop" data-args='["closeConfirm",false]'>
+<div id="confirm-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closeConfirm",false]'>
   <div class="modal">
     <p id="confirm-msg" class="confirm-msg"></p>
     <div class="modal-actions">
@@ -294,9 +325,7 @@
     </div>
   </div>
 </div>
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
-<script src="charts.js?v=20260922h"></script>
-<script src="app.js?v=20260922h"></script>
 </body>
 </html>

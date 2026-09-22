@@ -681,3 +681,8 @@
       transform: none; border-color: var(--border); box-shadow: var(--shadow);
     }
   }
+
+  /* ===== 全域錯誤橫幅(index.html head 內嵌的保險會塞進來) ===== */
+  #fatal { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; z-index: 300; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 10px 14px; border-radius: var(--r-md); background: #dc2626; color: #fff; font-size: var(--fs-md); font-weight: var(--fw-bold); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  #fatal button { background: #fff; color: #dc2626; border: none; border-radius: var(--r-sm); padding: 6px 12px; font-weight: var(--fw-heavy); cursor: pointer; font-family: inherit; }

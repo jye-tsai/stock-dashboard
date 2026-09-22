@@ -17,7 +17,8 @@
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
-- **驗證 JS 語法**:`node --check app.js charts.js scripts/calc.js`(三檔都是純 JS,直接檢查)。純計算有 Node 單元測試的習慣:改 `calc.js` 順手補測。
+- **一鍵檢查**:`node tests/run.mjs`(語法 + `tests/calc.test.mjs` + `tests/sw.test.mjs`);push 到 repo 會由 `.github/workflows/check.yml` 自動跑,紅燈 = 上錯 / 漏檔。改 `calc.js` 順手補測。
+- **畫面卡住 / 看不到新版**:⚙️ 設定 →「🧹 清快取重新載入」(unregister SW + 清 caches + reload)。render 炸掉或 12 秒載不完時頂部也會自動出這條紅色橫幅(`index.html` head 內嵌,不依賴 app.js)。
 - **已知環境雷**:某些沙箱 / 掛載會顯示 `index.html` / `.mjs` 的**殘檔或舊版**(行數不對、node 檢查報怪錯)。這不是檔案壞掉——以編輯器/檔案工具讀到的內容為準,別被殘檔誤導。
 
 ---
@@ -43,7 +44,7 @@
 
 1. **資產走勢**:堆疊面積 = 成本 + 未實現損益,合計 ≈ 總市值(白色加粗虛線標總市值天花板),並標該區間**最高 / 最低**點。Y 軸自 0 起。
 2. **每日市值變動**:柱狀,較前一日增減,紅漲綠跌;區間內**漲最多 / 跌最多**用高亮色(`palette.hi`/`lo`)+ 文字標示。
-3. **報酬對比**:以區間起點為 0% 正規化的折線 —— **我的組合 vs 加權指數 vs 台積電**,一眼看出有沒有贏大盤 / 贏單壓台積電。
+3. **報酬對比**:以區間起點為 0% 正規化的折線 —— **我的組合 vs 加權指數 vs 台積電**。我的組合用**時間加權報酬(TWR)**:日報酬 = (Δ市值 − Δ成本) / 昨日市值 逐日連乘,加碼 / 減碼當天指數不動,不會把「錢進來」畫成「贏大盤」(`PfCalc.twrIndex`)。
 4. **回撤**:總報酬(`ret`)距「截至當日的歷史前高」掉了多少,佔當日成本的 %;副標寫**最大回撤**(高點 → 谷底日期、幾個交易日、金額)與**目前回撤 + 離新高還差多少**(在新高就顯示 ●)。前高看全史、畫面只看區間,所以切區間不會讓回撤「變小」。
 5. **每日損益月曆**(獨立 panel):GitHub 貢獻牆式熱圖,欄 = 週、列 = 週一~週五,一格一天;紅賺綠賠、深淺 = √(金額 / 區間最大)(小額也看得見),0 用底色、休市虛框;近 26 週,不受區間鈕影響;滑過看金額,**點格子 → 四張走勢圖定位到那天**(不在目前區間就自動切「全部」)。右側 **統計卡**:勝率、賺 / 賠天數、平均賺 / 賠一天、最佳 / 最差日、最長連賺 / 連賠、目前連續。純 CSS grid,不吃 Chart.js。
 
@@ -61,6 +62,7 @@
 | `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
+| `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試;本機 `node tests/run.mjs` |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
 | `panghu-icon.png`(192px,iOS apple-touch-icon)/ `panghu-icon.webp`(512px,manifest + splash + intro)/ `favicon.png`(64px) | PWA App 圖示 / 網頁小圖示 |
 | `panghu.webp` / `panghu-sad.webp` / `panghu-flat.webp` | 吉祥物表情(笑 / 哭 / 淡定),512px WebP。**`panghu-flat.webp` 目前是笑臉去飽和的佔位圖**,有真的淡定圖直接同名覆蓋即可 |
@@ -102,7 +104,8 @@
 }
 ```
 
-- `holdings[].prevClose` / `yahooSym`、`history[].taiex` / `tsmc` / `taiexMiss` / `tsmcMiss` / `prices` / `pricesMiss` 都是**後端寫入的欄位**;前端缺這些欄位時會**優雅略過**(不顯示今日 %、不畫對比線),不會壞掉。
+- **除息日**:Action 從 Yahoo `events.dividends` 抓到今日除息就寫 `holdings[].exDiv = { date, amount }`,前端算今日損益時昨收扣掉股息(除息價差不算虧損),Hero 標「N 檔除息已調整」;過期自動清掉。
+- `holdings[].prevClose` / `yahooSym` / `exDiv`、`history[].taiex` / `tsmc` / `taiexMiss` / `tsmcMiss` / `prices` / `pricesMiss` 都是**後端寫入的欄位**;前端缺這些欄位時會**優雅略過**(不顯示今日 %、不畫對比線),不會壞掉。
 - `auth` 沒設定時相容舊版 `passwordHash`(無鹽 SHA-256);兩者都沒有(全新 data.json)→ 解鎖直接放行並提示去「⚙️ 設定 → 🔑 設定密碼」。**內建預設密碼已移除**(公開 repo 裡的固定雜湊等於沒鎖)。
 
 ---

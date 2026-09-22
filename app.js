@@ -183,7 +183,7 @@ function render(opts) {
   document.querySelectorAll('.edit-only').forEach(el => el.classList.toggle('hidden', !E));
 
   // Hero:今日損益(各檔 prevClose 加總;缺 prevClose 退回 history 前一交易日市值差,都沒有就整塊隱藏)
-  const TC = PfCalc.todayChange(rows, prevDay, t.mv);              // 各檔昨收加總;缺昨收退回 history 前一交易日市值差
+  const TC = PfCalc.todayChange(rows, prevDay, t.mv, tpeNow().date);              // 各檔昨收加總;缺昨收退回 history 前一交易日市值差
   const heroChg = TC ? TC.chg : null, heroBase = TC ? TC.base : 0, heroMissing = TC ? TC.missing : 0;
   const heroPanel = document.getElementById('hero-panel');
   if (heroPanel) {
@@ -195,7 +195,7 @@ function render(opts) {
       HERO = { heroChg, heroPct, heroMissing, totalPL, heroRate, mv: t.mv };
       document.getElementById('hero').innerHTML = `
       <div class="hero-main">
-        <div class="label">今日損益</div>
+        <div class="label">今日損益${TC && TC.exDivCount ? `<span class="fresh-muted" title="除息日的價差不算虧損,昨收已扣掉股息">(${TC.exDivCount} 檔除息已調整)</span>` : ''}</div>
         <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
       </div>${heroSparkSvg()}`;                  // 右側:近 30 日總市值小走勢;總市值 / 總報酬看正下方的摘要卡片列
@@ -1155,13 +1155,39 @@ window.addEventListener('scroll', syncMiniHeroSettled, { passive: true });
 window.addEventListener('scrollend', syncMiniHero, { passive: true });
 window.addEventListener('touchend', syncMiniHeroSettled, { passive: true });
 
+/* ==================== §16a2. Modal 無障礙 + 自救 ==================== */
+// 設定裡的「清快取重新載入」:走 index.html head 的 __pfHeal(unregister SW + 清 caches + reload),那段獨立於 app.js 所以 app.js 壞了也能按
+function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reload(); }
+// Modal 開啟時 focus 第一個可聚焦元素、Tab 在視窗內循環、Esc 等同點遮罩關閉(走 backdrop action)
+(function () {
+  const FOCUSABLE = 'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+  const openModal = () => [...document.querySelectorAll('.modal-bg')].find(m => !m.classList.contains('hidden'));
+  new MutationObserver(muts => {
+    muts.forEach(m => {
+      const el = m.target;
+      if (el.classList && el.classList.contains('modal-bg') && !el.classList.contains('hidden') && !el.contains(document.activeElement)) {
+        const f = el.querySelector(FOCUSABLE); if (f) setTimeout(() => f.focus(), 0);
+      }
+    });
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+  document.addEventListener('keydown', e => {
+    const m = openModal(); if (!m) return;
+    if (e.key === 'Escape') { e.preventDefault(); m.dispatchEvent(new MouseEvent('click', { bubbles: true })); return; }
+    if (e.key !== 'Tab') return;
+    const items = [...m.querySelectorAll(FOCUSABLE)].filter(x => !x.disabled && x.offsetParent !== null); if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+})();
+
 /* ==================== §16b. 事件委派 ==================== */
 // HTML 不寫 onclick,改 data-action="fn" data-args='[...]'(JSON 陣列;省略 = 無參數)。
 // 特殊 action:backdrop(點遮罩空白處才呼叫 args[0])、seq(依序呼叫多個無參數函式)、toggleHoldDetail(要拿列元素與事件)。
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
   'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
-  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear']);
+  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp']);
 const callAction = (name, args) => {
   if (!ACTIONS.has(name) || typeof window[name] !== 'function') { console.debug('[pf] 未知 data-action', name); return; }
   return window[name](...(args || []));
