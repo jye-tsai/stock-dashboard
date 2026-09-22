@@ -89,6 +89,29 @@ def taifex_market_oi(date, code):
     log(f"  {code} 全市場OI {total:,}（{len(sub)} 列；欄 {col_oi}）")
     return total
 
+def taifex_tx_close(date):
+    """臺股期貨近月：一般時段收盤、盤後（夜盤）收盤"""
+    r = requests.post(TAIFEX + "futDataDown",
+                      data={"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date},
+                      headers=H, timeout=30)
+    txt = decode(r.content)
+    if "收盤價" not in txt: log("  TX 收盤：CSV 無收盤價欄"); return None
+    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]
+    c_m = [c for c in df.columns if "到期月份" in c][0]; c_close = [c for c in df.columns if c.startswith("收盤價")][0]
+    c_sess = [c for c in df.columns if "交易時段" in c]
+    df = df[df[c_m].astype(str).str.strip().str.fullmatch(r"\d{6}")]          # 排除價差/週選
+    if df.empty: return None
+    near = sorted(df[c_m].astype(str).str.strip().unique())[0]
+    sub = df[df[c_m].astype(str).str.strip() == near]
+    def close_of(mask):
+        v = pd.to_numeric(sub[mask][c_close].astype(str).str.replace(",", ""), errors="coerce").dropna()
+        return float(v.iloc[0]) if len(v) else None
+    if c_sess:
+        day = close_of(sub[c_sess[0]].astype(str).str.contains("一般")); night = close_of(sub[c_sess[0]].astype(str).str.contains("盤後"))
+    else:
+        day, night = close_of(pd.Series(True, index=sub.index)), None
+    return {"contract": near, "close": day, "night_close": night}
+
 def retail_ratio(market_oi, inst):
     """永豐口徑：散戶多單＝全市場OI−三大法人多單；散戶空單＝全市場OI−三大法人空單；比＝(多−空)/全市場OI"""
     if not market_oi or not inst: return None
@@ -244,9 +267,17 @@ def collect(date, df):
         try: out[k] = f(date)
         except Exception as e: log(f"  {k} 失敗：{e}"); out[k] = None
     out["vix"] = taifex_vix(date)
+    try:
+        out["tx"] = taifex_tx_close(date)
+        if out["tx"] and out.get("index") and out["tx"].get("close"):
+            out["basis"] = round(out["tx"]["close"] - out["index"]["close"], 2)
+    except Exception as e: log(f"  TX 收盤失敗：{e}"); out["tx"] = None
     missing = [k for k in ("opt", "pc", "index", "inst", "margin", "mtx_retail", "tmf_retail") if out.get(k) is None]
     if "外資" not in out["txf"]: missing.append("txf.外資")
-    if missing: log(f"  {date} 缺：{', '.join(missing)}")
+    if missing:
+        log(f"  {date} 缺：{', '.join(missing)}")
+        print(f"::warning title=欄位缺漏 {date}::{', '.join(missing)}")
+    out["missing"] = missing
     return out
 
 def s(n): return f"{n:+,}" if isinstance(n, int) else ("—" if n is None else str(n))
@@ -261,7 +292,9 @@ def claude_text(t, p):
     if t.get("inst"):
         i = t["inst"]; L.append(f"三大法人 {i.get('合計',0):+.2f} 億｜外資 {i.get('外資',0):+.2f}｜投信 {i.get('投信',0):+.2f}｜自營 {i.get('自營',0):+.2f}")
     if t.get("margin") is not None:
-        L.append(f"融資餘額 {t['margin']:,} 億" + (f"（{t['margin_note']}）" if t.get("margin_note") else f"（前值 {p.get('margin','—')}）"))
+        L.append(f"融資餘額 {t['margin']:,} 億（證交所口徑，含 ETF；" + (t['margin_note'] if t.get("margin_note") else f"前值 {p.get('margin','—')}") + "）")
+    if t.get("tx") and t["tx"].get("close"):
+        b = t.get("basis"); L.append(f"台指期近月收 {t['tx']['close']:,.0f}（{'正' if b and b>=0 else '逆'}價差 {b:+,.0f}）" + (f"　夜盤收 {t['tx']['night_close']:,.0f}" if t['tx'].get('night_close') else ""))
     L.append("── 臺股期貨 未平倉（前→今）──")
     for role in ROLES:
         a, b = t["txf"].get(role), p["txf"].get(role)
@@ -299,6 +332,13 @@ def main():
     t["prev"] = p; t["log"] = LOG
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
+    # 給「複製給 Claude」用的昨日摘要（前 4 行）
+    prev_tag = ymd(prev); prev_file = os.path.join(DATA, f"{prev_tag}.json")
+    if os.path.exists(prev_file):
+        try:
+            pj = json.load(open(prev_file, encoding="utf-8"))
+            t["prev_summary"] = "\n".join((pj.get("claude_text") or "").splitlines()[:4])
+        except Exception: pass
 
     tag = ymd(today)
     json.dump(t, open(os.path.join(DATA, f"{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)

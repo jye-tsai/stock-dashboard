@@ -41,6 +41,17 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .oi .ln .v{font-family:ui-monospace,monospace;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .oi .ln .v b{font-size:15px}
 .oi .ln .d{font:700 13px ui-monospace,monospace;white-space:nowrap}
+.disc{background:var(--navy);color:#fff;border-radius:14px;padding:12px 16px;margin-bottom:12px}
+.disc h2{color:#FFD682;margin:0 0 6px;font-size:15px}
+.disc .pos{font-weight:700;font-size:16px}
+.disc .ln{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #ffffff22;font-size:14px}
+.disc .ok{color:#7be0a5;font-weight:700}.disc .bad{color:#ff8a8a;font-weight:700}.disc .wait{color:#FFD682;font-weight:700}
+.disc .sm{font-size:12px;color:#c8cfe0}
+.lbl{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border-radius:14px;font-size:12px;font-weight:700;color:#fff}
+.chart{width:100%;height:auto;display:block;margin-top:6px}
+.chart text{font-size:11px;fill:var(--gray)}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.chgrid .t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
@@ -74,6 +85,13 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <span class="status" id="status"></span>
   </div>
 
+  <div class="disc" id="disc" style="display:none">
+    <h2>紀律狀態</h2>
+    <div class="pos" id="discPos"></div>
+    <div class="sm" id="discCap"></div>
+    <div id="discLines"></div>
+  </div>
+
   <div class="card">
     <h2>加權指數 <span class="tag" id="dayTag" style="background:var(--navy)"></span></h2>
     <div class="row" style="align-items:baseline;gap:16px">
@@ -82,6 +100,12 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
       <div class="mut" id="idxAmt"></div>
     </div>
     <div class="grid" style="margin-top:10px" id="instGrid"></div>
+    <div id="labels" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>20 日走勢</h2>
+    <div class="chgrid" id="charts"></div>
   </div>
 
   <div class="card">
@@ -105,9 +129,11 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div id="spfImgs" class="mut">尚無</div>
   </div>
 
+  <div class="card" id="weeklyCard" style="display:none"><h2>週報草稿（交接文件用）</h2><div id="weeklyList"></div></div>
+
   <div class="card"><h2>抓取日誌</h2><pre id="logBox" class="mut">—</pre></div>
 </main>
-<footer>資料：期交所・證交所・永豐期貨｜多空比＝散戶淨多單／全市場OI（自算）｜跌綠漲紅</footer>
+<footer>資料：期交所・證交所・永豐期貨｜多空比＝散戶淨多單／全市場OI（自算，與永豐一致）｜量與融資為證交所口徑（含盤後零股／ETF）｜跌綠漲紅</footer>
 
 <dialog id="dlg">
   <h3 style="margin:0 0 6px">⚙️ GitHub 觸發設定</h3>
@@ -133,11 +159,23 @@ const pct=(n,d=2)=>n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
 let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e){}
 if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
 
-let current=null;
+let current=null,disc=null,series=[];
+async function loadDisc(){try{disc=await (await fetch('discipline.json?'+Date.now())).json()}catch(e){disc=null}}
+async function loadSeries(idx){
+  const tags=idx.slice(0,20).reverse();
+  const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
+  series=rs.filter(Boolean);
+}
+async function loadWeekly(){
+  try{const wi=await (await fetch('data/weekly_index.json?'+Date.now())).json();
+    if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${f}" target="_blank">${f.replace('weekly_','').replace('.md','')} 週報草稿</a></div>`).join('')}
+  }catch(e){}
+}
 async function loadIndex(){
   try{
     const idx=await (await fetch('data/index.json?'+Date.now())).json();
     $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
+    await loadDisc(); await loadSeries(idx); loadWeekly();
     if(idx.length)await loadDay(idx[0]);
     else $('#status').textContent='尚無資料，請先跑一次 Action';
   }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
@@ -194,6 +232,85 @@ function render(t){
   const imgs=Object.values(t.spf||{}).flat();
   $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（Action 16:40 會再抓一次）</span>';
   $('#logBox').textContent=(t.log||[]).join('\n')||'—';
+  renderDisc(t); renderLabels(t); renderCharts();
+}
+// ── 紀律狀態
+function renderDisc(t){
+  if(!disc){$('#disc').style.display='none';return}
+  const c=(t.index||{}).close, fx=((t.inst||{})['外資']);
+  $('#disc').style.display='';
+  $('#discPos').textContent=disc.position||'—';
+  $('#discCap').textContent=(disc.cap_note||'')+(disc.updated?`　（更新 ${disc.updated}）`:'');
+  let html='';
+  for(const ln of disc.lines||[]){
+    let st='—',k='wait';
+    if(c!=null){const d=c-ln.level;st=d<0?`已跌破 ${sgn(Math.round(d))}`:`守住 +${fmt(Math.round(d))}`;k=d<0?'bad':'ok'}
+    html+=`<div class="ln"><span>${ln.label}　<b>${fmt(ln.level)}</b></span><span class="${k}">${st}</span></div>`;
+  }
+  const cd=disc.condition;
+  if(cd){const a=c!=null&&c>=cd.target,b=fx!=null&&fx>0;
+    const st=a&&b?'雙勾 ✓✓':`${a?'價位✓':'價位✗'} ${b?'外資✓':'外資✗'}`;
+    html+=`<div class="ln"><span>${cd.label}：${cd.rule}<div class="sm">${cd.action||''}</div></span><span class="${a&&b?'ok':'wait'}">${st}</span></div>`}
+  $('#discLines').innerHTML=html;
+}
+// ── 自動判讀標籤
+function renderLabels(t){
+  const p=t.prev||{},L=[];
+  const tag=(s,c)=>L.push(`<span class="lbl" style="background:${c}">${s}</span>`);
+  const ix=t.index||{},pix=p.index||{};const cp=pix.close?ix.chg/pix.close*100:0;
+  const f=(t.txf||{})['外資'],fp=(p.txf||{})['外資'];
+  if(f&&fp){const dl=f.long-fp.long,ds=f.short-fp.short;
+    tag('外資期貨：'+(dl>0&&ds<0?'加多減空・拆保險':dl>0&&ds>0?'加多加空・保險加厚':dl<0&&ds>0?'砍多加空・收傘':dl<0&&ds<0?'砍多減空・縮手':'小動作'),'var(--navy)');
+    tag(f.net>-80000?'淨空低於 8 萬口基態':'淨空高於 8 萬口基態',f.net>-80000?'var(--red)':'var(--green)')}
+  for(const [k,nm] of [['mtx_retail','小台'],['tmf_retail','微台']]){
+    const a=t[k],b=p[k];if(!a)continue;
+    if(Math.abs(a.ratio_pct)<2)tag(`${nm}歸零讀數 ${pct(a.ratio_pct)}（洗盤完成）`,'var(--gold)');
+    if(b){const d=a.ratio_pct-b.ratio_pct;
+      if(cp>=1&&d<=-5)tag(`${nm}大漲日翻空（軋空燃料）`,'var(--red)');
+      if(cp<=-1&&d>=5)tag(`${nm}大跌日接刀`,'var(--green)');
+      if(cp>=0.5&&d>=5)tag(`${nm}追多 +${d.toFixed(1)} 點`,'var(--green)');}
+  }
+  if(t.basis!=null)tag(`期指${t.basis>=0?'正':'逆'}價差 ${sgn(Math.round(t.basis))}`+(t.basis>=250?'（偏熱）':t.basis<0?'（期貨端縮手）':''),t.basis>=250?'var(--red)':t.basis<0?'var(--green)':'var(--gray)');
+  if(ix.amount_yi&&pix.amount_yi){const dv=ix.amount_yi/pix.amount_yi-1;if(dv>0.2&&Math.abs(cp)<0.3)tag('量增價平：量價背離','var(--green)');if(dv<-0.2&&cp>0.8)tag('量縮上漲：追價力弱','var(--gold)')}
+  const o=(t.opt||{})['外資'],op=(p.opt||{})['外資'];
+  if(o&&op&&o.put-op.put>=2000)tag(`外資賣權 +${fmt(o.put-op.put)}：買保險`,'var(--green)');
+  if(o&&op&&op.put-o.put>=1500)tag(`外資賣權 −${fmt(op.put-o.put)}：拆保險`,'var(--red)');
+  $('#labels').innerHTML=L.join('')||'<span class="mut">—</span>';
+}
+// ── 20 日走勢（純 SVG）
+function spark(title,vals,fmtV,opts={}){
+  const W=320,Hh=110,pl=44,pr=8,pt=14,pb=18;const xs=vals.map(v=>v.v).filter(v=>v!=null);
+  if(xs.length<2)return '';
+  let mn=Math.min(...xs),mx=Math.max(...xs);if(opts.zero){mn=Math.min(mn,0);mx=Math.max(mx,0)}if(mn===mx){mn-=1;mx+=1}
+  const X=i=>pl+i*(W-pl-pr)/(vals.length-1),Y=v=>pt+(mx-v)*(Hh-pt-pb)/(mx-mn);
+  let s=`<div><div class="t">${title}</div><svg class="chart" viewBox="0 0 ${W} ${Hh}">`;
+  if(opts.zero)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--gray)" stroke-dasharray="3 3" stroke-width="1"/>`;
+  if(opts.ref!=null&&opts.ref>=mn&&opts.ref<=mx)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--gold)" stroke-dasharray="4 3" stroke-width="1"/><text x="${W-pr}" y="${Y(opts.ref)-3}" text-anchor="end" fill="var(--gold)">${opts.refLabel||''}</text>`;
+  if(opts.bars){vals.forEach((v,i)=>{if(v.v==null)return;const y0=Y(0),y1=Y(v.v);const bw=Math.max(3,(W-pl-pr)/vals.length-3);
+    s+=`<rect x="${X(i)-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)||1}" fill="${v.v>=0?'var(--red)':'var(--green)'}" opacity=".85"/>`})}
+  else{const d=vals.map((v,i)=>v.v==null?null:`${X(i).toFixed(1)},${Y(v.v).toFixed(1)}`).filter(Boolean).join(' L');
+    s+=`<path d="M${d}" fill="none" stroke="${opts.color||'var(--navy)'}" stroke-width="2"/>`;
+    const last=vals[vals.length-1];if(last.v!=null)s+=`<circle cx="${X(vals.length-1)}" cy="${Y(last.v)}" r="3.5" fill="var(--gold)"/>`}
+  s+=`<text x="${pl-4}" y="${pt+4}" text-anchor="end">${fmtV(mx)}</text><text x="${pl-4}" y="${Hh-pb}" text-anchor="end">${fmtV(mn)}</text>`;
+  s+=`<text x="${pl}" y="${Hh-4}">${vals[0].d}</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">${vals[vals.length-1].d}</text>`;
+  const lv=vals[vals.length-1].v;s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">今 ${fmtV(lv)}</text>`;
+  return s+'</svg></div>';
+}
+function renderCharts(){
+  if(series.length<2){$('#charts').innerHTML='<span class="mut">資料累積 2 天後顯示</span>';return}
+  const d=t=>t.date.slice(5),g=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
+  const sv=(f)=>series.map(t=>({d:d(t),v:f(t)}));
+  const k=v=>v==null?'—':Math.round(v).toLocaleString();
+  const idxClose=sv(t=>g(t,'index','close'));
+  const lines=(disc&&disc.lines||[]).map(l=>l.level);
+  $('#charts').innerHTML=[
+    spark('加權指數',idxClose,k,{color:'var(--red)',ref:lines[0],refLabel:lines[0]?'防線 '+fmt(lines[0]):''}),
+    spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--green)',ref:-80000,refLabel:'8 萬口基態'}),
+    spark('外資現貨買賣超（億）',sv(t=>g(t,'inst','外資')),v=>v==null?'—':Math.round(v)+'',{bars:true,zero:true}),
+    spark('小台散戶多空比（%）',sv(t=>g(t,'mtx_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--gold)'}),
+    spark('微台散戶多空比（%）',sv(t=>g(t,'tmf_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--gold)'}),
+    spark('全市場 P/C（OI，%）',sv(t=>g(t,'pc','oi_ratio_pct')),v=>v==null?'—':v.toFixed(0)+'%',{color:'var(--navy)',ref:100,refLabel:'100%'}),
+  ].join('');
 }
 $('#dateSel').onchange=e=>loadDay(e.target.value);
 $('#btnReload').onclick=()=>loadIndex();
@@ -201,7 +318,10 @@ $('#btnCopy').onclick=async()=>{
   if(!current)return;
   const base=location.href.replace(/index\.html$/,'').replace(/\/$/,'')+'/data/';
   const imgs=Object.values(current.spf||{}).flat().map(fn=>base+fn);
-  const txt=current.claude_text+(imgs.length?'\n永豐圖：\n'+imgs.join('\n'):'');
+  let txt=current.claude_text;
+  if(current.prev_summary)txt+='\n── 昨日摘要 ──\n'+current.prev_summary;
+  if(disc){txt+='\n── 紀律狀態 ──\n部位：'+disc.position+'\n'+(disc.lines||[]).map(l=>`${l.label} ${l.level}`).join('\n')+(disc.condition?`\n${disc.condition.label}：${disc.condition.rule}`:'')}
+  if(imgs.length)txt+='\n永豐圖：\n'+imgs.join('\n');
   try{await navigator.clipboard.writeText(txt);$('#status').textContent='已複製，貼到 Claude 即可'}
   catch(e){$('#status').textContent='複製失敗，請手動選取下方文字'}
 };
