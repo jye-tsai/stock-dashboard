@@ -132,10 +132,15 @@ function render(opts) {
   const moodSrc = moodVal > 0 ? 'panghu.webp' : moodVal < 0 ? 'panghu-sad.webp' : 'panghu-flat.webp';
   const moodTip = moodVal > 0 ? '今天比昨天賺😆' : moodVal < 0 ? '今天比昨天賠😢' : '跟昨天持平😐';
   const mascotImg = `<img class="brand-icon mascot" src="${moodSrc}" alt="胖虎" title="${moodTip}" onerror="if(this.src.indexOf('panghu.webp')<0){this.src='panghu.webp'}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))}">`;
-  if (moodVal > 0 && !render._hopped) { render._hopped = true; deferFrame(() => { const m = document.querySelector('img.mascot'); if (m) m.classList.add('happy'); }); }
   document.getElementById('dashboard-title').innerHTML = E
     ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
     : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
+  // 賺錢時胖虎跳一下,每次開頁最多一次:動畫真的播完(animationend)才記「跳過了」,
+  // 不然快取先畫、網路再畫的第二次 render 會把還沒跳的 img 換掉,等於沒跳
+  if (moodVal > 0 && !render._hopped) {
+    const m = document.querySelector('img.mascot');
+    if (m) { m.classList.add('happy'); m.addEventListener('animationend', () => { render._hopped = true; }, { once: true }); }
+  }
 
   // 更新時間 + 資料新鮮度提示(以台北時間判斷;週末/開盤前不算過期)
   const upEl = document.getElementById('updated');
