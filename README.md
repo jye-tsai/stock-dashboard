@@ -17,6 +17,7 @@
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
+- **上傳前一鍵**:`node tools/bump.mjs` → 先跑測試,綠燈才把 `index.html` 四處 `?v=` 與 `sw.js` 的 `ASSET_VER` / `CACHE` 換成新值(台北日期 + 序號字母),並印出要上傳哪些檔。**不要再手改版號**。
 - **一鍵檢查**:`node tests/run.mjs`(語法 + `tests/calc.test.mjs` + `tests/sw.test.mjs`);push 到 repo 會由 `.github/workflows/check.yml` 自動跑,紅燈 = 上錯 / 漏檔。改 `calc.js` 順手補測。
 - **畫面卡住 / 看不到新版**:⚙️ 設定 →「🧹 清快取重新載入」(unregister SW + 清 caches + reload)。render 炸掉或 12 秒載不完時頂部也會自動出這條紅色橫幅(`index.html` head 內嵌,不依賴 app.js)。
 - **已知環境雷**:某些沙箱 / 掛載會顯示 `index.html` / `.mjs` 的**殘檔或舊版**(行數不對、node 檢查報怪錯)。這不是檔案壞掉——以編輯器/檔案工具讀到的內容為準,別被殘檔誤導。
@@ -26,10 +27,10 @@
 ## 功能
 
 - **總覽**:今日損益 Hero 置頂(左:今日賺賠大字;右:近 30 個交易日總市值 sparkline;總市值 / 總報酬看正下方的摘要卡片列;各檔 `prevClose` 加總,缺昨收退回比 history 前一交易日市值)、**總報酬瀑布圖**(0 → 未實現 → 已實現 → 股息 → 總報酬,浮動長條、負分項往下走、端點標金額)、市值比例甜甜圈、年度損益、資產走勢、每日市值變動、報酬對比大盤、摘要卡片列(帳戶餘額 / 交割款併入,解鎖後顯示)、持股損益。
-- **持股明細**:可點欄位排序、點列展開明細(賣出可拿回、目標 / 停損距離);賣出稅費 / 成本比例 / 市值比例三欄預設收起,勾「顯示全部欄位」才出現(記在 localStorage);市價下方顯示**今日漲跌 %**;「走勢」欄是**近 30 個交易日 sparkline**(inline SVG,漲紅跌綠,滑過看區間 %;資料來自 `history[].prices`,由 Action 寫入 + 回補);手機自動轉卡片(卡片列右側也有 sparkline)。
+- **持股明細**:可點欄位排序、點列展開明細(賣出可拿回、目標 / 停損距離);賣出稅費 / 成本比例 / 市值比例三欄預設收起,勾「顯示全部欄位」才出現(記在 localStorage);市價下方顯示**今日漲跌 %**;「走勢」欄是**近 30 個交易日 sparkline**(inline SVG,漲紅跌綠,滑過看區間 %;資料來自 `history[].prices`,由 Action 寫入 + 回補),**點它(或展開列的「📈 近 90 日走勢」、手機卡片的 sparkline)開單檔小視窗**:近 90 日收盤線 + 成本 / 目標 / 停損虛線 + 統計格(現價、成本、未實現、區間漲跌 vs 大盤、區間高低、距目標 / 停損);手機自動轉卡片(卡片列右側也有 sparkline)。
 - **目標價 / 停損價**:每檔可設,到價時整列標記 🎯 / ⚠️。
 - **資料過期警示**:頁首更新時間旁,今日已更新亮綠點 ●;交易日過了還沒更新顯示紅底「⚠ 資料可能未更新」(週末 / 開盤前不誤報)。
-- **數字跳動動畫**、**載入骨架屏**、**下拉重新整理**(手機)、**底部分頁列**(手機寬度時取代頂部頁籤:總覽 / 持股 / 年度 / 分享 / 設定固定在螢幕下緣)。**手機版面**:摘要卡 3 欄 × 2 列、三張子圖改橫向滑動卡片(scroll-snap)、熱圖只畫近 13 週、區間鈕滿寬五等分、更新時間併進按鈕列。
+- **數字跳動動畫**、**載入骨架屏**、**下拉重新整理**(手機;軟更新:重抓資料 → render,不整頁 reload、不閃白;編輯中不更新;抓不到才 reload)、**底部分頁列**(手機寬度時取代頂部頁籤:總覽 / 持股 / 年度 / 分享 / 設定固定在螢幕下緣)。**手機版面**:摘要卡 3 欄 × 2 列、三張子圖改橫向滑動卡片(scroll-snap)、熱圖只畫近 13 週、區間鈕滿寬五等分、更新時間併進按鈕列。
 - **⚙️ 設定的兩個開關**:「色弱友善」(漲橘 / 跌藍,全站含圖表一起換)、「緊湊密度」(間距 / 字級 / 面板內距 / 圖高整體縮,靠 token 一次生效);都記在 localStorage。
 - **列印 / 存 PDF**:`@media print` 白底、藏工具列與分頁鈕、三個分頁全印、面板不跨頁切斷;月底 Ctrl+P 就是一份報表。
 - **分頁 icon 與標題帶今日漲跌**:favicon 動態畫 ▲ / ▼(顏色跟 --up / --down),`document.title` 前綴今日 %;手機捲過 Hero 後頂部貼一條迷你今日損益列。
@@ -63,6 +64,7 @@
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試;本機 `node tests/run.mjs` |
+| `tools/bump.mjs` | 上傳前一鍵:測試 + 換版號(不在 SW 快取清單,純本機工具) |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
 | `panghu-icon.png`(192px,iOS apple-touch-icon)/ `panghu-icon.webp`(512px,manifest + splash + intro)/ `favicon.png`(64px) | PWA App 圖示 / 網頁小圖示 |
 | `panghu.webp` / `panghu-sad.webp` / `panghu-flat.webp` | 吉祥物表情(笑 / 哭 / 淡定),512px WebP。**`panghu-flat.webp` 目前是笑臉去飽和的佔位圖**,有真的淡定圖直接同名覆蓋即可 |

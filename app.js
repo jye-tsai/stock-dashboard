@@ -295,7 +295,7 @@ function render(opts) {
         <td></td>
         <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
         <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
-        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td class="spark">${sparkSvg(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
+        <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td class="spark" data-action="openStock" data-args='["${esc(r.code)}"]' title="點一下看近 90 日走勢">${sparkSvg(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       const sellNet = r.mv - r.sellCost;
       const colspan = cols.length + (E ? 1 : 0);
       const dstat = (k, v) => `<span class="d-stat"><span class="d-k">${k}</span><span class="d-v">${v}</span></span>`;
@@ -309,7 +309,8 @@ function render(opts) {
         const toS = r.stop > 0 ? (r.price <= r.stop ? '已觸停損 ⚠️' : '距停損 ' + pct((r.price - r.stop) / r.price)) : '';
         detailInner = dstat('賣出可拿回', fmt(sellNet))
           + dstat('🎯 目標價', r.target > 0 ? `${fmt2(r.target)}　${toT}` : '—')
-          + dstat('⚠️ 停損價', r.stop > 0 ? `${fmt2(r.stop)}　${toS}` : '—');
+          + dstat('⚠️ 停損價', r.stop > 0 ? `${fmt2(r.stop)}　${toS}` : '—')
+          + `<button class="btn sm" type="button" data-action="openStock" data-args='["${esc(r.code)}"]'>📈 近 90 日走勢</button>`;
       }
       return `<tr class="hold-row ${hitClass}" data-action="toggleHoldDetail">${cells}
         <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td class="col-opt">${fmt(r.sellCost)}</td>
@@ -337,7 +338,7 @@ function render(opts) {
         <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
         <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}</span>
         <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
-        ${sparkSvg(r)}
+        ${sparkSvg(r) ? `<button class="spark-btn" type="button" data-action="openStock" data-args='["${esc(r.code)}"]' aria-label="看 ${esc(r.name)} 近 90 日走勢">${sparkSvg(r)}</button>` : ''}
       </div>
       <div class="h-stats">
         ${stat('市價', fmt2(r.price))}
@@ -1103,13 +1104,61 @@ applyChartStyle(store.get('pf-chart-style') || 'match');
     if (dy >= TH) {
       txt.textContent = '更新中…'; ico.textContent = '⟳'; ind.classList.add('spin');
       ind.style.transform = 'translateX(-50%) translateY(0)'; ind.style.opacity = '1';
-      setTimeout(() => location.reload(), 300);
+      // 軟更新:重抓資料 → render;失敗才整頁 reload
+      softRefresh().then(ok => {
+        if (!ok) { location.reload(); return; }
+        ind.style.transform = 'translateX(-50%) translateY(-60px)'; ind.style.opacity = '0';
+        setTimeout(() => { ind.classList.remove('spin'); ico.textContent = '↓'; ico.style.transform = ''; txt.textContent = '下拉重新整理'; }, 300);
+      });
     } else {
       ind.style.transform = 'translateX(-50%) translateY(-60px)'; ind.style.opacity = '0';
     }
     dy = 0;
   }, { passive: true });
 })();
+
+/* ==================== §15b. 單檔走勢小視窗 + 軟更新 ==================== */
+// 點持股表 sparkline / 展開列按鈕 / 手機卡片 sparkline → 開 modal:近 90 日收盤 + 成本 / 目標 / 停損線 + 統計格
+function openStock(code) {
+  if (!DATA) return;
+  const r = PfCalc.compute(DATA).rows.find(x => String(x.code) === String(code)); if (!r) return;
+  const modal = document.getElementById('stock-modal'); if (!modal) return;
+  document.getElementById('stock-title').textContent = `${r.name}(${r.code})`;
+  const ya = document.getElementById('stock-yahoo'); if (ya) ya.href = `https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}`;
+  modal.classList.remove('hidden');
+  const tile = (k, v, c2) => `<div class="hs"><div class="k">${k}</div><div class="v ${c2 || ''}">${v}</div></div>`;
+  const statsEl = document.getElementById('stock-stats'), sub = document.getElementById('stock-sub');
+  deferFrame(() => {                                              // modal 顯示後 canvas 才有尺寸
+    const S = drawStockChart(chartTheme(), r);
+    const toT = r.target > 0 ? (r.price >= r.target ? '已達標 🎯' : sign((r.target - r.price) / r.price) + pct((r.target - r.price) / r.price)) : '—';
+    const toS = r.stop > 0 ? (r.price <= r.stop ? '已觸停損 ⚠️' : sign((r.price - r.stop) / r.price) + pct((r.price - r.stop) / r.price)) : '—';
+    let html = tile('現價', fmt2(r.price)) + tile('成本', fmt2(r.cost)) + tile('未實現', `${sign(r.unrealized)}${fmt(r.unrealized)}(${pct(r.plRatio)})`, cls(r.unrealized));
+    if (S) {
+      const chgP = (S.last / S.first - 1) * 100;
+      html += tile(`近 ${S.n} 日漲跌`, `${chgP >= 0 ? '+' : ''}${chgP.toFixed(2)}%${S.taiexPct != null ? `<span class="k">(大盤 ${S.taiexPct >= 0 ? '+' : ''}${S.taiexPct.toFixed(2)}%)</span>` : ''}`, chgP >= 0 ? 'up' : 'down')
+        + tile('區間最高', `${fmt2(S.hi)}<span class="k"> ${S.hiDate}</span>`) + tile('區間最低', `${fmt2(S.lo)}<span class="k"> ${S.loDate}</span>`);
+      sub.textContent = `近 ${S.n} 個交易日收盤(Action 每日記錄);虛線為成本 / 目標 / 停損`;
+    } else sub.textContent = '還沒有這檔的歷史價格(Action 每天會記一筆,回補近 90 日);先看數字。';
+    html += tile('距目標', toT) + tile('距停損', toS) + tile('張數', r.lots.toLocaleString('zh-TW', { minimumFractionDigits: 3 }));
+    statsEl.innerHTML = html;
+  });
+}
+function closeStockModal() { const m = document.getElementById('stock-modal'); if (m) m.classList.add('hidden'); }
+
+// 軟更新:重抓資料 → render,不整頁 reload(不閃白、捲動位置不跳、圖表有過場);編輯中不動;抓不到回 false 讓呼叫端決定
+async function softRefresh() {
+  if (editMode) { toast('編輯中,先儲存或取消編輯再更新'); return true; }
+  const ghc = ghCfg();
+  try {
+    let json;
+    if (ghReady(ghc)) json = await ghLoad(ghc);
+    else { const r = await fetch('data.json', { cache: 'reload', signal: AbortSignal.timeout(8000) }); if (!r.ok) throw new Error('HTTP ' + r.status); json = await r.json(); }
+    const before = JSON.stringify(DATA);
+    load(await decodeMaybe(json));
+    toast(before === JSON.stringify(DATA) ? '已是最新資料' : '已更新為最新資料');
+    return true;
+  } catch (e) { console.debug('[pf] softRefresh', e); return false; }
+}
 
 /* ==================== §16a. 分頁 icon / 標題 / 迷你 Hero ==================== */
 // 分頁 icon 畫今日漲跌三角(顏色跟 --up / --down,色弱模式一起變)、標題前綴今日 %;沒有今日損益就還原原本 favicon
@@ -1187,7 +1236,7 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
   'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
-  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp']);
+  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal']);
 const callAction = (name, args) => {
   if (!ACTIONS.has(name) || typeof window[name] !== 'function') { console.debug('[pf] 未知 data-action', name); return; }
   return window[name](...(args || []));

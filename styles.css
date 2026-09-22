@@ -686,3 +686,11 @@
   #fatal { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 8px; right: 8px; z-index: 300; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
     padding: 10px 14px; border-radius: var(--r-md); background: #dc2626; color: #fff; font-size: var(--fs-md); font-weight: var(--fw-bold); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
   #fatal button { background: #fff; color: #dc2626; border: none; border-radius: var(--r-sm); padding: 6px 12px; font-weight: var(--fw-heavy); cursor: pointer; font-family: inherit; }
+
+  /* ===== 單檔走勢小視窗 ===== */
+  .stock-modal { max-width: 620px; }
+  .stock-stats { margin-top: var(--sp-3); grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 600px) { .stock-stats { grid-template-columns: repeat(2, 1fr); } .stock-modal .chart-box.h190 { height: 170px; } }
+  td.spark[data-action], .spark-btn { cursor: pointer; }
+  .spark-btn { background: none; border: none; padding: 0; margin-left: auto; line-height: 0; }
+  td.spark[data-action]:hover svg, .spark-btn:hover svg { filter: drop-shadow(0 0 4px currentColor); }

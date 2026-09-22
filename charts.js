@@ -433,7 +433,7 @@ if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners && !Chart.Tooltip
 }
 
 /* ==================== 4. 各圖 ==================== */
-let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart, navDdChart, wfChart;
+let pieChart, barChart, plChart, navChart, navChgChart, navBenchChart, navDdChart, wfChart, stockChart;
 
 function topHoldingsForPie(held, limit = 5) {
   const sorted = [...held].sort((a, b) => b.mv - a.mv);
@@ -860,6 +860,39 @@ function drawHeatmap(T, histFull) {
       tile('目前', streakTxt, s.curStreak > 0 ? 'up' : s.curStreak < 0 ? 'down' : '');
   }
   panel.style.display = '';
+}
+
+// 4.7 單檔走勢(modal):近 90 個交易日收盤 + 成本 / 目標 / 停損水平虛線;資料來自 history[].prices[code]
+// 回傳 { n, first, last, hi, lo, taiexPct } 給 app.js 填統計格;資料不足 2 點回 null(canvas 留空)
+function drawStockChart(T, h) {
+  const canvas = document.getElementById('stock-chart'); if (!canvas || !h) return null;
+  const full = PfCalc.histSlices(DATA.history, 0, tpeNow().date).full;
+  const pts = full.filter(p => p.prices && p.prices[h.code] > 0).slice(-90);
+  if (pts.length < 2) { if (stockChart) { stockChart.destroy(); stockChart = null; } return null; }
+  const labels = pts.map(p => String(p.date).slice(5)), price = pts.map(p => p.prices[h.code]);
+  const line = (label, v, color, dash) => v > 0 ? [{ label, data: price.map(() => v), borderColor: color, borderWidth: 1.5, borderDash: dash, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 }] : [];
+  const upDown = price[price.length - 1] >= price[0] ? T.up : T.down;
+  stockChart = upsertChart(stockChart, canvas, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: '收盤', data: price, borderColor: upDown, backgroundColor: areaGrad(upDown, .35, .02), borderWidth: 2, fill: true, tension: .25, pointRadius: 0, pointHoverRadius: 5 },
+      ...line('成本', h.cost, T.muted, [6, 4]),
+      ...line('目標', h.target, T.up, [2, 3]),
+      ...line('停損', h.stop, T.down, [2, 3])
+    ] },
+    options: baseOpts({
+      interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 8, right: 10, bottom: 2, left: 2 } },
+      scales: { x: axisX(T), y: axisY(T, v => fmt2(v)) },
+      plugins: {
+        legend: legendBottom(T, 'line', { labels: { usePointStyle: true, pointStyle: 'line', color: T.muted, padding: 14, font: font(T, 11, 700) } }),
+        tooltip: tooltipOpts(T, { displayColors: true, callbacks: { label: c => c.datasetIndex === 0 ? ` 收盤 ${fmt2(c.parsed.y)}` : null } })
+      }
+    })
+  });
+  const ex = PfCalc.extremes(price);
+  const tx = pts.map(p => Number(p.taiex) || 0), t0 = tx.find(v => v > 0), t1 = [...tx].reverse().find(v => v > 0);
+  return { n: price.length, first: price[0], last: price[price.length - 1], hi: price[ex.hi], lo: price[ex.lo], hiDate: labels[ex.hi], loDate: labels[ex.lo], taiexPct: t0 && t1 ? (t1 / t0 - 1) * 100 : null };
 }
 
 /* ==================== 5. 統籌 ==================== */
