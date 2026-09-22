@@ -73,11 +73,21 @@ def taifex_market_oi(date, code):
                       headers=H, timeout=30)
     txt = decode(r.content)
     if "未沖銷" not in txt: log(f"  {code} 全市場OI：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
+    df = pd.read_csv(io.StringIO(txt), dtype=str); df.columns = [c.strip() for c in df.columns]
     col_oi = [c for c in df.columns if "未沖銷" in c][0]
     col_sess = [c for c in df.columns if "交易時段" in c]
-    if col_sess: df = df[df[col_sess[0]].astype(str).str.contains("一般")]
-    return int(pd.to_numeric(df[col_oi].astype(str).str.replace(",", ""), errors="coerce").fillna(0).sum())
+    sub = df
+    if col_sess:
+        sub = df[df[col_sess[0]].astype(str).str.contains("一般")]
+        if sub.empty: sub = df[~df[col_sess[0]].astype(str).str.contains("盤後")]
+        if sub.empty: sub = df
+    vals = pd.to_numeric(sub[col_oi].astype(str).str.replace(",", "").str.strip(), errors="coerce").fillna(0)
+    total = int(vals.sum())
+    if total == 0:
+        log(f"  {code} 全市場OI=0；欄位 {df.columns.tolist()}；列數 {len(df)}；時段值 {df[col_sess[0]].unique()[:4].tolist() if col_sess else '-'}；OI樣本 {df[col_oi].head(3).tolist()}")
+        return None
+    log(f"  {code} 全市場OI {total:,}（{len(sub)} 列）")
+    return total
 
 def retail_ratio(market_oi, inst):
     """永豐口徑：散戶多單＝全市場OI−三大法人多單；散戶空單＝全市場OI−三大法人空單；比＝(多−空)/全市場OI"""
@@ -114,14 +124,16 @@ def taifex_pc(date):
     r = requests.post(TAIFEX + "pcRatioDown", data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
     txt = decode(r.content)
     if "買賣權" not in txt: log(f"  P/C：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
-    log(f"  P/C 欄位：{df.columns.tolist()}")
+    df = pd.read_csv(io.StringIO(txt), dtype=str); df.columns = [c.strip() for c in df.columns]
+    c_date = [c for c in df.columns if "日期" in c][0]
     c_vol = [c for c in df.columns if "成交量比率" in c][0]; c_oi = [c for c in df.columns if "未平倉量比率" in c][0]
-    df = df.dropna(subset=[c_oi])
-    df = df[pd.to_numeric(df[c_oi].astype(str).str.replace(",", ""), errors="coerce").notna()]
-    if df.empty: return None
-    row = df.iloc[-1]
-    return {"volume_ratio_pct": float(str(row[c_vol]).replace(",", "")), "oi_ratio_pct": float(str(row[c_oi]).replace(",", ""))}
+    def f(v):
+        m = re.search(r"-?\d+(?:\.\d+)?", str(v).replace(",", "")); return float(m.group()) if m else None
+    rows = df[df[c_date].astype(str).str.strip() == date]
+    if rows.empty: rows = df.dropna(subset=[c_oi])
+    if rows.empty: log(f"  P/C：無資料列，原始前 2 列 {df.head(2).values.tolist()}"); return None
+    row = rows.iloc[0]
+    return {"volume_ratio_pct": f(row[c_vol]), "oi_ratio_pct": f(row[c_oi])}
 
 # ─────────────── 期交所：台指VIX（盡力而為，失敗以永豐為準） ───────────────
 def taifex_vix(date):
@@ -130,7 +142,9 @@ def taifex_vix(date):
                           data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
         txt = decode(r.content)
         df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
-        c = [c for c in df.columns if "VIX" in c.upper() or "波動" in c][-1]
+        cols = [c for c in df.columns if "VIX" in c.upper() or "波動" in c]
+        if not cols: log(f"  VIX 欄位：{df.columns.tolist()[:8]}")
+        c = cols[-1]
         return float(pd.to_numeric(df[c], errors="coerce").dropna().iloc[-1])
     except Exception as e:
         log(f"  VIX 抓取失敗（{e.__class__.__name__}），請以永豐快訊為準"); return None
@@ -256,7 +270,8 @@ def claude_text(t, p):
         L.append(f"加權指數 {ix['close']:,}  {ix['chg']:+,}（自算 {pc}，分母前收 {pix.get('close','?')}）  成交 {ix['amount_yi']:,} 億")
     if t.get("inst"):
         i = t["inst"]; L.append(f"三大法人 {i.get('合計',0):+.2f} 億｜外資 {i.get('外資',0):+.2f}｜投信 {i.get('投信',0):+.2f}｜自營 {i.get('自營',0):+.2f}")
-    if t.get("margin") is not None: L.append(f"融資餘額 {t['margin']:,} 億（前值 {p.get('margin','—')}）")
+    if t.get("margin") is not None:
+        L.append(f"融資餘額 {t['margin']:,} 億" + (f"（{t['margin_note']}）" if t.get("margin_note") else f"（前值 {p.get('margin','—')}）"))
     L.append("── 臺股期貨 未平倉（前→今）──")
     for role in ROLES:
         a, b = t["txf"].get(role), p["txf"].get(role)
@@ -288,6 +303,8 @@ def main():
     prev, df_p = prev_trading_day(today)
     log(f"今日 {today}｜前一交易日 {prev}")
     t = collect(today, df_t); p = collect(prev, df_p)
+    if t.get("margin") is None and p.get("margin") is not None:
+        t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {prev} 值"; log("  融資：" + t["margin_note"])
     t["spf"] = spf_fetch(today)
     t["prev"] = p; t["log"] = LOG
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")

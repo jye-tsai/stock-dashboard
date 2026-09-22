@@ -155,7 +155,7 @@ function render(t){
     kp('外資（億）',sgn(i['外資']),'',cls(i['外資'])),
     kp('投信（億）',sgn(i['投信']),'',cls(i['投信'])),
     kp('自營（億）',sgn(i['自營']),'',cls(i['自營'])),
-    kp('融資餘額（億）',fmt(t.margin),p.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:'',''),
+    kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),''),
   ].join('');
   const tb=$('#oiTbl tbody');tb.innerHTML='';
   for(const role of ['自營商','投信','外資']){
@@ -223,6 +223,10 @@ async function pollRun(){
 let ty0=null;
 document.addEventListener('touchstart',e=>{ty0=window.scrollY===0?e.touches[0].clientY:null},{passive:true});
 document.addEventListener('touchend',e=>{if(ty0!=null&&e.changedTouches[0].clientY-ty0>90){$('#status').textContent='重新載入…';loadIndex()}ty0=null},{passive:true});
+// 桌面：在頁頂往上滾滾輪也可重新載入
+let wheelAcc=0,wheelT=0;
+window.addEventListener('wheel',e=>{if(window.scrollY>0)return;const now=Date.now();if(now-wheelT>800)wheelAcc=0;wheelT=now;wheelAcc+=e.deltaY;
+  if(wheelAcc<-400){wheelAcc=0;$('#status').textContent='重新載入…';loadIndex()}},{passive:true});
 // 每 10 分鐘自動更新一次
 setInterval(loadIndex,600000);
 $('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'daily.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
