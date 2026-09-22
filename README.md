@@ -12,11 +12,12 @@
 
 先讀這段就能接手。細節在後面各節。
 
-- **整個 App 就是一個 `index.html`**(HTML + CSS + JS 全部內嵌,單檔約 2500+ 行);唯一例外是損益計算抽在 `scripts/calc.js`(前端與 Action 共用)。JS 在檔案下半部的 `<script>` 裡,最上面有「§ 目錄」;用編輯器 **Ctrl+F 搜 `§`** 可跳段(§1~§17,見〈程式碼分段〉)。
+- **前端四個檔**:`index.html`(純結構,約 290 行)、`styles.css`(主題 + 版面)、`app.js`(主程式,§ 分段,Ctrl+F 搜 `§` 跳段)、`charts.js`(八張圖 + 熱圖,每圖一支 `drawXxx(T)`);純計算在 `scripts/calc.js`(前端與 Action 共用)。載入順序:calc.js → Chart.js → charts.js → app.js。
+- **HTML 不寫 `onclick`**:按鈕用 `data-action="fn" data-args='[...]'`,由 `app.js` §16b 的委派 listener 查允許清單(`ACTIONS`)呼叫;Enter 送出用 `data-enter="fn"`。新增按鈕記得把函式名加進 `ACTIONS`。
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
-- **驗證 JS 語法**的方法(因為 JS 內嵌在 html):擷取 `<script>let DATA … </script>` 段落丟 `node --check`。
+- **驗證 JS 語法**:`node --check app.js charts.js scripts/calc.js`(三檔都是純 JS,直接檢查)。純計算有 Node 單元測試的習慣:改 `calc.js` 順手補測。
 - **已知環境雷**:某些沙箱 / 掛載會顯示 `index.html` / `.mjs` 的**殘檔或舊版**(行數不對、node 檢查報怪錯)。這不是檔案壞掉——以編輯器/檔案工具讀到的內容為準,別被殘檔誤導。
 
 ---
@@ -31,7 +32,7 @@
 - **7 種主題**:🌊 海洋藍、🌅 珊瑚暖陽、🌿 抹茶清新、🌌 午夜金、🍡 馬卡龍、🌙 美少女、🧬 Agent Neon;標題會發光。圖表配色隨主題(含極值高亮色 `hi`/`lo`)。
 - **工具列收納**:頁面主題、圖表風格、GitHub 同步、載入 JSON、設定密碼都收在「⚙️ 設定」視窗;header 只留 解鎖(→ 編輯)/ 儲存 / 更新市價 / ⚙️ 設定 / 登出。
 - **胖虎吉祥物**:依「今日未實現損益 vs 昨日」換表情(賺 → 笑、賠 → 哭、持平 → 淡定)。
-- **分享今日戰報**:Hero 右下「📤 分享今日戰報」→ canvas 合成 1080×1350 圖(吉祥物 + 標題 + 日期 → 今日損益大字 → 總市值 / 總報酬 → 資產走勢縮圖 → 頁尾網址),配色跟當前主題;手機走 Web Share 直接丟 LINE / IG,桌機下載 PNG。勾「分享只顯示 %」金額全部隱藏只留百分比。
+- **分享戰報**:Hero 右下選「今日 / 本週 / 本月」→「📤 分享戰報」→ canvas 合成 1080×1350 圖(吉祥物 + 標題 + 期間 → 損益大字 → 總市值 / 總報酬 → **總市值走勢線**(自己畫,今日 = 近 30 個交易日、週月 = 該期間;標最高 / 最低與首尾日期)→ 頁尾網址),配色跟當前主題;文字自動縮字級不溢出。手機走 Web Share 直接丟 LINE / IG,桌機下載 PNG。勾「只顯示 %」金額全部隱藏只留百分比。本週 / 本月損益 = 期間起點前最後一筆到最新一筆的**總報酬**變化(`PfCalc.periodChange`)。
 - **PWA**:可安裝到手機主畫面、全螢幕、離線看上次資料。
 - **編輯模式**:解鎖後可改標題、持股、年度、帳戶、目標 / 停損,存回 GitHub。
 
@@ -40,10 +41,10 @@
 1. **資產走勢**:堆疊面積 = 成本 + 未實現損益,合計 ≈ 總市值(白色加粗虛線標總市值天花板),並標該區間**最高 / 最低**點。Y 軸自 0 起。
 2. **每日市值變動**:柱狀,較前一日增減,紅漲綠跌;區間內**漲最多 / 跌最多**用高亮色(`palette.hi`/`lo`)+ 文字標示。
 3. **報酬對比**:以區間起點為 0% 正規化的折線 —— **我的組合 vs 加權指數 vs 台積電**,一眼看出有沒有贏大盤 / 贏單壓台積電。
-4. **回撤**:總報酬(`ret`)距「截至當日的歷史前高」掉了多少,佔當日成本的 %;副標寫**最大回撤**(金額、高點 → 谷底日期、幾個交易日)與**目前回撤**(在新高就顯示 ●)。前高看全史、畫面只看區間,所以切區間不會讓回撤「變小」。
-5. **每日損益月曆**(獨立 panel):GitHub 貢獻牆式熱圖,欄 = 週、列 = 週一~週五,一格一天;紅賺綠賠、深淺 = √(金額 / 區間最大)(小額也看得見),0 用底色、休市虛框;近 26 週,不受區間鈕影響;滑過看金額。純 CSS grid,不吃 Chart.js。
+4. **回撤**:總報酬(`ret`)距「截至當日的歷史前高」掉了多少,佔當日成本的 %;副標寫**最大回撤**(高點 → 谷底日期、幾個交易日、金額)與**目前回撤 + 離新高還差多少**(在新高就顯示 ●)。前高看全史、畫面只看區間,所以切區間不會讓回撤「變小」。
+5. **每日損益月曆**(獨立 panel):GitHub 貢獻牆式熱圖,欄 = 週、列 = 週一~週五,一格一天;紅賺綠賠、深淺 = √(金額 / 區間最大)(小額也看得見),0 用底色、休市虛框;近 26 週,不受區間鈕影響;滑過看金額,**點格子 → 四張走勢圖定位到那天**(不在目前區間就自動切「全部」)。右側 **統計卡**:勝率、賺 / 賠天數、平均賺 / 賠一天、最佳 / 最差日、最長連賺 / 連賠、目前連續。純 CSS grid,不吃 Chart.js。
 
-前四圖共用同一組時間範圍(近 1 週 / 近 1 月 / 近 3 月 / 今年 / 全部;筆數 = 交易日)與 **hover 同步**(滑到某天,四張同一天一起亮 tooltip + 垂直十字線;`navSyncPlugin`,靠 MM-DD label 對齊)與同一份 `hist`;桌機寬度(> 800px)時每日變動與報酬對比左右並排;**週末**一律不畫,**有 taiex 之後**沒 taiex 的日期(國定假日休市)也不畫。
+前四圖共用同一組時間範圍(近 1 週 / 近 1 月 / 近 3 月 / 今年 / 全部;筆數 = 交易日)與 **hover 同步**(滑到某天,其他三張同一天亮點 + 垂直十字線,tooltip 只留在滑鼠那張,不會四個框疊在一起;`navSyncPlugin`,靠 MM-DD label 對齊)與同一份 `hist`;桌機寬度(> 800px)時每日變動與報酬對比左右並排;**週末**一律不畫,**有 taiex 之後**沒 taiex 的日期(國定假日休市)也不畫。
 
 ---
 
@@ -53,7 +54,8 @@
 |---|---|
 | `index.html` | 整個儀表板(HTML / CSS / JS 單檔);Chart.js 走 cdnjs 並鎖 `integrity`(SRI),升版要同步換 hash(`https://api.cdnjs.com/libraries/Chart.js/<ver>?fields=sri`) |
 | `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
-| `scripts/calc.js` | **損益計算共用模組**(UMD):成本 / 市值 / 賣出成本 / 未實現 / 總報酬。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
+| `styles.css` / `app.js` / `charts.js` | 前端三件套:主題 + 版面 / 主程式(載入、render、編輯、密碩、GitHub、分享卡、事件委派)/ 八張圖 + 熱圖 |
+| `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
@@ -162,14 +164,15 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 | §1 | 全域狀態、常數、小工具 | §10 | 市價更新(觸發 Action) |
 | §2 | 數字跳動動畫 | §11 | 持股 / 年度編輯操作 |
 | §3 | 計算(委派 `scripts/calc.js`) | §12 | 儲存 / 載入 / 快取 |
+| §5 | 圖表:見 `charts.js`(1 色盤 → 2 helper → 3 plugin → 4 drawXxx → 5 drawCharts) | §16b | 事件委派(`data-action`) |
 | §4 | 畫面 render | §13 | GitHub 同步 |
-| §5 | 圖表繪製與風格(含回撤 / 月曆熱圖) | §14 | 檔案存取(存檔 / 選檔);§14b 分享今日戰報 |
+| §5 | (已搬到 `charts.js`) | §14 | 檔案存取(存檔 / 選檔);§14b 分享戰報 |
 | §6 | 分頁切換 | §15 | 主題 / 圖表風格切換 |
 | §7 | 編輯模式 | §16 | 下拉重新整理(PWA) |
 | §8 | 密碼(PBKDF2) | §17 | 啟動(splash + init) |
 | §9 | 解鎖 / 權限 UI | | |
 
-主題色盤在 `CHART_PALETTES`(§5 上方);每個主題有 `slices / gain / loss / dividend / grid / hi / lo`。六張圖都經 `upsertChart()`:同 canvas 同 type 就 `update()`(換主題 / 切區間有過場、不重建),inline plugin 參數一律走 `options.plugins.<id>`,不可用 closure 抓外部變數(update 不會換 plugin)。排序持股表 / 隱藏零股走 `render({ charts: false })` 不重畫圖。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
+主題色盤在 `charts.js` 的 `CHART_PALETTES`;每個主題有 `slices / gain / loss / dividend / grid / hi / lo`。`charts.js` 慣例:每張圖一支 `drawXxx(T)`,`T = chartTheme()` 帶當前主題的顏色 / 字型;tooltip / 座標軸 / 圖例用 `tooltipOpts / axisX / axisY / legendBottom` factory,不再各自複製;alpha 用 `withAlpha(color, a)` 不拼 hex 字尾;不改 `Chart.defaults`(只設一次 dpr / 字型)。八張圖都經 `upsertChart()`:同 canvas 同 type 就 `update()`(換主題 / 切區間有過場、不重建),inline plugin 參數一律走 `options.plugins.<id>`,不可用 closure 抓外部變數(update 不會換 plugin)。排序持股表 / 隱藏零股走 `render({ charts: false })` 不重畫圖。`styles.css` 的 `--total-bg / --row-hover` 由 `--accent` 經 `color-mix` 自動算(深色主題 `--tint` 調高),不必每套主題各寫。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
 
 ---
 
@@ -210,8 +213,8 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 
 ## 改動後要上傳哪些檔
 
-- 改**畫面 / 圖表 / 互動** → 上傳 `index.html`。
-- 改**損益計算 / 費率規則** → 上傳 `scripts/calc.js` + `sw.js`(CACHE 版號 +1,它在離線快取清單裡)。
+- 改**版面 / 互動** → 上傳 `index.html` / `styles.css` / `app.js`;改**圖表** → `charts.js`。三個 .js / .css 都在 Service Worker 快取清單裡,**順手把 `sw.js` 版號 +1**(不然要 F5 兩次才看到新版)。
+- 改**損益計算 / 費率規則 / 時序計算** → 上傳 `scripts/calc.js` + `sw.js`(CACHE 版號 +1)。
 - 改**抓價 / 歷史 / 回補邏輯** → 上傳 `scripts/update-prices.mjs`。
 - 改**排程** → 上傳 `.github/workflows/update-prices.yml`(Cloudflare 那份在 Cloudflare 後台改)。
 - 改**圖示 / 吉祥物圖** → 上傳新圖 + `sw.js`(CACHE 版號 +1);換檔名的話 `index.html` / `manifest.json` / `intro.html` 引用也要一起。

@@ -1,7 +1,9 @@
-/* 胖虎的小財庫 — 損益計算共用模組(UMD)
+/* 胖虎的小財庫 — 純計算共用模組(UMD)
    前端 index.html:<script src="scripts/calc.js"> → window.PfCalc
    GitHub Action scripts/update-prices.mjs:createRequire(import.meta.url)('./calc.js')
-   改手續費 / 證交稅 / 四捨五入規則只改這一份,兩邊一定一致(history 的 un / ret 才對得上畫面)。
+   兩塊:
+   (1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬 —— 前端畫面與 Action 寫 history 共用,改費率只改這裡
+   (2) 時序:history 切片、日變動、極值、回撤、對比線、每日統計、今日損益、sparkline —— 前端圖表用,純函式方便在 Node 測
    語法刻意停在 ES5(var / function),前後端都零轉譯直接吃。 */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -9,6 +11,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   var DEFAULT_TAX = 0.003;   // 沒在 fees.taxRates 列的類別視為個股稅率
+
+  /* ================= (1) 損益 ================= */
 
   // 單檔:成本、市值、賣出成本(證交稅 + 手續費 × 折數)、未實現損益(已扣賣出成本)
   // 金額都以「元」四捨五入到整數;lots 為張(1 張 = 1000 股,可小數 = 零股)
@@ -46,5 +50,138 @@
     return { cost: t.costAmt, mv: t.mv, unreal: t.unrealized, realized: realized, dividend: dividend, totalReturn: t.unrealized + realized + dividend };
   }
 
-  return { holdingAmounts: holdingAmounts, compute: compute, totals: totals, DEFAULT_TAX: DEFAULT_TAX };
+  /* ================= (2) 時序 ================= */
+
+  function isWeekendYmd(ymd) {
+    var m = String(ymd).split('-');
+    var dow = new Date(+m[0], +m[1] - 1, +m[2]).getDay();
+    return dow === 0 || dow === 6;
+  }
+
+  // history → { full:全史(去週末;有大盤資料後,沒 taiex 的日子視為休市也去掉), hist:區間, off:區間在全史的起點 }
+  // range:0 = 全部、N = 最後 N 筆(交易日)、'ytd' = 今年(以 todayYmd 的年份)
+  function histSlices(history, range, todayYmd) {
+    var all = (Array.isArray(history) ? history : []).filter(function (p) { return p && p.date; });
+    var hasTaiex = all.some(function (p) { return Number(p.taiex) > 0; });
+    var full = all.filter(function (p) { return !isWeekendYmd(p.date) && (!hasTaiex || Number(p.taiex) > 0); });
+    var hist = full;
+    if (range === 'ytd') { var y0 = String(todayYmd || '').slice(0, 4) + '-01-01'; hist = full.filter(function (p) { return String(p.date) >= y0; }); }
+    else if (range > 0) hist = full.slice(-range);
+    return { full: full, hist: hist, off: full.length - hist.length };
+  }
+
+  // 每日變動(第一筆沒有前值 → 0)
+  function dailyChanges(arr) { return arr.map(function (v, i) { return i === 0 ? 0 : v - arr[i - 1]; }); }
+
+  // 極值 index;全相等時 hi === lo
+  function extremes(arr) {
+    var hi = 0, lo = 0;
+    arr.forEach(function (v, i) { if (v > arr[hi]) hi = i; if (v < arr[lo]) lo = i; });
+    return { hi: hi, lo: lo };
+  }
+
+  // 回撤:ret 距「截至當日歷史最高」的差(金額)與佔當日成本 %;每筆 { amt, pct, peakIdx }
+  function drawdown(retArr, costArr) {
+    var peak = -Infinity, peakIdx = 0;
+    return retArr.map(function (r, i) {
+      if (r > peak) { peak = r; peakIdx = i; }
+      var amt = r - peak;
+      return { amt: amt, pct: costArr[i] ? amt / costArr[i] * 100 : 0, peakIdx: peakIdx };
+    });
+  }
+
+  // 區間(從 off 起)內最深回撤:{ idx, amt, pct, peakIdx, days(高點→谷底交易日數), dd(區間切片) };空區間 null
+  function worstDrawdown(ddAll, off) {
+    var dd = ddAll.slice(off);
+    if (!dd.length) return null;
+    var worst = 0;
+    dd.forEach(function (x, i) { if (x.pct < dd[worst].pct) worst = i; });
+    var w = dd[worst];
+    return { idx: worst, amt: w.amt, pct: w.pct, peakIdx: w.peakIdx, days: worst + off - w.peakIdx, dd: dd };
+  }
+
+  // 對比線:以「第一個有大盤資料的點」為 0% 正規化;{ firstT, me, tw, tsmc|null };大盤資料不足 2 點 → null
+  function benchLines(mvArr, taiexArr, tsmcArr) {
+    var firstT = -1, count = 0;
+    for (var i = 0; i < taiexArr.length; i++) if (taiexArr[i] > 0) { if (firstT < 0) firstT = i; count++; }
+    if (firstT < 0 || count < 2) return null;
+    var baseM = mvArr[firstT] || 1, baseT = taiexArr[firstT] || 1, baseS = (tsmcArr && tsmcArr[firstT]) || 0;
+    var norm = function (arr, base) { return arr.slice(firstT).map(function (v) { return v > 0 ? (v / base - 1) * 100 : null; }); };
+    return { firstT: firstT, me: norm(mvArr, baseM), tw: norm(taiexArr, baseT), tsmc: baseS > 0 ? norm(tsmcArr, baseS) : null };
+  }
+
+  // 每日損益統計(熱圖旁的統計卡):days = [{ date, chg }]
+  function dailyStats(days) {
+    var wins = days.filter(function (d) { return d.chg > 0; }), losses = days.filter(function (d) { return d.chg < 0; });
+    var sum = function (a) { return a.reduce(function (s, d) { return s + d.chg; }, 0); };
+    var best = null, worst = null;
+    days.forEach(function (d) { if (!best || d.chg > best.chg) best = d; if (!worst || d.chg < worst.chg) worst = d; });
+    var streak = function (positive) {
+      var max = 0, cur = 0;
+      days.forEach(function (d) { if (positive ? d.chg > 0 : d.chg < 0) { cur++; if (cur > max) max = cur; } else cur = 0; });
+      return max;
+    };
+    var curStreak = 0, curSign = 0;                                 // 從最後一天往回數同號連續天數;正 = 連賺、負 = 連賠
+    for (var i = days.length - 1; i >= 0; i--) {
+      var s = days[i].chg > 0 ? 1 : days[i].chg < 0 ? -1 : 0;
+      if (!s) break;
+      if (!curSign) curSign = s;
+      if (s !== curSign) break;
+      curStreak++;
+    }
+    return {
+      n: days.length, wins: wins.length, losses: losses.length, flat: days.length - wins.length - losses.length,
+      winRate: days.length ? wins.length / days.length : 0,
+      avgWin: wins.length ? sum(wins) / wins.length : 0, avgLoss: losses.length ? sum(losses) / losses.length : 0,
+      best: best, worst: worst, maxWinStreak: streak(true), maxLossStreak: streak(false), curStreak: curStreak * curSign
+    };
+  }
+
+  // 今日損益(Hero):各檔 prevClose 加總;沒有任何昨收就退回「總市值 − history 前一交易日市值」;都沒有 → null
+  function todayChange(rows, prevDay, totalMv) {
+    var pc = rows.filter(function (r) { return r.prevClose > 0 && r.price > 0 && r.lots > 0; });
+    if (pc.length) {
+      var chg = 0, base = 0;
+      pc.forEach(function (r) { chg += Math.round((r.price - r.prevClose) * 1000 * r.lots); base += Math.round(r.prevClose * 1000 * r.lots); });
+      var held = rows.filter(function (r) { return r.price > 0 && r.lots > 0; }).length;
+      return { chg: chg, base: base, pct: base ? chg / base : 0, missing: held - pc.length };
+    }
+    if (prevDay && typeof prevDay.mv === 'number' && prevDay.mv > 0) {
+      return { chg: totalMv - prevDay.mv, base: prevDay.mv, pct: (totalMv - prevDay.mv) / prevDay.mv, missing: 0 };
+    }
+    return null;
+  }
+
+  // sparkline:近 n 筆有該檔價的 history → { pts:[價], taiex:[同日大盤|null] };不足 2 點 → null
+  function sparkSeries(history, code, n) {
+    var out = [];
+    (history || []).forEach(function (h) {
+      if (h && h.prices && h.prices[code] > 0) out.push({ p: h.prices[code], t: Number(h.taiex) > 0 ? Number(h.taiex) : null });
+    });
+    out = out.slice(-(n || 30));
+    if (out.length < 2) return null;
+    return { pts: out.map(function (o) { return o.p; }), taiex: out.map(function (o) { return o.t; }) };
+  }
+
+  // 一段期間的總報酬變化(分享卡「本週 / 本月」):base = 期間開始前最後一筆(沒有就用期間第一筆),end = 全史最後一筆;
+  // pct 以 end 當日成本為分母;series 從 base 到 end(畫走勢線用);期間內沒資料或只有一筆 → null
+  function periodChange(full, startYmd) {
+    if (!full || full.length < 2) return null;
+    var startIdx = -1;
+    for (var i = 0; i < full.length; i++) if (String(full[i].date) >= String(startYmd)) { startIdx = i; break; }
+    if (startIdx < 0) return null;
+    var baseIdx = startIdx > 0 ? startIdx - 1 : 0;
+    if (baseIdx >= full.length - 1) return null;
+    var base = full[baseIdx], end = full[full.length - 1];
+    var chg = (Number(end.ret) || 0) - (Number(base.ret) || 0), cost = Number(end.cost) || 0;
+    return { chg: chg, pct: cost ? chg / cost : 0, from: String(base.date), to: String(end.date), series: full.slice(baseIdx) };
+  }
+
+  return {
+    DEFAULT_TAX: DEFAULT_TAX,
+    holdingAmounts: holdingAmounts, compute: compute, totals: totals,
+    isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
+    drawdown: drawdown, worstDrawdown: worstDrawdown, benchLines: benchLines, dailyStats: dailyStats,
+    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange
+  };
 });
