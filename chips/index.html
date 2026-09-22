@@ -107,7 +107,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
   <div class="mut" style="font-size:13px">用 Fine-grained PAT（只勾此 repo 的 Actions 讀寫）。只存在這台裝置的 localStorage。</div>
   <label>帳號 (owner)</label><input id="cfgOwner" placeholder="jye-tsai">
   <label>Repo</label><input id="cfgRepo" placeholder="tw-daily">
-  <label>Workflow 檔名</label><input id="cfgWf" value="chips.yml">
+  <label>Workflow 檔名</label><input id="cfgWf" value="daily.yml">
   <label>Personal Access Token</label><input id="cfgTok" type="password" placeholder="github_pat_…">
   <label>頁面主題</label>
   <select id="cfgTheme"><option value="">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select>
@@ -137,6 +137,7 @@ async function loadIndex(){
 }
 async function loadDay(tag){
   const t=await (await fetch(`data/${tag}.json?`+Date.now())).json(); current=t; render(t);
+  $('#status').textContent='已載入 '+t.date;
 }
 function render(t){
   const p=t.prev||{};
@@ -197,12 +198,34 @@ $('#btnCopy').onclick=async()=>{
 $('#btnRun').onclick=async()=>{
   if(!cfg.owner||!cfg.repo||!cfg.token){$('#dlg').showModal();return}
   $('#status').textContent='觸發中…';
-  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/dispatches`,{
+  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'daily.yml'}/dispatches`,{
     method:'POST',headers:{Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'},
     body:JSON.stringify({ref:'main',inputs:{date:''}})});
-  $('#status').textContent=r.status===204?'已觸發，約 1–2 分鐘後按「重新載入」':'觸發失敗 HTTP '+r.status+'（檢查 token 權限）';
+  if(r.status!==204){$('#status').textContent='觸發失敗 HTTP '+r.status+'（檢查 workflow 檔名／token 權限）';return}
+  $('#status').textContent='已觸發，等待 Action…';
+  pollRun();
 };
-$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'chips.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
+async function pollRun(){
+  const hdr={Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'};
+  for(let i=0;i<40;i++){
+    await new Promise(r=>setTimeout(r,12000));
+    try{
+      const j=await (await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/runs?per_page=1`,{headers:hdr})).json();
+      const run=(j.workflow_runs||[])[0];if(!run)continue;
+      if(run.status!=='completed'){$('#status').textContent=`Action ${run.status}…（${Math.round(i*12/60)} 分）`;continue}
+      $('#status').textContent=run.conclusion==='success'?'完成，Pages 部署後自動更新…':'Action 失敗：'+run.conclusion;
+      await new Promise(r=>setTimeout(r,60000)); await loadIndex(); return;
+    }catch(e){}
+  }
+  $('#status').textContent='等待超時，請手動重新載入';
+}
+// 下拉重新整理（手機）
+let ty0=null;
+document.addEventListener('touchstart',e=>{ty0=window.scrollY===0?e.touches[0].clientY:null},{passive:true});
+document.addEventListener('touchend',e=>{if(ty0!=null&&e.changedTouches[0].clientY-ty0>90){$('#status').textContent='重新載入…';loadIndex()}ty0=null},{passive:true});
+// 每 10 分鐘自動更新一次
+setInterval(loadIndex,600000);
+$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'daily.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
 $('#cfgSave').onclick=()=>{cfg={owner:$('#cfgOwner').value.trim(),repo:$('#cfgRepo').value.trim(),wf:$('#cfgWf').value.trim(),token:$('#cfgTok').value.trim(),theme:$('#cfgTheme').value};
   try{localStorage.setItem('twdaily_cfg',JSON.stringify(cfg))}catch(e){}
   document.documentElement.dataset.theme=cfg.theme||'';if(!cfg.theme)delete document.documentElement.dataset.theme;$('#dlg').close()};
