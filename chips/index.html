@@ -32,6 +32,15 @@ th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);white
 th:first-child,td:first-child{text-align:left}
 th{color:var(--gray);font-weight:600;font-size:12px}
 .tbl-wrap{overflow-x:auto}
+.oi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
+.oi .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.oi .hd b{font-size:15px}
+.oi .badge{font:700 14px ui-monospace,monospace;padding:2px 8px;border-radius:6px;background:var(--card);border:1px solid var(--line)}
+.oi .ln{display:grid;grid-template-columns:44px 1fr auto;gap:6px;align-items:baseline;font-variant-numeric:tabular-nums;padding:3px 0}
+.oi .ln .k{color:var(--gray);font-size:12px}
+.oi .ln .v{font-family:ui-monospace,monospace;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oi .ln .v b{font-size:15px}
+.oi .ln .d{font:700 13px ui-monospace,monospace;white-space:nowrap}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
@@ -77,9 +86,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 
   <div class="card">
     <h2>臺股期貨 未平倉（前一交易日 → 今日）</h2>
-    <div class="tbl-wrap"><table id="oiTbl">
-      <thead><tr><th>身份別</th><th>多方</th><th>空方</th><th>淨額</th><th>淨額增減</th></tr></thead>
-      <tbody></tbody></table></div>
+    <div id="oiCards"></div>
     <div class="status" id="oiNote"></div>
   </div>
 
@@ -157,15 +164,18 @@ function render(t){
     kp('自營（億）',sgn(i['自營']),'',cls(i['自營'])),
     kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),''),
   ].join('');
-  const tb=$('#oiTbl tbody');tb.innerHTML='';
+  const oc=$('#oiCards');oc.innerHTML='';
   for(const role of ['自營商','投信','外資']){
     const a=(t.txf||{})[role],b=(p.txf||{})[role];if(!a)continue;
-    const d=b?a.net-b.net:null;
-    tb.insertAdjacentHTML('beforeend',`<tr><td><b>${role}</b></td>
-      <td>${b?fmt(b.long)+' → ':''}<b>${fmt(a.long)}</b> <span class="${cls(b?a.long-b.long:0)}">${b?'('+sgn(a.long-b.long)+')':''}</span></td>
-      <td>${b?fmt(b.short)+' → ':''}<b>${fmt(a.short)}</b> <span class="${cls(b?-(a.short-b.short):0)}">${b?'('+sgn(a.short-b.short)+')':''}</span></td>
-      <td>${b?fmt(b.net)+' → ':''}<b class="${cls(a.net)}">${fmt(a.net)}</b></td>
-      <td class="${cls(d)}"><b>${sgn(d)}</b></td></tr>`);
+    const ln=(k,x,y,inv)=>{const d=y!=null?x-y:null;const c=d==null?'mut':cls(inv?-d:d);
+      return `<div class="ln"><span class="k">${k}</span><span class="v">${y!=null?fmt(y)+' → ':''}<b>${fmt(x)}</b></span><span class="d ${c}">${d==null?'':'('+sgn(d)+')'}</span></div>`};
+    const dn=b?a.net-b.net:null;
+    oc.insertAdjacentHTML('beforeend',`<div class="oi">
+      <div class="hd"><b>${role}</b><span class="badge ${cls(dn)}">淨 ${sgn(dn)}</span></div>
+      ${ln('多方',a.long,b&&b.long,false)}
+      ${ln('空方',a.short,b&&b.short,true)}
+      ${ln('淨額',a.net,b&&b.net,false)}
+    </div>`);
   }
   const f=(t.txf||{})['外資'],fp=(p.txf||{})['外資'];
   if(f&&fp){const dl=f.long-fp.long,ds=f.short-fp.short;
