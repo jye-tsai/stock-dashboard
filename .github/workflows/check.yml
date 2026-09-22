@@ -1,0 +1,25 @@
+name: check
+
+# 每次 push / PR 都跑:語法檢查 + calc.js / sw.js 單元測試(node tests/run.mjs)。
+# 用 GitHub 網頁拖檔上傳也算 push,紅燈就代表上錯 / 漏檔,不用等使用者開頁面才發現。
+on:
+  push:
+    paths-ignore:
+      - "data.json"          # 排程每 15 分鐘 commit 一次 data.json,那些不用跑
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: Syntax + unit tests
+        run: node tests/run.mjs
