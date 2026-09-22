@@ -2,10 +2,8 @@ name: 台股盤後籌碼抓取
 
 on:
   schedule:
-    # 台北 15:40（UTC 07:40）週一～週五；期交所三大法人約 15:00、永豐約 15:30 更新
-    - cron: "40 7 * * 1-5"
-    # 保險：台北 16:40 再跑一次（補永豐晚上傳）
-    - cron: "40 8 * * 1-5"
+    - cron: "40 7 * * 1-5"   # 台北 15:40
+    - cron: "40 8 * * 1-5"   # 台北 16:40 補永豐
   workflow_dispatch:
     inputs:
       date:
@@ -30,7 +28,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
 
       - run: pip install requests pandas beautifulsoup4 pymupdf
 
