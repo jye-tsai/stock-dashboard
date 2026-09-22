@@ -21,6 +21,12 @@ H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
 os.makedirs(DATA, exist_ok=True)
 ROLES = ["自營商", "投信", "外資"]
+def role_of(x):
+    x = str(x).strip()
+    if x.startswith("自營"): return "自營商"
+    if x.startswith("投信"): return "投信"
+    if x.startswith("外資"): return "外資"
+    return None
 LOG = []
 def log(s): LOG.append(s); print(s)
 
@@ -54,8 +60,8 @@ def fut_oi(df, name):
     sub = df[df["商品名稱"].astype(str).str.strip().str.replace("台", "臺") == name]
     out = {}
     for _, r in sub.iterrows():
-        role = str(r["身份別"]).strip()
-        if role in ROLES:
+        role = role_of(r["身份別"])
+        if role:
             out[role] = {"long": num(r["多方未平倉口數"]), "short": num(r["空方未平倉口數"]),
                          "net": num(r["多空未平倉口數淨額"]), "day_net": num(r["多空交易口數淨額"])}
     return out
@@ -93,8 +99,8 @@ def taifex_opt(date):
     c_net  = [c for c in df.columns if "未平倉" in c and "淨額" in c and "口數" in c][0]
     out = {}
     for _, r in df.iterrows():
-        role = str(r[c_role]).strip()
-        if role not in ROLES: continue
+        role = role_of(r[c_role])
+        if not role: continue
         cp = "call" if "買" in str(r[c_cp]) else "put"
         out.setdefault(role, {})[cp] = num(r[c_net])
     return out
@@ -105,9 +111,12 @@ def taifex_pc(date):
     txt = decode(r.content)
     if "買賣權" not in txt: return None
     df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
-    row = df.iloc[-1]
     c_vol = [c for c in df.columns if "成交量比率" in c][0]; c_oi = [c for c in df.columns if "未平倉量比率" in c][0]
-    return {"volume_ratio_pct": num(row[c_vol]), "oi_ratio_pct": num(row[c_oi])}
+    df = df.dropna(subset=[c_oi])
+    df = df[pd.to_numeric(df[c_oi].astype(str).str.replace(",", ""), errors="coerce").notna()]
+    if df.empty: return None
+    row = df.iloc[-1]
+    return {"volume_ratio_pct": float(str(row[c_vol]).replace(",", "")), "oi_ratio_pct": float(str(row[c_oi]).replace(",", ""))}
 
 # ─────────────── 期交所：台指VIX（盡力而為，失敗以永豐為準） ───────────────
 def taifex_vix(date):
@@ -150,12 +159,14 @@ def twse_inst(date):
 def twse_margin(date):
     r = requests.get(TWSE + "marginTrading/MI_MARGN", params={"date": ymd(date), "selectType": "MS", "response": "json"}, headers=H, timeout=30)
     j = r.json()
-    if j.get("stat") != "OK": return None
-    rows = j.get("creditList") or (j.get("tables", [{}])[0].get("data", []))
+    if j.get("stat") != "OK": log(f"  融資：證交所回 {j.get('stat')}"); return None
+    rows = j.get("creditList") or []
+    for tb in j.get("tables", []):
+        rows += tb.get("data", []) or []
     for row in rows:
         if "融資金額" in str(row[0]):
-            return round(num(row[5]) / 1e5, 1)   # 仟元 → 億
-    return None
+            return round(num(row[-1]) / 1e5, 1)   # 最後一欄＝今日餘額（仟元→億）
+    log("  融資：找不到「融資金額」列"); return None
 
 # ─────────────── 永豐 PDF → PNG ───────────────
 def spf_fetch(date):
@@ -177,7 +188,9 @@ def spf_fetch(date):
             doc = fitz.open(stream=pdf, filetype="pdf")
             tag = "chips" if "籌碼" in title else "post"
             pngs = []
+            max_pages = 1 if tag == "chips" else 2       # 籌碼快訊 1 頁；盤後快訊只留前 2 頁
             for i, page in enumerate(doc):
+                if i >= max_pages: break
                 fn = f"{ymd(date)}_spf_{tag}_p{i+1}.png"
                 page.get_pixmap(dpi=170).save(os.path.join(DATA, fn)); pngs.append(fn)
             out[title] = pngs
@@ -217,6 +230,9 @@ def collect(date, df):
         try: out[k] = f(date)
         except Exception as e: log(f"  {k} 失敗：{e}"); out[k] = None
     out["vix"] = taifex_vix(date)
+    missing = [k for k in ("opt", "pc", "index", "inst", "margin", "mtx_retail", "tmf_retail") if out.get(k) is None]
+    if "外資" not in out["txf"]: missing.append("txf.外資")
+    if missing: log(f"  {date} 缺：{', '.join(missing)}")
     return out
 
 def s(n): return f"{n:+,}" if isinstance(n, int) else ("—" if n is None else str(n))
