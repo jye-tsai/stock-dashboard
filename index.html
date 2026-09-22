@@ -19,8 +19,9 @@
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script src="scripts/calc.js"></script>
-<link rel="stylesheet" href="styles.css">
+<script src="scripts/calc.js?v=20260922a"></script>
+<!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
+<link rel="stylesheet" href="styles.css?v=20260922a">
 </head>
 <body>
 <div id="splash">
@@ -284,7 +285,7 @@
 </div>
 <div id="toast"></div>
 
-<script src="charts.js"></script>
-<script src="app.js"></script>
+<script src="charts.js?v=20260922a"></script>
+<script src="app.js?v=20260922a"></script>
 </body>
 </html>

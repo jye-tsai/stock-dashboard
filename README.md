@@ -200,7 +200,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 - **本機雙擊 `index.html`(file://)看不到最新資料**:`file://` 下瀏覽器擋掉 `fetch('data.json')`,會退回讀舊快取。要在本機看最新,開小伺服器:資料夾內 `python -m http.server 8000` → 瀏覽器開 `http://localhost:8000/`;或直接看線上 Pages。
 - **上傳用「Upload files」拖檔,別用網頁編輯器貼**:貼上曾造成檔案截斷 / 前後不一致(YAML、index.html 都發生過)。
 - **`data.json` 以 repo 為正本**:排程會 commit 到 repo,本機那份會落後。**別拿本機蓋 repo**(會蓋掉新價與新歷史)。要同步就從 repo 下載覆蓋本機。
-- **看不到更新(圖示 / 靜態檔)**:`sw.js` 對圖片走 stale-while-revalidate:第一次 F5 回舊快取、背景抓新版,**再按一次 F5 就是新的**;PWA 關 App 重開兩次同理。
+- **看不到更新(圖示 / 靜態檔)**:`sw.js` 對圖片走 stale-while-revalidate:第一次 F5 回舊快取、背景抓新版,**再按一次 F5 就是新的**;PWA 關 App 重開兩次同理。.js / .css 有 `?v=` 版本 query,`index.html` 換了 v 就一定抓新檔,不受這條影響。
   改了圖或 `sw.js` 本身,順手把 `sw.js` 的 `CACHE = 'panghu-vN'` 版號 +1,activate 會整包清掉舊快取,一次到位。
   (`Ctrl + F5` 是繞過 Service Worker 直接打網路,所以看得到新圖,但不會寫回 SW 快取,下次 F5 又舊——這是舊版 cache-first 的症狀,v2 起已改。)
 - **Action push 被 reject**:儀表板手動「儲存」直接 PUT 到 repo,若剛好落在 Action checkout 與 push 之間,push 會被拒。workflow 已加 `git pull --rebase` + 重試 3 次;若三次都失敗(同檔衝突)才會紅,下一輪排程會重抓。
@@ -213,7 +213,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 
 ## 改動後要上傳哪些檔
 
-- 改**版面 / 互動** → 上傳 `index.html` / `styles.css` / `app.js`;改**圖表** → `charts.js`。三個 .js / .css 都在 Service Worker 快取清單裡,**順手把 `sw.js` 版號 +1**(不然要 F5 兩次才看到新版)。
+- 改**版面 / 互動** → 上傳 `index.html` / `styles.css` / `app.js`;改**圖表** → `charts.js`。**同時把版本 query 換掉**:`index.html` 四處 `?v=YYYYMMDDx` 與 `sw.js` 的 `ASSET_VER` 改成同一個新值,`CACHE` 版號 +1。不換 v 的後果是「新 app.js 配舊 calc.js」:Service Worker 把舊 calc.js 從快取吐出來,頁面第一次開會卡在載入畫面(2026-09-22 實際發生過一次)。
 - 改**損益計算 / 費率規則 / 時序計算** → 上傳 `scripts/calc.js` + `sw.js`(CACHE 版號 +1)。
 - 改**抓價 / 歷史 / 回補邏輯** → 上傳 `scripts/update-prices.mjs`。
 - 改**排程** → 上傳 `.github/workflows/update-prices.yml`(Cloudflare 那份在 Cloudflare 後台改)。
