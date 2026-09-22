@@ -11,6 +11,7 @@ fetch_all.py ─ 台股盤後籌碼一鍵抓取（期交所＋證交所＋永豐
 """
 import sys, os, io, re, json, datetime as dt
 import requests, pandas as pd
+from urllib.parse import urljoin
 
 TAIFEX = "https://www.taifex.com.tw/cht/3/"
 TWSE   = "https://www.twse.com.tw/rwd/zh/"
@@ -158,26 +159,31 @@ def twse_margin(date):
 
 # ─────────────── 永豐 PDF → PNG ───────────────
 def spf_fetch(date):
+    out = {}
     try:
-        from bs4 import BeautifulSoup; import fitz
-    except ImportError:
-        log("  永豐：缺 bs4/pymupdf，略過"); return {}
-    html = requests.get(SPF_LIST, headers={"User-Agent": H["User-Agent"]}, timeout=30).text
-    soup = BeautifulSoup(html, "html.parser"); out = {}
-    for a in soup.select("a[href$='.pdf']"):
-        title = a.get_text(strip=True)
-        if title not in ("台指期籌碼快訊", "台指期盤後快訊"): continue
-        m = re.search(r"\d{4}/\d{2}/\d{2}", a.parent.get_text(" "))
-        if not m or m.group(0) != date: continue
-        pdf = requests.get(a["href"], headers={"User-Agent": H["User-Agent"]}, timeout=60).content
-        doc = fitz.open(stream=pdf, filetype="pdf")
-        tag = "chips" if "籌碼" in title else "post"
-        pngs = []
-        for i, page in enumerate(doc):
-            fn = f"{ymd(date)}_spf_{tag}_p{i+1}.png"
-            page.get_pixmap(dpi=170).save(os.path.join(DATA, fn)); pngs.append(fn)
-        out[title] = pngs
-    if not out: log(f"  永豐：{date} 尚未上傳")
+        from bs4 import BeautifulSoup
+        try: import pymupdf as fitz
+        except ImportError: import fitz
+        ua = {"User-Agent": H["User-Agent"]}
+        html = requests.get(SPF_LIST, headers=ua, timeout=30).text
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.select("a[href$='.pdf']"):
+            title = a.get_text(strip=True)
+            if title not in ("台指期籌碼快訊", "台指期盤後快訊"): continue
+            m = re.search(r"\d{4}/\d{2}/\d{2}", a.parent.get_text(" "))
+            if not m or m.group(0) != date: continue
+            url = urljoin("https://www.spf.com.tw/", a["href"])       # 相對路徑補成完整網址
+            pdf = requests.get(url, headers=ua, timeout=60).content
+            doc = fitz.open(stream=pdf, filetype="pdf")
+            tag = "chips" if "籌碼" in title else "post"
+            pngs = []
+            for i, page in enumerate(doc):
+                fn = f"{ymd(date)}_spf_{tag}_p{i+1}.png"
+                page.get_pixmap(dpi=170).save(os.path.join(DATA, fn)); pngs.append(fn)
+            out[title] = pngs
+        if not out: log(f"  永豐：{date} 尚未上傳")
+    except Exception as e:
+        log(f"  永豐抓取失敗（{e.__class__.__name__}: {e}），略過")
     return out
 
 # ─────────────── 交易日搜尋 ───────────────
