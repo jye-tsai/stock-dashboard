@@ -1,0 +1,9 @@
+【台股盤後數據】2026/09/22（前一交易日 2026/09/21）
+加權指數 47,800.17  +81.33（自算 +0.17%，分母前收 47718.84）  成交 10,788 億
+三大法人 +608.21 億｜外資 +447.27｜投信 +2.40｜自營 +158.54
+── 臺股期貨 未平倉（前→今）──
+自營商：多 2,199→2,314（+115）  空 5,553→5,772（+219）  淨 -3,354→-3,458（-104）
+投信：多 76,936→76,891（-45）  空 2,917→2,914（-3）  淨 74,019→73,977（-42）
+全市場 Put/Call（OI）0% → 0%
+永豐 PDF 已轉圖：20260922_spf_chips_p1.png、20260922_spf_post_p1.png、20260922_spf_post_p2.png、20260922_spf_post_p3.png、20260922_spf_post_p4.png、20260922_spf_post_p5.png、20260922_spf_post_p6.png、20260922_spf_post_p7.png、20260922_spf_post_p8.png、20260922_spf_post_p9.png、20260922_spf_post_p10.png、20260922_spf_post_p11.png、20260922_spf_post_p12.png、20260922_spf_post_p13.png、20260922_spf_post_p14.png、20260922_spf_post_p15.png、20260922_spf_post_p16.png、20260922_spf_post_p17.png、20260922_spf_post_p18.png、20260922_spf_post_p19.png、20260922_spf_post_p20.png、20260922_spf_post_p21.png、20260922_spf_post_p22.png、20260922_spf_post_p23.png、20260922_spf_post_p24.png、20260922_spf_post_p25.png、20260922_spf_post_p26.png、20260922_spf_post_p27.png、20260922_spf_post_p28.png、20260922_spf_post_p29.png、20260922_spf_post_p30.png
+資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）
