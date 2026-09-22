@@ -2,14 +2,20 @@ name: 台股盤後籌碼抓取
 
 on:
   schedule:
-    - cron: "40 7 * * 1-5"   # 台北 15:40
+    - cron: "40 7 * * 1-5"   # 台北 15:40 盤後
     - cron: "40 8 * * 1-5"   # 台北 16:40 補永豐
+    - cron: "30 13 * * 1-5"  # 台北 21:30 補融資餘額
+    - cron: "0 1 * * 0"      # 週日 09:00 週報草稿
   workflow_dispatch:
     inputs:
       date:
         description: "指定日期 YYYY/MM/DD（留空＝最近交易日）"
         required: false
         default: ""
+      weekly:
+        description: "只產生週報草稿（true/false）"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -24,20 +30,31 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - run: pip install requests pandas beautifulsoup4 pymupdf
 
       - name: 抓資料
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
         run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }}
+
+      - name: LINE 通知（15:40 那班與手動）
+        if: ${{ github.event.schedule == '40 7 * * 1-5' || github.event_name == 'workflow_dispatch' }}
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
+        run: python chips/scripts/notify.py || true
+
+      - name: 週報草稿
+        if: ${{ github.event.schedule == '0 1 * * 0' || github.event.inputs.weekly == 'true' }}
+        run: python chips/scripts/weekly_report.py
 
       - name: Commit
         run: |
           git config user.name  "panghu-bot"
           git config user.email "bot@users.noreply.github.com"
           git add chips/data
-          git diff --cached --quiet && echo "no change" || git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M') 盤後籌碼"
+          git diff --cached --quiet && echo "no change" || git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
           git push
