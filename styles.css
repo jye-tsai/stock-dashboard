@@ -4,6 +4,11 @@
     --fw-regular: 500; --fw-medium: 600; --fw-bold: 700; --fw-heavy: 800; --fw-hero: 880;   /* hero 大字專用 880,其餘最重 800 */
     --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
     --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+    --panel-pad: 16px;
+    /* 字體:系統優先(iPhone / Mac 用 PingFang、Windows 用 Segoe + 微軟正黑),數字用 Inter(Google Fonts,載不到就退回 --font-ui) */
+    --font-ui: -apple-system, BlinkMacSystemFont, "PingFang TC", "Segoe UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    --font-num: "Inter", var(--font-ui);
+    --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);   /* 鍵盤 focus 外圈 */
   }
   /* ===== 主題 ===== */
   :root,
@@ -41,7 +46,7 @@
     --text: #e8edf7; --muted: #93a3c0;
     --title: #f5f0e1; --title-accent: #e0b34d; --title-glow: 0 0 18px rgba(224,179,77,.72), 0 0 40px rgba(224,179,77,.32);
     --label: #b8c4dc; --value: #f3f6fc;
-    --up: #ff6b81; --down: #34d399; --accent: #d4a843;
+    --up: #ff6b81; --down: #2dd4bf; --accent: #d4a843;   /* down 由 #34d399 換成 teal:與 up 的 deutan ΔE 5.0 → 8.9 */
     --shadow: 0 8px 30px rgba(0,0,0,.42);
   }
   [data-theme="sailor"] {                      /* 🌙 美少女:水手月亮 藍/紅/白/金 */
@@ -57,7 +62,7 @@
     --text: #5b4a55; --muted: #b291a3;
     --title: #6b4a5e; --title-accent: #ff8fb8; --title-glow: 0 0 16px rgba(255,143,184,.6), 0 0 30px rgba(255,143,184,.28);
     --label: #8a6b7a; --value: #4a3a44;
-    --up: #f0688f; --down: #2bb39a; --accent: #ff8fb4;
+    --up: #e8558a; --down: #0d9488; --accent: #ff8fb4;   /* 漲跌對 deutan ΔE 3.5 → 7.1(+/- 符號當第二編碼) */
     --shadow: 0 4px 16px rgba(244,143,177,.18);
   }
   [data-theme="agent"] {                       /* Agent Skills：霓虹網格 */
@@ -70,7 +75,7 @@
   }
   
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", "Microsoft JhengHei", sans-serif; padding: 20px; min-height: 100vh; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-ui); padding: 20px; min-height: 100vh; }
   body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1; opacity: 0; }
   [data-theme="agent"] body::before {
     opacity: 1;
@@ -244,7 +249,7 @@
   .up { color: var(--up); } .down { color: var(--down); }
   .today-chg { font-size: var(--fs-xs); font-weight: var(--fw-bold); margin-top: 2px; line-height: 1.2; }
 
-  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; margin-bottom: var(--sp-5); box-shadow: var(--shadow); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--panel-pad); margin-bottom: var(--sp-5); box-shadow: var(--shadow); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
   .panel:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 28px rgba(20,30,50,.14); }
   [data-theme="agent"] .panel {
     border-radius: var(--r-lg);
@@ -594,4 +599,57 @@
   @media (max-width: 800px) {
     .charts { grid-template-columns: 1fr; }
     .sub-charts { grid-template-columns: 1fr; }
+  }
+
+  /* ===== 色弱友善(html.cvd):漲橘 / 跌藍,紅綠色弱也分得出;圖表讀 --up / --down 所以一起換 ===== */
+  html.cvd { --up: #f97316; --down: #2563eb; }
+  html.cvd[data-theme="midnight"], html.cvd[data-theme="agent"] { --up: #fb923c; --down: #60a5fa; }
+
+  /* ===== 鍵盤 focus:所有可互動元素同一個主色外圈,深色主題也看得到 ===== */
+  :focus-visible { outline: none; box-shadow: var(--ring); }
+  .hm-cell:focus-visible { outline: none; }
+
+  /* ===== 緊湊密度(html.compact):間距 / 字級 / 面板內距 / 圖高整體縮 ===== */
+  html.compact {
+    --sp-1: 3px; --sp-2: 6px; --sp-3: 9px; --sp-4: 12px; --sp-5: 14px; --sp-6: 18px;
+    --fs-xs: 10.5px; --fs-sm: 11px; --fs-md: 12px; --fs-base: 13px; --fs-lg: 14px; --fs-xl: 15.5px; --fs-2xl: 20px;
+    --panel-pad: 11px;
+  }
+  html.compact th, html.compact td { padding: 5px 8px; }
+  html.compact .card { min-height: 72px; padding: 9px 12px; }
+  html.compact .card .value { font-size: clamp(20px, 1.5vw, 24px); }
+  html.compact .chart-box { height: 250px; }
+  html.compact .chart-box.h170 { height: 150px; } html.compact .chart-box.h190 { height: 160px; }
+  html.compact .pl-panel .chart-box { height: 230px; }
+
+  /* ===== 數字字體:金額 / 百分比用 Inter(等寬數字),中文照 --font-ui ===== */
+  .hero-num, .hero-pct, .card .value, .card .sub, .ret-total, .ret-rate, .hs .v, .h-ratio, .h-stat .v, .mini-hero, #holdings td:not(:nth-child(-n+3)), #yearly td:not(:first-child) { font-family: var(--font-num); }
+
+  /* ===== 手機迷你 Hero:Hero 捲出畫面後貼在頂部的今日損益列 ===== */
+  .mini-hero {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 85;
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 6px) 12px 6px;
+    background: color-mix(in srgb, var(--card) 92%, var(--bg));
+    border-bottom: 1px solid var(--border); box-shadow: 0 4px 14px rgba(20,30,50,.10); backdrop-filter: blur(12px);
+    font-size: var(--fs-md); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; color: var(--text);
+    transform: translateY(-110%); transition: transform .22s ease;
+  }
+  .mini-hero .k { color: var(--muted); font-weight: var(--fw-medium); }
+  .mini-hero.show { transform: none; }
+  @media (max-width: 600px) { .mini-hero { display: flex; } }
+
+  /* ===== 胖虎賺錢跳一下(每次開頁最多一次;減少動態時由全域規則關掉) ===== */
+  @keyframes mascotHop { 0% { transform: none; } 30% { transform: translateY(-6px) rotate(-6deg); } 60% { transform: none; } 80% { transform: translateY(-3px); } 100% { transform: none; } }
+  img.mascot.happy { animation: mascotHop .7s ease 1; }
+
+  /* ===== 列印 / 存 PDF:白底、藏工具列與分頁鈕、三個分頁全印、面板不跨頁切斷 ===== */
+  @media print {
+    :root { --bg: #fff; --card: #fff; --text: #111; --muted: #555; --title: #000; --border: #ccc; --shadow: none; --label: #444; --value: #000; }
+    body { padding: 0; background: #fff; }
+    body::before, header .toolbar, .view-tabs, #bottom-nav, .hero-actions, .panel-tools, .nav-range, #toast, #ptr, #splash, .modal-bg, #edit-banner, .mini-hero, .empty-note { display: none !important; }
+    .tab-page { display: block !important; }
+    .panel, .card, .h-card { break-inside: avoid; box-shadow: none !important; transform: none !important; }
+    .panel:hover, .card:hover { transform: none !important; }
+    a { color: inherit; text-decoration: none; }
   }

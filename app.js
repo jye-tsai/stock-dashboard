@@ -132,6 +132,7 @@ function render(opts) {
   const moodSrc = moodVal > 0 ? 'panghu.webp' : moodVal < 0 ? 'panghu-sad.webp' : 'panghu-flat.webp';
   const moodTip = moodVal > 0 ? '今天比昨天賺😆' : moodVal < 0 ? '今天比昨天賠😢' : '跟昨天持平😐';
   const mascotImg = `<img class="brand-icon mascot" src="${moodSrc}" alt="胖虎" title="${moodTip}" onerror="if(this.src.indexOf('panghu.webp')<0){this.src='panghu.webp'}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-icon',textContent:'📊'}))}">`;
+  if (moodVal > 0 && !render._hopped) { render._hopped = true; deferFrame(() => { const m = document.querySelector('img.mascot'); if (m) m.classList.add('happy'); }); }
   document.getElementById('dashboard-title').innerHTML = E
     ? `${mascotImg}<input class="title-input" data-path="title" value="${esc(title)}" maxlength="40" title="會儲存到 data.json 的 title 欄位">`
     : `${mascotImg}<span class="brand-title-text">${esc(title)}</span>`;
@@ -360,6 +361,8 @@ function render(opts) {
 
   // 圖表延到下一幀:Hero / 卡片 / 表格先上畫面;#app 顯示後 canvas 才有真實尺寸,不會先畫 0×0 再 resize
   if (withCharts) deferFrame(() => { if (DATA) drawCharts(rows.filter(r => r.mv > 0), ys); });
+  updateFavicon(title);
+  updateMiniHero();
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   restoreActiveTab();
@@ -936,7 +939,7 @@ async function shareCard(previewOnly) {
   const W = 1080, H = 1350, PAD = 60, INNER = W - PAD * 2;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d');
-  const FAM = '"Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
+  const FAM = v('--font-ui') || '"Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
   const font = (w, px) => `${w} ${px}px ${FAM}`;
   const upC = v('--up'), downC = v('--down'), textC = v('--text'), labelC = v('--label') || v('--muted'), mutedC = v('--muted');
   const colorOf = n => n > 0 ? upC : n < 0 ? downC : textC;
@@ -1028,6 +1031,17 @@ function applyChartStyle(t) {
   store.set('pf-chart-style', t);
   if (DATA) render();
 }
+// 色弱友善 / 緊湊密度:html class + 記偏好;色弱會改 --up / --down,圖表要重畫
+function applyFlag(cls, on, key, redraw) {
+  document.documentElement.classList.toggle(cls, on);
+  store.set(key, on ? '1' : '0');
+  const el = document.getElementById(cls + '-toggle'); if (el) el.checked = on;
+  if (redraw && DATA) render();
+}
+document.getElementById('cvd-toggle').addEventListener('change', e => applyFlag('cvd', e.target.checked, 'pf-cvd', true));
+document.getElementById('compact-toggle').addEventListener('change', e => applyFlag('compact', e.target.checked, 'pf-compact', true));
+applyFlag('cvd', store.get('pf-cvd') === '1', 'pf-cvd', false);
+applyFlag('compact', store.get('pf-compact') === '1', 'pf-compact', false);
 document.getElementById('theme-sel').addEventListener('change', e => applyTheme(e.target.value));
 document.getElementById('chart-style-sel').addEventListener('change', e => applyChartStyle(e.target.value));
 applyTheme(store.get('pf-theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'midnight' : 'ocean'));   // 沒選過主題就跟系統深淺
@@ -1071,6 +1085,38 @@ applyChartStyle(store.get('pf-chart-style') || 'match');
     dy = 0;
   }, { passive: true });
 })();
+
+/* ==================== §16a. 分頁 icon / 標題 / 迷你 Hero ==================== */
+// 分頁 icon 畫今日漲跌三角(顏色跟 --up / --down,色弱模式一起變)、標題前綴今日 %;沒有今日損益就還原原本 favicon
+function updateFavicon(title) {
+  const link = document.getElementById('favicon'); if (!link) return;
+  if (!HERO || HERO.heroChg == null) { if (link.dataset.dyn) { link.href = 'favicon.png'; delete link.dataset.dyn; } document.title = title; return; }
+  const pctTxt = `${sign(HERO.heroPct)}${pct(HERO.heroPct)}`;
+  document.title = `${pctTxt} · ${title}`;
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
+  c.fillStyle = v('--card') || '#fff'; roundedRectPath(c, 0, 0, 64, 64, 14); c.fill();
+  c.fillStyle = HERO.heroChg > 0 ? v('--up') : HERO.heroChg < 0 ? v('--down') : v('--muted');
+  c.beginPath();
+  if (HERO.heroChg >= 0) { c.moveTo(32, 12); c.lineTo(56, 52); c.lineTo(8, 52); } else { c.moveTo(8, 12); c.lineTo(56, 12); c.lineTo(32, 52); }
+  c.closePath(); c.fill();
+  link.href = cv.toDataURL('image/png'); link.dataset.dyn = '1';
+}
+// 手機:Hero 面板捲出畫面後,頂部貼一條「今日 ±X(±%)· 總市值」;桌機 CSS 直接不顯示
+function updateMiniHero() {
+  const mini = document.getElementById('mini-hero'); if (!mini) return;
+  if (!HERO || HERO.heroChg == null) { mini.classList.remove('show'); mini.innerHTML = ''; return; }
+  syncMiniHero();
+  mini.innerHTML = `<span class="k">今日</span><span class="${cls(HERO.heroChg)}">${sign(HERO.heroChg)}${fmt(HERO.heroChg)}(${sign(HERO.heroPct)}${pct(HERO.heroPct)})</span><span class="k">總市值</span><span>${fmt(HERO.mv)}</span>`;
+}
+// 用 scroll 事件而不是 IntersectionObserver:IO 在背景分頁 / 某些 WebView 不觸發,scroll + getBoundingClientRect 每個環境都準且夠便宜
+function syncMiniHero() {
+  const mini = document.getElementById('mini-hero'), heroPanel = document.getElementById('hero-panel');
+  if (!mini || !heroPanel) return;
+  const gone = heroPanel.style.display !== 'none' && heroPanel.getBoundingClientRect().bottom < 0;
+  mini.classList.toggle('show', gone && !!HERO);
+}
+window.addEventListener('scroll', syncMiniHero, { passive: true });
 
 /* ==================== §16b. 事件委派 ==================== */
 // HTML 不寫 onclick,改 data-action="fn" data-args='[...]'(JSON 陣列;省略 = 無參數)。

@@ -6,42 +6,44 @@
          alpha 一律用 withAlpha(),不拼 hex 字尾;每張圖的顏色 / 字型從 T(chartTheme())拿,不改 Chart.defaults。 */
 
 /* ==================== 1. 主題色盤 ==================== */
+// slices 前五色都跑過 dataviz validate_palette.js:相鄰 CVD ΔE ≥ 8、正常視力 ≥ 15;第六色固定灰 = 「其他」(刻意低彩度)。
+// 漲跌色不在這裡:一律讀 CSS 變數 --up / --down(主題定義,色弱模式 html.cvd 會覆寫成橘 / 藍)。
 const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent'];
 const CHART_PALETTES = {
   'ocean': {
     name: '海洋藍',
     slices: ['#0284c7', '#e11d48', '#0d9488', '#7c3aed', '#f59e0b', '#64748b'],
-    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)'   // 極值高亮改用 --accent,palette 不再帶 hi / lo
+    dividend: '#0284c7', grid: 'rgba(2,132,199,.14)'
   },
   'coral': {
     name: '珊瑚暖陽',
-    slices: ['#f97316', '#e0394e', '#0f9d76', '#d97706', '#fb7185', '#a8a29e'],
-    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)'
+    slices: ['#f97316', '#0891b2', '#e0394e', '#7c3aed', '#0f9d76', '#a8a29e'],
+    dividend: '#f97316', grid: 'rgba(249,115,22,.16)'
   },
   'matcha': {
     name: '抹茶清新',
-    slices: ['#4d7c45', '#d6443b', '#15803d', '#7c9a3f', '#a16207', '#9ca99b'],
-    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)'
+    slices: ['#3f8a3c', '#7c3aed', '#b45309', '#0284c7', '#d6443b', '#9ca99b'],
+    dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)'
   },
   'midnight': {
     name: '午夜金',
-    slices: ['#e0b34d', '#ff6b81', '#34d399', '#60a5fa', '#c084fc', '#94a3b8'],
-    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)'
+    slices: ['#e0b34d', '#ff6b81', '#2dd4bf', '#60a5fa', '#fb923c', '#94a3b8'],
+    dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)'
   },
   'cute': {
     name: '馬卡龍',
-    slices: ['#ff9ec4', '#8fe0c8', '#ffd98c', '#b9a7ff', '#9fd0ff', '#ffc2a0'],
-    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)'
+    slices: ['#ff9ec4', '#ffd98c', '#5fd3b0', '#b9a7ff', '#ffb27a', '#ffc2a0'],
+    dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)'
   },
   'sailor': {
     name: '美少女',
-    slices: ['#2b3f9e', '#e11d48', '#eab308', '#ec4899', '#0ea5a4', '#a78bdb'],
-    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)'
+    slices: ['#2b3f9e', '#e11d48', '#d4a017', '#0ea5a4', '#c026d3', '#a78bdb'],
+    dividend: '#eab308', grid: 'rgba(43,63,158,.16)'
   },
   'agent': {
     name: 'Agent Neon',
     slices: ['#8b5cf6', '#35d5ff', '#ff4fb8', '#2ee6b8', '#facc15', '#94a3b8'],
-    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
+    dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
   }
 };
 
@@ -61,7 +63,7 @@ function togglePieMode() {
 /* ==================== 2. 通用 helper ==================== */
 // 全域一次性設定:高 DPI 上限 2(iPhone 3x 畫 2x 肉眼無差,像素量少一半);其餘顏色 / 字型都在各圖 options 明寫,不動 defaults
 Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-Chart.defaults.font.family = 'Segoe UI, Microsoft JhengHei, sans-serif';
+Chart.defaults.font.family = getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'Segoe UI, Microsoft JhengHei, sans-serif';
 
 // 顏色加 alpha:#rgb / #rrggbb / #rrggbbaa / rgb() / rgba() 都吃;認不得就原樣回傳
 function withAlpha(color, a) {
@@ -103,13 +105,14 @@ function chartTheme() {
     v, styleKey, isAgent, isDark,
     palette: CHART_PALETTES[styleKey],
     muted: v('--muted'), text: v('--text'), card: v('--card'), border,
+    up: v('--up'), down: v('--down'),                                   // 漲跌色跟主題 / 色弱模式走
     tooltipBg: isAgent ? 'rgba(7,10,22,.99)' : (styleKey === 'midnight' ? 'rgba(18,27,48,.98)' : '#ffffff'),
     tooltipBorder: isAgent ? 'rgba(53,213,255,.72)' : border,
     // tooltip 文字色跟著 tooltip 底色走(深底亮字、白底深字),不受頁面主題影響
     tipTitle: isAgent ? '#67e8f9' : (isDark ? '#f0f4ff' : '#1e293b'),
     tipBody: isAgent ? '#eef4ff' : (isDark ? '#e6ecff' : '#334155'),
     syncCol: isAgent ? 'rgba(103,232,249,.55)' : (isDark ? 'rgba(255,255,255,.32)' : 'rgba(15,23,42,.26)'),   // 走勢圖群十字線
-    chartFont: isAgent ? 'Trebuchet MS, Segoe UI, Microsoft JhengHei, sans-serif' : 'Segoe UI, Microsoft JhengHei, sans-serif',
+    chartFont: (isAgent ? 'Trebuchet MS, ' : '') + (v('--font-ui') || 'Segoe UI, Microsoft JhengHei, sans-serif'),   // 與頁面同一組字體堆疊
     tickColor: isAgent ? '#aebbf0' : v('--muted'),
     zeroLine: isAgent ? 'rgba(200,184,255,.52)' : 'rgba(102,112,133,.34)'
   };
@@ -518,7 +521,7 @@ function drawReturn(T, held) {
     { label: '已實現損益', value: realized, color: P.slices[2] },
     { label: '股息收入', value: dividend, color: P.dividend }
   ];
-  const retColor = total > 0 ? P.gain : total < 0 ? P.loss : (T.isAgent ? '#dfe7ff' : T.text);
+  const retColor = total > 0 ? T.up : total < 0 ? T.down : (T.isAgent ? '#dfe7ff' : T.text);
   const retEl = document.getElementById('retbar');
   if (retEl) {
     retEl.innerHTML = `
@@ -529,7 +532,7 @@ function drawReturn(T, held) {
   let run = 0;
   const bars = comps.map(c => { const from = run; run += c.value; return { label: c.label, from, to: run, v: c.value, total: false }; });
   bars.push({ label: '總報酬', from: 0, to: total, v: total, total: true });
-  const colorOf = b => b.total ? (T.isAgent ? '#67e8f9' : P.slices[0]) : (b.v >= 0 ? P.gain : P.loss);
+  const colorOf = b => b.total ? (T.isAgent ? '#67e8f9' : P.slices[0]) : (b.v >= 0 ? T.up : T.down);
   wfChart = upsertChart(wfChart, canvas, {
     plugins: [wfLabelPlugin],
     type: 'bar',
@@ -561,12 +564,12 @@ function drawPl(T, held) {
     data: { labels: rows.map(r => `${r.name} (${r.code})`), datasets: [{
       label: '未實現損益', data: rows.map(r => r.unrealized),
       backgroundColor: c => {
-        const area = c.chart.chartArea, r = rows[c.dataIndex] || {}, base = r.unrealized >= 0 ? P.gain : P.loss;
+        const area = c.chart.chartArea, r = rows[c.dataIndex] || {}, base = r.unrealized >= 0 ? T.up : T.down;
         if (!area) return base;
         const g = c.chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
         g.addColorStop(0, withAlpha(base, .53)); g.addColorStop(1, base); return g;
       },
-      hoverBackgroundColor: rows.map(r => r.unrealized >= 0 ? P.gain : P.loss),
+      hoverBackgroundColor: rows.map(r => r.unrealized >= 0 ? T.up : T.down),
       borderWidth: 0, borderRadius: 14, borderSkipped: false, minBarLength: 8, maxBarThickness: 28
     }] },
     options: baseOpts({
@@ -580,7 +583,7 @@ function drawPl(T, held) {
       },
       plugins: {
         legend: { display: false },
-        plLabel: { rows, gainColor: P.gain, lossColor: P.loss, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 },
+        plLabel: { rows, gainColor: T.up, lossColor: T.down, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 },
         tooltip: tooltipOpts(T, { displayColors: false, callbacks: {
           title: items => items[0]?.label || '',
           label: c => { const r = rows[c.dataIndex] || {}; return [`未實現損益：${sign(r.unrealized)}${fmt(r.unrealized || 0)}`, `損益比例：${pct(r.plRatio || 0)}`, `成本：${fmt(r.costAmt || 0)}　市值：${fmt(r.mv || 0)}`]; }
@@ -606,8 +609,8 @@ function drawYearly(T, ys) {
   barChart = upsertChartIfVisible(barChart, canvas, {
     type: 'bar',
     data: { labels: years.map(y => y.year + (y.note ? ` ${y.note}` : '')), datasets: [
-      Object.assign({ label: '資本利得', data: capital, backgroundColor: capital.map(v => v >= 0 ? P.gain : P.loss), hoverBackgroundColor: capital.map(v => v >= 0 ? P.gain : P.loss) }, barStyle),
-      Object.assign({ label: '股息收入', data: divs, backgroundColor: divs.map(v => v >= 0 ? P.dividend : P.loss), hoverBackgroundColor: divs.map(v => v >= 0 ? P.dividend : P.loss) }, barStyle)
+      Object.assign({ label: '資本利得', data: capital, backgroundColor: capital.map(v => v >= 0 ? T.up : T.down), hoverBackgroundColor: capital.map(v => v >= 0 ? T.up : T.down) }, barStyle),
+      Object.assign({ label: '股息收入', data: divs, backgroundColor: divs.map(v => v >= 0 ? P.dividend : T.down), hoverBackgroundColor: divs.map(v => v >= 0 ? P.dividend : T.down) }, barStyle)
     ] },
     options: baseOpts({
       layout: { padding: { top: 34, right: 8, bottom: 2, left: 2 } },
@@ -620,7 +623,7 @@ function drawYearly(T, ys) {
       plugins: {
         legend: legendBottom(T, 'rectRounded', { labels: { usePointStyle: true, pointStyle: 'rectRounded', color: A ? '#d4dcff' : T.muted, boxWidth: A ? 14 : 12, boxHeight: A ? 14 : 12, padding: 18, font: font(T, A ? 13 : 12, 800) } }),
         barHoverGlow: { glowColor: A ? 'rgba(255,79,184,.30)' : 'rgba(180,35,24,.18)', borderColor: A ? 'rgba(53,213,255,.72)' : 'rgba(52,64,84,.34)', glowBlur: A ? 24 : 14, radius: 26, lineWidth: A ? 2.5 : 2 },
-        barTotalLabel: { totals: years.map(y => y.total), gainColor: P.gain, lossColor: P.loss, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 },
+        barTotalLabel: { totals: years.map(y => y.total), gainColor: T.up, lossColor: T.down, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 },
         tooltip: tooltipOpts(T, { cornerRadius: 14, padding: 13, bodySpacing: 7, footerSpacing: 9, displayColors: true, boxWidth: 10, boxHeight: 10, boxPadding: 6,
           titleFont: font(T, 13, 850), bodyFont: font(T, 12.5, 750),
           callbacks: {
@@ -669,7 +672,7 @@ function drawNavGroup(T) {
       type: 'line',
       data: { labels, datasets: [
         { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: areaGrad(costColor, .48, .08), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
-        { label: '未實現損益', data: unData, stack: 'comp', borderColor: P.gain, backgroundColor: areaGrad(P.gain, .6, .1), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
+        { label: '未實現損益', data: unData, stack: 'comp', borderColor: T.up, backgroundColor: areaGrad(T.up, .6, .1), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
         { label: '總市值', data: mvData, stack: 'mv', borderColor: T.text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointStyle: 'line',
           pointRadius: mvData.map((_, i) => showPeaks && (i === ex.hi || i === ex.lo) ? 5 : 0),
           pointBackgroundColor: mvData.map((_, i) => i === ex.hi ? hiCol : i === ex.lo ? loCol : 'transparent'),
@@ -699,7 +702,7 @@ function drawNavGroup(T) {
       navChgChart = upsertChart(navChgChart, chgCanvas, {
         plugins: [chgExtremesPlugin, navSyncPlugin],
         type: 'bar',
-        data: { labels, datasets: [{ label: '損益變動', data: chg, backgroundColor: chg.map((v, i) => i === upIdx ? hiCol : i === dnIdx ? loCol : (v >= 0 ? P.gain : P.loss)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }] },
+        data: { labels, datasets: [{ label: '損益變動', data: chg, backgroundColor: chg.map((v, i) => i === upIdx ? hiCol : i === dnIdx ? loCol : (v >= 0 ? T.up : T.down)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }] },
         options: baseOpts({
           interaction: { mode: 'index', intersect: false },
           layout: { padding: { top: 18, right: 10, bottom: 14, left: 2 } },
@@ -722,7 +725,7 @@ function drawNavGroup(T) {
         { label: '我的組合', data: B.me, borderColor: P.slices[0], backgroundColor: withAlpha(P.slices[0], .13), borderWidth: 2.5, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
         { label: '加權指數', data: B.tw, borderColor: T.muted, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
       ];
-      if (B.tsmc) sets.push({ label: '台積電', data: B.tsmc, borderColor: P.slices[1] || P.gain, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
+      if (B.tsmc) sets.push({ label: '台積電', data: B.tsmc, borderColor: P.slices[1] || T.up, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
       drawn.bench = true;
       navBenchChart = upsertChart(navBenchChart, benchCanvas, {
         plugins: [navSyncPlugin],
@@ -747,7 +750,7 @@ function drawNavGroup(T) {
     if (wraps.dd && ddCanvas && W && hist.length >= 2) {
       show(wraps.dd, true);
       const dd = W.dd, cur = dd[dd.length - 1];
-      const ddCol = P.loss, ddHi = loCol;
+      const ddCol = T.down, ddHi = loCol;
       if (ddSub) {
         const peakDate = histFull[W.peakIdx] ? String(histFull[W.peakIdx].date).slice(5) : '';
         const worstTxt = W.pct < 0 ? `最大回撤 ${W.pct.toFixed(1)}%(${peakDate} → ${labels[W.idx]},${W.days} 日,${fmt(W.amt)})` : '區間內沒有回撤';
@@ -809,7 +812,7 @@ function drawHeatmap(T, histFull) {
   const byDate = new Map(shown.map(x => [x.date, x.chg]));
   const maxAbs = Math.max(1, ...shown.map(x => Math.abs(x.chg)));
   const alpha = v => 0.18 + 0.82 * Math.sqrt(Math.min(1, Math.abs(v) / maxAbs));
-  const cellBg = v => v > 0 ? withAlpha(P.gain, alpha(v)) : v < 0 ? withAlpha(P.loss, alpha(v)) : '';
+  const cellBg = v => v > 0 ? withAlpha(T.up, alpha(v)) : v < 0 ? withAlpha(T.down, alpha(v)) : '';
   const today = tpeNow().date, dows = ['一', '二', '三', '四', '五'];
   let html = '<div class="hm-mon" style="grid-column:1;grid-row:1"></div>';
   let lastM = -1;                                                   // 月份列:該週一所在月份變了才標
@@ -837,9 +840,9 @@ function drawHeatmap(T, histFull) {
   if (leg) {
     const steps = [1, .55, .25];
     leg.innerHTML = '<span>賠</span>'
-      + steps.map(t => `<span class="hm-sw" style="background:${withAlpha(P.loss, alpha(t * maxAbs))}"></span>`).join('')
+      + steps.map(t => `<span class="hm-sw" style="background:${withAlpha(T.down, alpha(t * maxAbs))}"></span>`).join('')
       + '<span class="hm-sw" style="background:var(--total-bg)"></span>'
-      + steps.slice().reverse().map(t => `<span class="hm-sw" style="background:${withAlpha(P.gain, alpha(t * maxAbs))}"></span>`).join('')
+      + steps.slice().reverse().map(t => `<span class="hm-sw" style="background:${withAlpha(T.up, alpha(t * maxAbs))}"></span>`).join('')
       + `<span>賺</span><span class="hm-legend-max">最深 = ${fmt(maxAbs)}</span>`;
   }
   if (statsEl) {                                                    // 統計卡(近 26 週)

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>胖虎的小財庫</title>
 <!-- 分頁小圖示(favicon) + PWA:可安裝到手機主畫面、全螢幕、離線 -->
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="icon" type="image/png" href="favicon.png" id="favicon">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0284c7">
 <link rel="apple-touch-icon" href="panghu-icon.png">
@@ -19,9 +19,13 @@
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script src="scripts/calc.js?v=20260922b"></script>
+<script src="scripts/calc.js?v=20260922c"></script>
+<!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260922b">
+<link rel="stylesheet" href="styles.css?v=20260922c">
 </head>
 <body>
 <div id="splash">
@@ -57,6 +61,7 @@
         <button class="btn hidden auth-only" id="logout-btn" data-action="lockUI">🚪 登出</button>
       </div>
     </header>
+    <div class="mini-hero" id="mini-hero" aria-hidden="true"></div>
 
     <div id="edit-banner">編輯模式:可修改標題、持股、年度與帳戶欄位,數值會即時重算。完成後按「💾 儲存 JSON」寫回 data.json。</div>
 
@@ -193,6 +198,8 @@
             <option value="agent">🧬 Agent Neon</option>
           </select>
     </label>
+    <label class="chk settings-opt"><input type="checkbox" id="cvd-toggle"> 色弱友善:漲橘 / 跌藍(取代紅綠)</label>
+    <label class="chk settings-opt"><input type="checkbox" id="compact-toggle"> 緊湊密度(間距 / 字級縮小,一頁看更多)</label>
     <div class="settings-actions">
       <button class="btn hidden auth-only" id="gh-btn" data-action="seq" data-args='["closeSettingsModal", "openGhModal"]'>⚙️ GitHub 同步</button>
       <button class="btn hidden auth-only" id="load-btn" data-action="seq" data-args='["closeSettingsModal", "pickFile"]'>📂 載入 JSON</button>
@@ -287,7 +294,7 @@
 </div>
 <div id="toast"></div>
 
-<script src="charts.js?v=20260922b"></script>
-<script src="app.js?v=20260922b"></script>
+<script src="charts.js?v=20260922c"></script>
+<script src="app.js?v=20260922c"></script>
 </body>
 </html>
