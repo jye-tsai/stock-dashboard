@@ -72,7 +72,7 @@ def taifex_market_oi(date, code):
                       data={"down_type": "1", "commodity_id": code, "queryStartDate": date, "queryEndDate": date},
                       headers=H, timeout=30)
     txt = decode(r.content)
-    if "未沖銷" not in txt: return None
+    if "未沖銷" not in txt: log(f"  {code} 全市場OI：回應非預期（前 80 字）{txt[:80]!r}"); return None
     df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
     col_oi = [c for c in df.columns if "未沖銷" in c][0]
     col_sess = [c for c in df.columns if "交易時段" in c]
@@ -92,25 +92,30 @@ def taifex_opt(date):
     r = requests.post(TAIFEX + "callsAndPutsDateDown",
                       data={"queryStartDate": date, "queryEndDate": date, "commodityId": "TXO"}, headers=H, timeout=30)
     txt = decode(r.content)
-    if "身份別" not in txt: return None
+    if "身份別" not in txt: log("  選擇權：CSV 無身份別欄"); return None
     df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
     c_role = [c for c in df.columns if "身份" in c][0]
     c_cp   = [c for c in df.columns if "權別" in c or "買賣權" in c][0]
     c_net  = [c for c in df.columns if "未平倉" in c and "淨額" in c and "口數" in c][0]
+    df[c_role] = df[c_role].ffill(); df[c_cp] = df[c_cp].ffill()      # CSV 合併儲存格會留空 → 往下補
     out = {}
     for _, r in df.iterrows():
         role = role_of(r[c_role])
         if not role: continue
-        cp = "call" if "買" in str(r[c_cp]) else "put"
-        out.setdefault(role, {})[cp] = num(r[c_net])
+        cp_raw = str(r[c_cp]).strip().upper()
+        cp = "call" if ("買" in cp_raw or "CALL" in cp_raw) else "put" if ("賣" in cp_raw or "PUT" in cp_raw) else None
+        if cp: out.setdefault(role, {})[cp] = num(r[c_net])
+    if "外資" in out and ("call" not in out["外資"] or "put" not in out["外資"]):
+        log(f"  選擇權：外資僅抓到 {list(out['外資'])}；權別欄值範例 {df[c_cp].dropna().unique()[:4].tolist()}")
     return out
 
 # ─────────────── 期交所：P/C ratio ───────────────
 def taifex_pc(date):
     r = requests.post(TAIFEX + "pcRatioDown", data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
     txt = decode(r.content)
-    if "買賣權" not in txt: return None
+    if "買賣權" not in txt: log(f"  P/C：回應非預期（前 80 字）{txt[:80]!r}"); return None
     df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
+    log(f"  P/C 欄位：{df.columns.tolist()}")
     c_vol = [c for c in df.columns if "成交量比率" in c][0]; c_oi = [c for c in df.columns if "未平倉量比率" in c][0]
     df = df.dropna(subset=[c_oi])
     df = df[pd.to_numeric(df[c_oi].astype(str).str.replace(",", ""), errors="coerce").notna()]
@@ -158,7 +163,9 @@ def twse_inst(date):
 # ─────────────── 證交所：融資餘額（億） ───────────────
 def twse_margin(date):
     r = requests.get(TWSE + "marginTrading/MI_MARGN", params={"date": ymd(date), "selectType": "MS", "response": "json"}, headers=H, timeout=30)
-    j = r.json()
+    try: j = r.json()
+    except Exception: log(f"  融資：非 JSON 回應 {r.text[:80]!r}"); return None
+    log(f"  融資 keys：{list(j.keys())[:8]}")
     if j.get("stat") != "OK": log(f"  融資：證交所回 {j.get('stat')}"); return None
     rows = j.get("creditList") or []
     for tb in j.get("tables", []):
@@ -224,7 +231,10 @@ def collect(date, df):
     out = {"date": date}
     out["txf"] = fut_oi(df, "臺股期貨"); out["mtx"] = fut_oi(df, "小型臺指期貨"); out["tmf"] = fut_oi(df, "微型臺指期貨")
     for key, code in (("mtx", "MTX"), ("tmf", "TMF")):
-        try: out[key + "_retail"] = retail_ratio(taifex_market_oi(date, code), out[key])
+        try:
+            moi = taifex_market_oi(date, code)
+            if not out[key]: log(f"  {code} 三大法人列為空（商品名稱比對失敗？CSV 商品名：{df['商品名稱'].astype(str).str.strip().unique()[:6].tolist()}）")
+            out[key + "_retail"] = retail_ratio(moi, out[key])
         except Exception as e: log(f"  {code} 全市場OI 失敗：{e}"); out[key + "_retail"] = None
     for k, f in (("opt", taifex_opt), ("pc", taifex_pc), ("index", twse_index), ("inst", twse_inst), ("margin", twse_margin)):
         try: out[k] = f(date)
@@ -264,6 +274,7 @@ def claude_text(t, p):
     if t.get("vix") is not None: L.append(f"台指VIX {p.get('vix','—')} → {t['vix']}")
     if t.get("spf"): L.append("永豐 PDF 已轉圖：" + "、".join(fn for v in t["spf"].values() for fn in v))
     L.append("資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）")
+    if LOG: L.append("── 抓取日誌 ──"); L += LOG
     return "\n".join(L)
 
 def main():
