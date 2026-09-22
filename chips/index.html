@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#172A52">
+<title>胖虎盤後籌碼站</title>
+<style>
+:root{
+  --bg:#F8F4E8;--navy:#172A52;--red:#C4282E;--green:#148046;--gold:#B0842C;--gray:#696970;--ink:#23232A;--card:#fff;--line:#46588233;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22}}
+:root[data-theme=dark]{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC",-apple-system,system-ui,sans-serif}
+header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header .logo{width:44px;height:44px;border-radius:50%;background:#FFD682;display:grid;place-items:center;font-size:26px}
+header h1{font-size:18px;margin:0;line-height:1.2}
+header .sub{font-size:12px;color:#FFD682}
+header .sp{flex:1}
+button{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:14px}
+.btn-gold{background:var(--gold);color:#fff}.btn-red{background:var(--red);color:#fff}.btn-navy{background:var(--navy);color:#fff}
+.btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff55}
+main{max-width:920px;margin:0 auto;padding:14px 12px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.card h2{margin:0 0 8px;font-size:15px;color:var(--gold);display:flex;align-items:center;gap:8px}
+.big{font:700 34px/1.1 "DejaVu Sans Mono",ui-monospace,monospace}
+.up{color:var(--red)}.dn{color:var(--green)}.mut{color:var(--gray)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--gray);font-weight:600;font-size:12px}
+.tbl-wrap{overflow-x:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
+.kpi .d{font-size:12px}
+.status{font-size:13px;color:var(--gray);padding:6px 2px}
+pre{background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;font-size:13px}
+.imgs img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin-top:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px}
+dialog{border:0;border-radius:14px;padding:18px;max-width:420px;width:92vw;background:var(--card);color:var(--ink)}
+dialog label{display:block;font-size:13px;color:var(--gray);margin-top:10px}
+dialog input{width:100%}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700;color:#fff}
+footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🐶</div>
+  <div><h1>胖虎盤後籌碼站</h1><div class="sub" id="hdrDate">讀取中…</div></div>
+  <div class="sp"></div>
+  <button class="btn-ghost" id="btnSettings" title="設定 GitHub 觸發">⚙️</button>
+</header>
+
+<main>
+  <div class="row" style="margin-bottom:12px">
+    <select id="dateSel"></select>
+    <button class="btn-gold" id="btnCopy">📋 複製給 Claude</button>
+    <button class="btn-red" id="btnRun">▶ 立即抓取</button>
+    <button class="btn-navy" id="btnReload">🔄 重新載入</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="card">
+    <h2>加權指數 <span class="tag" id="dayTag" style="background:var(--navy)"></span></h2>
+    <div class="row" style="align-items:baseline;gap:16px">
+      <div class="big" id="idxClose">—</div>
+      <div id="idxChg" style="font-weight:700;font-size:18px">—</div>
+      <div class="mut" id="idxAmt"></div>
+    </div>
+    <div class="grid" style="margin-top:10px" id="instGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>臺股期貨 未平倉（前一交易日 → 今日）</h2>
+    <div class="tbl-wrap"><table id="oiTbl">
+      <thead><tr><th>身份別</th><th>多方</th><th>空方</th><th>淨額</th><th>淨額增減</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="status" id="oiNote"></div>
+  </div>
+
+  <div class="card">
+    <h2>散戶與情緒（前 → 今）</h2>
+    <div class="grid" id="sentGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>給 Claude 的數據表</h2>
+    <pre id="claudeText">—</pre>
+  </div>
+
+  <div class="card imgs">
+    <h2>永豐快訊（對照）</h2>
+    <div id="spfImgs" class="mut">尚無</div>
+  </div>
+
+  <div class="card"><h2>抓取日誌</h2><pre id="logBox" class="mut">—</pre></div>
+</main>
+<footer>資料：期交所・證交所・永豐期貨｜多空比＝散戶淨多單／全市場OI（自算）｜跌綠漲紅</footer>
+
+<dialog id="dlg">
+  <h3 style="margin:0 0 6px">⚙️ GitHub 觸發設定</h3>
+  <div class="mut" style="font-size:13px">用 Fine-grained PAT（只勾此 repo 的 Actions 讀寫）。只存在這台裝置的 localStorage。</div>
+  <label>帳號 (owner)</label><input id="cfgOwner" placeholder="jye-tsai">
+  <label>Repo</label><input id="cfgRepo" placeholder="tw-daily">
+  <label>Workflow 檔名</label><input id="cfgWf" value="chips.yml">
+  <label>Personal Access Token</label><input id="cfgTok" type="password" placeholder="github_pat_…">
+  <label>頁面主題</label>
+  <select id="cfgTheme"><option value="">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select>
+  <div class="row" style="margin-top:14px;justify-content:flex-end">
+    <button class="btn-ghost" style="color:var(--ink);border-color:var(--line)" id="cfgClear">清除</button>
+    <button class="btn-navy" id="cfgSave">儲存</button>
+  </div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const fmt=n=>n==null?'—':Number(n).toLocaleString('en-US');
+const sgn=n=>n==null?'—':(n>0?'+':'')+Number(n).toLocaleString('en-US');
+const cls=n=>n>0?'up':n<0?'dn':'mut';
+const pct=(n,d=2)=>n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
+let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e){}
+if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
+
+let current=null;
+async function loadIndex(){
+  try{
+    const idx=await (await fetch('data/index.json?'+Date.now())).json();
+    $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
+    if(idx.length)await loadDay(idx[0]);
+    else $('#status').textContent='尚無資料，請先跑一次 Action';
+  }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
+}
+async function loadDay(tag){
+  const t=await (await fetch(`data/${tag}.json?`+Date.now())).json(); current=t; render(t);
+}
+function render(t){
+  const p=t.prev||{};
+  $('#hdrDate').textContent=`${t.date}（前一交易日 ${p.date||'—'}）・產生 ${t.generated_at||''}`;
+  $('#dayTag').textContent=t.date;
+  const ix=t.index||{},pix=p.index||{};
+  $('#idxClose').textContent=fmt(ix.close); $('#idxClose').className='big '+cls(ix.chg);
+  const cp=pix.close?ix.chg/pix.close*100:null;
+  $('#idxChg').textContent=ix.chg==null?'—':`${ix.chg>0?'▲':'▼'}${fmt(Math.abs(ix.chg))}（${pct(cp)}）`;$('#idxChg').className=cls(ix.chg);
+  $('#idxAmt').textContent=ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'';
+  const i=t.inst||{};
+  const kp=(l,v,d,c)=>`<div class="kpi"><div class="l">${l}</div><div class="v ${c||''}">${v}</div><div class="d mut">${d||''}</div></div>`;
+  $('#instGrid').innerHTML=[
+    kp('三大法人（億）',sgn(i['合計']),'',cls(i['合計'])),
+    kp('外資（億）',sgn(i['外資']),'',cls(i['外資'])),
+    kp('投信（億）',sgn(i['投信']),'',cls(i['投信'])),
+    kp('自營（億）',sgn(i['自營']),'',cls(i['自營'])),
+    kp('融資餘額（億）',fmt(t.margin),p.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:'',''),
+  ].join('');
+  const tb=$('#oiTbl tbody');tb.innerHTML='';
+  for(const role of ['自營商','投信','外資']){
+    const a=(t.txf||{})[role],b=(p.txf||{})[role];if(!a)continue;
+    const d=b?a.net-b.net:null;
+    tb.insertAdjacentHTML('beforeend',`<tr><td><b>${role}</b></td>
+      <td>${b?fmt(b.long)+' → ':''}<b>${fmt(a.long)}</b> <span class="${cls(b?a.long-b.long:0)}">${b?'('+sgn(a.long-b.long)+')':''}</span></td>
+      <td>${b?fmt(b.short)+' → ':''}<b>${fmt(a.short)}</b> <span class="${cls(b?-(a.short-b.short):0)}">${b?'('+sgn(a.short-b.short)+')':''}</span></td>
+      <td>${b?fmt(b.net)+' → ':''}<b class="${cls(a.net)}">${fmt(a.net)}</b></td>
+      <td class="${cls(d)}"><b>${sgn(d)}</b></td></tr>`);
+  }
+  const f=(t.txf||{})['外資'],fp=(p.txf||{})['外資'];
+  if(f&&fp){const dl=f.long-fp.long,ds=f.short-fp.short;
+    const tag=dl>0&&ds<0?'加多減空・拆保險':dl>0&&ds>0?'加多加空・保險加厚':dl<0&&ds>0?'砍多加空・收傘':dl<0&&ds<0?'砍多減空・縮手':'小動作';
+    $('#oiNote').textContent=`外資：${tag}；淨空 ${f.net>-80000?'低於':'高於'} 8 萬口基態`;}
+  const g=[];
+  const rr=(name,k)=>{const a=t[k],b=p[k];if(!a)return;g.push(kp(name+'散戶多空比',pct(a.ratio_pct),b?`${pct(b.ratio_pct)} → 今；散戶淨 ${sgn(a.retail_net)}`:'',cls(a.ratio_pct)))};
+  rr('小台','mtx_retail');rr('微台','tmf_retail');
+  if(t.pc)g.push(kp('全市場 Put/Call（OI）',t.pc.oi_ratio_pct+'%',p.pc?`${p.pc.oi_ratio_pct}% → 今`:'',''));
+  if(t.vix!=null)g.push(kp('台指VIX',t.vix,p.vix!=null?`${p.vix} → 今`:'',''));
+  const o=(t.opt||{})['外資'],op=(p.opt||{})['外資'];
+  if(o){g.push(kp('外資買權淨OI',sgn(o.call),op?`${sgn(op.call)} → 今（${sgn(o.call-op.call)}）`:'',cls(o.call)));
+        g.push(kp('外資賣權淨OI',sgn(o.put),op?`${sgn(op.put)} → 今（${sgn(o.put-op.put)}）`:'',cls(-o.put)));}
+  $('#sentGrid').innerHTML=g.join('')||'<span class="mut">—</span>';
+  $('#claudeText').textContent=t.claude_text||'—';
+  const imgs=Object.values(t.spf||{}).flat();
+  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（Action 16:40 會再抓一次）</span>';
+  $('#logBox').textContent=(t.log||[]).join('\n')||'—';
+}
+$('#dateSel').onchange=e=>loadDay(e.target.value);
+$('#btnReload').onclick=()=>loadIndex();
+$('#btnCopy').onclick=async()=>{
+  if(!current)return;
+  const base=location.href.replace(/index\.html$/,'').replace(/\/$/,'')+'/data/';
+  const imgs=Object.values(current.spf||{}).flat().map(fn=>base+fn);
+  const txt=current.claude_text+(imgs.length?'\n永豐圖：\n'+imgs.join('\n'):'');
+  try{await navigator.clipboard.writeText(txt);$('#status').textContent='已複製，貼到 Claude 即可'}
+  catch(e){$('#status').textContent='複製失敗，請手動選取下方文字'}
+};
+$('#btnRun').onclick=async()=>{
+  if(!cfg.owner||!cfg.repo||!cfg.token){$('#dlg').showModal();return}
+  $('#status').textContent='觸發中…';
+  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/dispatches`,{
+    method:'POST',headers:{Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'},
+    body:JSON.stringify({ref:'main',inputs:{date:''}})});
+  $('#status').textContent=r.status===204?'已觸發，約 1–2 分鐘後按「重新載入」':'觸發失敗 HTTP '+r.status+'（檢查 token 權限）';
+};
+$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'chips.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
+$('#cfgSave').onclick=()=>{cfg={owner:$('#cfgOwner').value.trim(),repo:$('#cfgRepo').value.trim(),wf:$('#cfgWf').value.trim(),token:$('#cfgTok').value.trim(),theme:$('#cfgTheme').value};
+  try{localStorage.setItem('twdaily_cfg',JSON.stringify(cfg))}catch(e){}
+  document.documentElement.dataset.theme=cfg.theme||'';if(!cfg.theme)delete document.documentElement.dataset.theme;$('#dlg').close()};
+$('#cfgClear').onclick=()=>{cfg={};try{localStorage.removeItem('twdaily_cfg')}catch(e){}$('#dlg').close()};
+loadIndex();
+</script>
+</body>
+</html>
