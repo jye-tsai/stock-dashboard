@@ -53,7 +53,7 @@ def taifex_fut(date):
                       data={"queryStartDate": date, "queryEndDate": date, "commodityId": ""}, headers=H, timeout=30)
     txt = decode(r.content)
     if "商品名稱" not in txt: return None
-    df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
+    df = pd.read_csv(io.StringIO(txt), index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     return df if not df.empty else None
 
 def fut_oi(df, name):
@@ -73,7 +73,7 @@ def taifex_market_oi(date, code):
                       headers=H, timeout=30)
     txt = decode(r.content)
     if "未沖銷" not in txt: log(f"  {code} 全市場OI：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt), dtype=str); df.columns = [c.strip() for c in df.columns]
+    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     col_oi = [c for c in df.columns if "未沖銷" in c][0]
     col_sess = [c for c in df.columns if "交易時段" in c]
     sub = df
@@ -86,7 +86,7 @@ def taifex_market_oi(date, code):
     if total == 0:
         log(f"  {code} 全市場OI=0；欄位 {df.columns.tolist()}；列數 {len(df)}；時段值 {df[col_sess[0]].unique()[:4].tolist() if col_sess else '-'}；OI樣本 {df[col_oi].head(3).tolist()}")
         return None
-    log(f"  {code} 全市場OI {total:,}（{len(sub)} 列）")
+    log(f"  {code} 全市場OI {total:,}（{len(sub)} 列；欄 {col_oi}）")
     return total
 
 def retail_ratio(market_oi, inst):
@@ -103,7 +103,7 @@ def taifex_opt(date):
                       data={"queryStartDate": date, "queryEndDate": date, "commodityId": "TXO"}, headers=H, timeout=30)
     txt = decode(r.content)
     if "身份別" not in txt: log("  選擇權：CSV 無身份別欄"); return None
-    df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
+    df = pd.read_csv(io.StringIO(txt), index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     c_role = [c for c in df.columns if "身份" in c][0]
     c_cp   = [c for c in df.columns if "權別" in c or "買賣權" in c][0]
     c_net  = [c for c in df.columns if "未平倉" in c and "淨額" in c and "口數" in c][0]
@@ -124,7 +124,7 @@ def taifex_pc(date):
     r = requests.post(TAIFEX + "pcRatioDown", data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
     txt = decode(r.content)
     if "買賣權" not in txt: log(f"  P/C：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt), dtype=str); df.columns = [c.strip() for c in df.columns]
+    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
     c_date = [c for c in df.columns if "日期" in c][0]
     c_vol = [c for c in df.columns if "成交量比率" in c][0]; c_oi = [c for c in df.columns if "未平倉量比率" in c][0]
     def f(v):
@@ -137,17 +137,7 @@ def taifex_pc(date):
 
 # ─────────────── 期交所：台指VIX（盡力而為，失敗以永豐為準） ───────────────
 def taifex_vix(date):
-    try:
-        r = requests.post("https://www.taifex.com.tw/cht/7/vixMinNewDown",
-                          data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
-        txt = decode(r.content)
-        df = pd.read_csv(io.StringIO(txt)); df.columns = [c.strip() for c in df.columns]
-        cols = [c for c in df.columns if "VIX" in c.upper() or "波動" in c]
-        if not cols: log(f"  VIX 欄位：{df.columns.tolist()[:8]}")
-        c = cols[-1]
-        return float(pd.to_numeric(df[c], errors="coerce").dropna().iloc[-1])
-    except Exception as e:
-        log(f"  VIX 抓取失敗（{e.__class__.__name__}），請以永豐快訊為準"); return None
+    return None   # 期交所無 CSV 端點，VIX 以永豐快訊為準
 
 # ─────────────── 證交所：加權指數／成交金額 ───────────────
 def twse_index(date):
