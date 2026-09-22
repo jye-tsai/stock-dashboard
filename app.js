@@ -1135,13 +1135,20 @@ function updateMiniHero() {
   mini.innerHTML = `<span class="k">今日</span><span class="${cls(HERO.heroChg)}">${sign(HERO.heroChg)}${fmt(HERO.heroChg)}(${sign(HERO.heroPct)}${pct(HERO.heroPct)})</span><span class="k">總市值</span><span>${fmt(HERO.mv)}</span>`;
 }
 // 用 scroll 事件而不是 IntersectionObserver:IO 在背景分頁 / 某些 WebView 不觸發,scroll + getBoundingClientRect 每個環境都準且夠便宜
+// iOS 的 scroll 事件在慣性捲動 / 下拉回彈 / reload 還原捲動位置時常少最後一發,單靠 scroll 會卡在「亮著」:
+// (1) 頁面在頂端(scrollY ≤ 40)一律不顯示;(2) 每次 scroll 後 150ms 再對一次落定位置;(3) touchend / scrollend 也對一次
 function syncMiniHero() {
   const mini = document.getElementById('mini-hero'), heroPanel = document.getElementById('hero-panel');
   if (!mini || !heroPanel) return;
-  const gone = heroPanel.style.display !== 'none' && heroPanel.getBoundingClientRect().bottom < 0;
+  const atTop = (window.scrollY || document.documentElement.scrollTop || 0) <= 40;
+  const gone = !atTop && heroPanel.style.display !== 'none' && heroPanel.getBoundingClientRect().bottom < 0;
   mini.classList.toggle('show', gone && !!HERO);
 }
-window.addEventListener('scroll', syncMiniHero, { passive: true });
+let _miniTimer = 0;
+const syncMiniHeroSettled = () => { syncMiniHero(); clearTimeout(_miniTimer); _miniTimer = setTimeout(syncMiniHero, 150); };
+window.addEventListener('scroll', syncMiniHeroSettled, { passive: true });
+window.addEventListener('scrollend', syncMiniHero, { passive: true });
+window.addEventListener('touchend', syncMiniHeroSettled, { passive: true });
 
 /* ==================== §16b. 事件委派 ==================== */
 // HTML 不寫 onclick,改 data-action="fn" data-args='[...]'(JSON 陣列;省略 = 無參數)。

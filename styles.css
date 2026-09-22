@@ -642,6 +642,7 @@
     border-bottom: 1px solid var(--border); box-shadow: 0 4px 14px rgba(20,30,50,.10); backdrop-filter: blur(12px);
     font-size: var(--fs-md); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; color: var(--text);
     transform: translateY(-110%); transition: transform .22s ease;
+    pointer-events: none;                                   /* 純資訊列,亮著也不擋底下任何點擊 */
   }
   .mini-hero .k { color: var(--muted); font-weight: var(--fw-medium); }
   .mini-hero.show { transform: none; }
