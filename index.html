@@ -19,9 +19,9 @@
   }
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script src="scripts/calc.js?v=20260922a"></script>
+<script src="scripts/calc.js?v=20260922b"></script>
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260922a">
+<link rel="stylesheet" href="styles.css?v=20260922b">
 </head>
 <body>
 <div id="splash">
@@ -71,6 +71,8 @@
         <div class="hero-actions"><label class="hero-opt"><input type="checkbox" id="share-pct-only"> 只顯示 %</label><select id="share-mode" class="share-mode" aria-label="分享期間"><option value="day">今日</option><option value="week">本週</option><option value="month">本月</option></select><button class="btn sm" type="button" data-action="shareCard">📤 分享戰報</button></div>
       </div>
 
+      <div class="cards" id="cards"></div>
+
       <div class="panel full-panel">
         <h2>總報酬</h2>
         <div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div>
@@ -99,7 +101,7 @@
         <div class="sub-charts">
         <div id="navchg-wrap" style="display:none">
           <div class="chart-subtitle">每日損益變動（紅賺綠賠，較前一日未實現損益；區間內賺最多、賠最多以高亮色標示）</div>
-          <div class="chart-box h150"><canvas id="navchg"></canvas></div>
+          <div class="chart-box h170"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
           <div class="chart-subtitle">報酬對比（以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
@@ -124,7 +126,6 @@
         </div>
       </div>
 
-      <div class="cards" id="cards"></div>
 
       <div class="panel full-panel pl-panel">
         <h2>持股損益</h2>
@@ -140,6 +141,7 @@
           <span class="panel-tools">
             <button class="btn sm hidden edit-only" data-action="addHolding">➕ 新增持股</button>
             <label class="chk"><input type="checkbox" id="hide-zero" checked> 隱藏零持股</label>
+            <label class="chk"><input type="checkbox" id="all-cols"> 顯示全部欄位</label>
           </span>
         </h2>
         <div class="chart-subtitle" id="price-updated"></div>
@@ -285,7 +287,7 @@
 </div>
 <div id="toast"></div>
 
-<script src="charts.js?v=20260922a"></script>
-<script src="app.js?v=20260922a"></script>
+<script src="charts.js?v=20260922b"></script>
+<script src="app.js?v=20260922b"></script>
 </body>
 </html>

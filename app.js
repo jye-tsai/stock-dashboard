@@ -174,10 +174,7 @@ function render(opts) {
         <div class="label">今日損益</div>
         <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
-      <div class="hero-side">
-        <div><div class="label">總市值</div><div class="hero-sub">${fmt(t.mv)}</div></div>
-        <div><div class="label">總報酬</div><div class="hero-sub ${cls(totalPL)}">${sign(totalPL)}${fmt(totalPL)} · ${sign(heroRate)}${pct(heroRate)}</div></div>
-      </div>`;
+      </div>`;                                   // 總市值 / 總報酬看正下方的摘要卡片列,Hero 只講今日損益一件事
     }
   }
 
@@ -218,11 +215,12 @@ function render(opts) {
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
   const types = Object.keys(d.fees.taxRates);
+  const OPT_COLS = new Set(['sellCost', 'costPctOfTotal', 'mvPctOfTotal']);   // 平常用不到的欄,預設收起(CSS .col-opt)
   const cols = [['類型','type'],['代號','code'],['名稱','name'],['成本','cost'],['市價','price'],['走勢','spark'],['張數','lots'],['成本金額','costAmt'],['市值','mv'],['賣出(稅+費)','sellCost'],['未實現損益','unrealized'],['損益比例','plRatio'],['成本比例','costPctOfTotal'],['市值比例','mvPctOfTotal'],['更新時間','priceTime']];
   const headHtml = cols.map(([label, key]) => {
     if (key === 'spark') return `<th title="近 30 個交易日收盤走勢(由 Action 寫入 history[].prices)">${label}</th>`;
     const arrow = holdSort.key === key ? (holdSort.dir < 0 ? ' ▼' : ' ▲') : '';
-    return `<th class="th-sort" data-action="sortHoldings" data-args='["${key}"]' title="點擊排序">${label}${arrow}</th>`;
+    return `<th class="th-sort${OPT_COLS.has(key) ? ' col-opt' : ''}" data-action="sortHoldings" data-args='["${key}"]' title="點擊排序">${label}${arrow}</th>`;
   }).join('') + (E ? '<th></th>' : '');
   const ptimeCell = r => `<td title="${r.priceTime ? esc(r.priceTime) : '尚未由 Action 更新'}" class="ptime">${r.priceTime ? esc(r.priceTime.slice(5)) : '—'}</td>`;
   // 今日漲跌%(相對昨收 prevClose;缺昨收就不顯示)
@@ -290,20 +288,20 @@ function render(opts) {
           + dstat('⚠️ 停損價', r.stop > 0 ? `${fmt2(r.stop)}　${toS}` : '—');
       }
       return `<tr class="hold-row ${hitClass}" data-action="toggleHoldDetail">${cells}
-        <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td>${fmt(r.sellCost)}</td>
+        <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td class="col-opt">${fmt(r.sellCost)}</td>
         <td class="${cls(r.unrealized)}">${sign(r.unrealized)}${fmt(r.unrealized)}</td>
         <td class="${cls(r.unrealized)}">${pct(r.plRatio)}</td>
-        <td>${pct(r.costPctOfTotal)}</td><td>${pct(r.mvPctOfTotal)}</td>
+        <td class="col-opt">${pct(r.costPctOfTotal)}</td><td class="col-opt">${pct(r.mvPctOfTotal)}</td>
         ${ptimeCell(r)}
         ${E ? `<td><button class="btn sm danger" data-action="delHolding" data-args='[${i}]'>🗑</button></td>` : ''}
       </tr>
       <tr class="hold-detail" style="display:${E ? '' : 'none'}"><td colspan="${colspan}">${detailInner}</td></tr>`;
     }).join('') +
     `<tr class="total"><td colspan="7">合計</td>
-      <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td>${fmt(t.sellCost)}</td>
+      <td>${fmt(t.costAmt)}</td><td>${fmt(t.mv)}</td><td class="col-opt">${fmt(t.sellCost)}</td>
       <td class="${cls(t.unrealized)}">${sign(t.unrealized)}${fmt(t.unrealized)}</td>
       <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
-      <td>100.00%</td><td>100.00%</td><td></td>${E ? '<td></td>' : ''}</tr>`;
+      <td class="col-opt">100.00%</td><td class="col-opt">100.00%</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
   // 持股卡片(手機檢視模式)
   const stat = (k, v, c2) => `<div class="h-stat"><span class="k">${k}</span><span class="v ${c2 || ''}">${v}</span></div>`;
@@ -865,6 +863,15 @@ document.addEventListener('drop', async e => {
   }
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render({ charts: false }));
+// 顯示全部欄位:純 CSS 切換(body.all-cols),不重畫;記住偏好
+{
+  const allCols = document.getElementById('all-cols');
+  if (allCols) {
+    const on = store.get('pf-all-cols') === '1';
+    allCols.checked = on; document.body.classList.toggle('all-cols', on);
+    allCols.addEventListener('change', e => { document.body.classList.toggle('all-cols', e.target.checked); store.set('pf-all-cols', e.target.checked ? '1' : '0'); });
+  }
+}
 
 /* ==================== §14b. 分享戰報:Hero + 走勢合成一張圖 → Web Share / 下載 ==================== */
 // 1080×1350(IG 4:5)。模式:今日(Hero 的今日損益 + 近 30 個交易日總市值線)/ 本週 / 本月(期間總報酬變化 + 期間總市值線)。

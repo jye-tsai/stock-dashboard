@@ -24,8 +24,8 @@
 
 ## 功能
 
-- **總覽**:今日損益 Hero 置頂(今日賺賠大字 + 總市值 + 總報酬;各檔 `prevClose` 加總,缺昨收退回比 history 前一交易日市值)、**總報酬瀑布圖**(0 → 未實現 → 已實現 → 股息 → 總報酬,浮動長條、負分項往下走、端點標金額)、市值比例甜甜圈、年度損益、資產走勢、每日市值變動、報酬對比大盤、摘要卡片列(帳戶餘額 / 交割款併入,解鎖後顯示)、持股損益。
-- **持股明細**:可點欄位排序、點列展開明細(賣出可拿回、目標 / 停損距離);市價下方顯示**今日漲跌 %**;「走勢」欄是**近 30 個交易日 sparkline**(inline SVG,漲紅跌綠,滑過看區間 %;資料來自 `history[].prices`,由 Action 寫入 + 回補);手機自動轉卡片(卡片列右側也有 sparkline)。
+- **總覽**:今日損益 Hero 置頂(只講今日賺賠一件事;總市值 / 總報酬看正下方的摘要卡片列;各檔 `prevClose` 加總,缺昨收退回比 history 前一交易日市值)、**總報酬瀑布圖**(0 → 未實現 → 已實現 → 股息 → 總報酬,浮動長條、負分項往下走、端點標金額)、市值比例甜甜圈、年度損益、資產走勢、每日市值變動、報酬對比大盤、摘要卡片列(帳戶餘額 / 交割款併入,解鎖後顯示)、持股損益。
+- **持股明細**:可點欄位排序、點列展開明細(賣出可拿回、目標 / 停損距離);賣出稅費 / 成本比例 / 市值比例三欄預設收起,勾「顯示全部欄位」才出現(記在 localStorage);市價下方顯示**今日漲跌 %**;「走勢」欄是**近 30 個交易日 sparkline**(inline SVG,漲紅跌綠,滑過看區間 %;資料來自 `history[].prices`,由 Action 寫入 + 回補);手機自動轉卡片(卡片列右側也有 sparkline)。
 - **目標價 / 停損價**:每檔可設,到價時整列標記 🎯 / ⚠️。
 - **資料過期警示**:頁首更新時間旁,今日已更新亮綠點 ●;交易日過了還沒更新顯示紅底「⚠ 資料可能未更新」(週末 / 開盤前不誤報)。
 - **數字跳動動畫**、**載入骨架屏**、**下拉重新整理**(手機)、**底部分頁列**(手機寬度時取代頂部頁籤,總覽 / 持股 / 年度固定在螢幕下緣)。
@@ -54,7 +54,7 @@
 |---|---|
 | `index.html` | 整個儀表板(HTML / CSS / JS 單檔);Chart.js 走 cdnjs 並鎖 `integrity`(SRI),升版要同步換 hash(`https://api.cdnjs.com/libraries/Chart.js/<ver>?fields=sri`) |
 | `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
-| `styles.css` / `app.js` / `charts.js` | 前端三件套:主題 + 版面 / 主程式(載入、render、編輯、密碩、GitHub、分享卡、事件委派)/ 八張圖 + 熱圖 |
+| `styles.css` / `app.js` / `charts.js` | 前端三件套:設計 token(`--fs-* / --fw-* / --r-* / --sp-*`)+ 主題顏色 + 版面 / 主程式(載入、render、編輯、密碼、GitHub、分享卡、事件委派)/ 八張圖 + 熱圖。**尺寸一律用 token**,主題只改顏色;字重最重 800,880 只給 Hero 大字 |
 | `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
@@ -172,7 +172,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 | §8 | 密碼(PBKDF2) | §17 | 啟動(splash + init) |
 | §9 | 解鎖 / 權限 UI | | |
 
-主題色盤在 `charts.js` 的 `CHART_PALETTES`;每個主題有 `slices / gain / loss / dividend / grid / hi / lo`。`charts.js` 慣例:每張圖一支 `drawXxx(T)`,`T = chartTheme()` 帶當前主題的顏色 / 字型;tooltip / 座標軸 / 圖例用 `tooltipOpts / axisX / axisY / legendBottom` factory,不再各自複製;alpha 用 `withAlpha(color, a)` 不拼 hex 字尾;不改 `Chart.defaults`(只設一次 dpr / 字型)。八張圖都經 `upsertChart()`:同 canvas 同 type 就 `update()`(換主題 / 切區間有過場、不重建),inline plugin 參數一律走 `options.plugins.<id>`,不可用 closure 抓外部變數(update 不會換 plugin)。排序持股表 / 隱藏零股走 `render({ charts: false })` 不重畫圖。`styles.css` 的 `--total-bg / --row-hover` 由 `--accent` 經 `color-mix` 自動算(深色主題 `--tint` 調高),不必每套主題各寫。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
+主題色盤在 `charts.js` 的 `CHART_PALETTES`;每個主題有 `slices / gain / loss / dividend / grid`(極值 / 賺賠最多 / 回撤谷底一律用 `--accent`,不另開 hue)。`charts.js` 慣例:每張圖一支 `drawXxx(T)`,`T = chartTheme()` 帶當前主題的顏色 / 字型;tooltip / 座標軸 / 圖例用 `tooltipOpts / axisX / axisY / legendBottom` factory,不再各自複製;alpha 用 `withAlpha(color, a)` 不拼 hex 字尾;不改 `Chart.defaults`(只設一次 dpr / 字型)。八張圖都經 `upsertChart()`:同 canvas 同 type 就 `update()`(換主題 / 切區間有過場、不重建),inline plugin 參數一律走 `options.plugins.<id>`,不可用 closure 抓外部變數(update 不會換 plugin)。排序持股表 / 隱藏零股走 `render({ charts: false })` 不重畫圖。`styles.css` 的 `--total-bg / --row-hover` 由 `--accent` 經 `color-mix` 自動算(深色主題 `--tint` 調高),不必每套主題各寫。tooltip 文字色**跟著 tooltip 底色**走(深底亮字、白底深字),不受頁面主題影響。
 
 ---
 

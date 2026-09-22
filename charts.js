@@ -11,37 +11,37 @@ const CHART_PALETTES = {
   'ocean': {
     name: '海洋藍',
     slices: ['#0284c7', '#e11d48', '#0d9488', '#7c3aed', '#f59e0b', '#64748b'],
-    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)', hi: '#f59e0b', lo: '#8b5cf6'
+    gain: '#e11d48', loss: '#0d9488', dividend: '#0284c7', grid: 'rgba(2,132,199,.14)'   // 極值高亮改用 --accent,palette 不再帶 hi / lo
   },
   'coral': {
     name: '珊瑚暖陽',
     slices: ['#f97316', '#e0394e', '#0f9d76', '#d97706', '#fb7185', '#a8a29e'],
-    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)', hi: '#7c3aed', lo: '#0891b2'
+    gain: '#e0394e', loss: '#0f9d76', dividend: '#f97316', grid: 'rgba(249,115,22,.16)'
   },
   'matcha': {
     name: '抹茶清新',
     slices: ['#4d7c45', '#d6443b', '#15803d', '#7c9a3f', '#a16207', '#9ca99b'],
-    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)', hi: '#ea580c', lo: '#2563eb'
+    gain: '#d6443b', loss: '#15803d', dividend: '#4d7c45', grid: 'rgba(77,124,69,.16)'
   },
   'midnight': {
     name: '午夜金',
     slices: ['#e0b34d', '#ff6b81', '#34d399', '#60a5fa', '#c084fc', '#94a3b8'],
-    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)', hi: '#c084fc', lo: '#38bdf8'
+    gain: '#ff6b81', loss: '#34d399', dividend: '#e0b34d', grid: 'rgba(224,179,77,.16)'
   },
   'cute': {
     name: '馬卡龍',
     slices: ['#ff9ec4', '#8fe0c8', '#ffd98c', '#b9a7ff', '#9fd0ff', '#ffc2a0'],
-    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)', hi: '#f59e0b', lo: '#8b5cf6'
+    gain: '#f0688f', loss: '#2bb39a', dividend: '#ffb84d', grid: 'rgba(244,143,177,.18)'
   },
   'sailor': {
     name: '美少女',
     slices: ['#2b3f9e', '#e11d48', '#eab308', '#ec4899', '#0ea5a4', '#a78bdb'],
-    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)', hi: '#f59e0b', lo: '#c084fc'
+    gain: '#e11d48', loss: '#0ea5a4', dividend: '#eab308', grid: 'rgba(43,63,158,.16)'
   },
   'agent': {
     name: 'Agent Neon',
     slices: ['#8b5cf6', '#35d5ff', '#ff4fb8', '#2ee6b8', '#facc15', '#94a3b8'],
-    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)', hi: '#facc15', lo: '#818cf8'
+    gain: '#ff4fb8', loss: '#2ee6b8', dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
   }
 };
 
@@ -656,7 +656,7 @@ function drawNavGroup(T) {
     const costData = hist.map(p => Number(p.cost) || 0), unData = hist.map(p => Number(p.un) || 0);
     const mvData = hist.map((p, i) => costData[i] + unData[i]);
     const many = hist.length > 60;
-    const hiCol = P.hi || '#f59e0b', loCol = P.lo || '#38bdf8';
+    const hiCol = T.v('--accent'), loCol = hiCol;                  // 極值 / 賺賠最多 / 回撤谷底一律主色:靠 ▲▼ 與形狀區分,不多開 hue
     const sync = { color: T.syncCol };
 
     // 資產走勢:堆疊面積(成本 + 未實現 ≈ 總市值),總市值虛線標最高 / 最低
