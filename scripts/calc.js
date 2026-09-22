@@ -100,14 +100,28 @@
     return { idx: worst, amt: w.amt, pct: w.pct, peakIdx: w.peakIdx, days: worst + off - w.peakIdx, dd: dd };
   }
 
+  // 時間加權報酬指數(TWR,起點 100):日報酬 = (Δ市值 − Δ成本) / 昨日市值,逐日連乘。
+  // 加碼 / 減碼當天 Δ市值 ≈ Δ成本,指數不動 —— 對比大盤才不會被「錢進來」誤判成「贏了」
+  function twrIndex(mvArr, costArr) {
+    var out = [100];
+    for (var i = 1; i < mvArr.length; i++) {
+      var prev = mvArr[i - 1] || 0, flow = (costArr[i] || 0) - (costArr[i - 1] || 0);
+      var r = prev > 0 ? (mvArr[i] - prev - flow) / prev : 0;
+      out.push(out[i - 1] * (1 + r));
+    }
+    return out;
+  }
+
   // 對比線:以「第一個有大盤資料的點」為 0% 正規化;{ firstT, me, tw, tsmc|null };大盤資料不足 2 點 → null
-  function benchLines(mvArr, taiexArr, tsmcArr) {
+  // 有給 costArr 就用 TWR 指數當「我的組合」(加碼不失真);沒給退回市值正規化(舊行為)
+  function benchLines(mvArr, taiexArr, tsmcArr, costArr) {
     var firstT = -1, count = 0;
     for (var i = 0; i < taiexArr.length; i++) if (taiexArr[i] > 0) { if (firstT < 0) firstT = i; count++; }
     if (firstT < 0 || count < 2) return null;
-    var baseM = mvArr[firstT] || 1, baseT = taiexArr[firstT] || 1, baseS = (tsmcArr && tsmcArr[firstT]) || 0;
+    var meArr = costArr ? twrIndex(mvArr, costArr) : mvArr;
+    var baseM = meArr[firstT] || 1, baseT = taiexArr[firstT] || 1, baseS = (tsmcArr && tsmcArr[firstT]) || 0;
     var norm = function (arr, base) { return arr.slice(firstT).map(function (v) { return v > 0 ? (v / base - 1) * 100 : null; }); };
-    return { firstT: firstT, me: norm(mvArr, baseM), tw: norm(taiexArr, baseT), tsmc: baseS > 0 ? norm(tsmcArr, baseS) : null };
+    return { firstT: firstT, me: norm(meArr, baseM), tw: norm(taiexArr, baseT), tsmc: baseS > 0 ? norm(tsmcArr, baseS) : null };
   }
 
   // 每日損益統計(熱圖旁的統計卡):days = [{ date, chg }]
@@ -138,16 +152,22 @@
   }
 
   // 今日損益(Hero):各檔 prevClose 加總;沒有任何昨收就退回「總市值 − history 前一交易日市值」;都沒有 → null
-  function todayChange(rows, prevDay, totalMv) {
+  // 除息:holdings[].exDiv = { date, amount }(Action 寫入),date 是今天就把昨收扣掉股息 —— 除息造成的價差不是虧損
+  function todayChange(rows, prevDay, totalMv, todayYmd) {
+    var exOf = function (r) { return r.exDiv && String(r.exDiv.date) === String(todayYmd) && r.exDiv.amount > 0 ? r.exDiv.amount : 0; };
     var pc = rows.filter(function (r) { return r.prevClose > 0 && r.price > 0 && r.lots > 0; });
     if (pc.length) {
-      var chg = 0, base = 0;
-      pc.forEach(function (r) { chg += Math.round((r.price - r.prevClose) * 1000 * r.lots); base += Math.round(r.prevClose * 1000 * r.lots); });
+      var chg = 0, base = 0, exCount = 0;
+      pc.forEach(function (r) {
+        var ex = exOf(r), ref = r.prevClose - ex;
+        if (ex) exCount++;
+        chg += Math.round((r.price - ref) * 1000 * r.lots); base += Math.round(ref * 1000 * r.lots);
+      });
       var held = rows.filter(function (r) { return r.price > 0 && r.lots > 0; }).length;
-      return { chg: chg, base: base, pct: base ? chg / base : 0, missing: held - pc.length };
+      return { chg: chg, base: base, pct: base ? chg / base : 0, missing: held - pc.length, exDivCount: exCount };
     }
     if (prevDay && typeof prevDay.mv === 'number' && prevDay.mv > 0) {
-      return { chg: totalMv - prevDay.mv, base: prevDay.mv, pct: (totalMv - prevDay.mv) / prevDay.mv, missing: 0 };
+      return { chg: totalMv - prevDay.mv, base: prevDay.mv, pct: (totalMv - prevDay.mv) / prevDay.mv, missing: 0, exDivCount: 0 };
     }
     return null;
   }
@@ -181,7 +201,7 @@
     DEFAULT_TAX: DEFAULT_TAX,
     holdingAmounts: holdingAmounts, compute: compute, totals: totals,
     isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
-    drawdown: drawdown, worstDrawdown: worstDrawdown, benchLines: benchLines, dailyStats: dailyStats,
+    drawdown: drawdown, worstDrawdown: worstDrawdown, twrIndex: twrIndex, benchLines: benchLines, dailyStats: dailyStats,
     todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange
   };
 });

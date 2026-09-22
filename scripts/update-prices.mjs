@@ -66,20 +66,23 @@ function tpeDate(epochSec) {
 // 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價)
 // - 各檔並行查;後綴先用上次記住的(symHint:上市 .TW / 上櫃 .TWO),沒有才依序試
 // - 只接受 regularMarketTime 落在今日(台北)的價:平日休市 Yahoo 仍回上一交易日收盤,不能當即時價
-// 回傳 { live: {code: price}, sym: {code: suffix} }
+// 回傳 { live: {code: price}, sym: {code: suffix}, exDiv: {code: {date, amount}} }
 async function fromYahoo(codes, prev, today, symHint = {}) {
-  const live = {}, sym = {};
+  const live = {}, sym = {}, exDiv = {};
   const one = async c => {
     const sufs = symHint[c] ? [symHint[c], ...['.TW', '.TWO'].filter(s => s !== symHint[c])] : ['.TW', '.TWO'];
     for (const suf of sufs) {
       try {
-        const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=1d`);
+        const j = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${c}${suf}?interval=1d&range=5d&events=div`);   // events=div:順便拿除息資料
         const m = j?.chart?.result?.[0]?.meta;
         const p = m?.regularMarketPrice;
         if (!(p > 0)) continue;
         const tradeDay = tpeDate(m.regularMarketTime);
         if (tradeDay !== today) { console.log(`${c}${suf}: Yahoo 最後成交日 ${tradeDay || '?'} 非今日,不視為即時價`); return; }
         live[c] = p; sym[c] = suf;
+        // 今日除息:events.dividends 的 date 是台北今天 → 記 exDiv,前端算今日損益會把昨收扣掉股息(除息價差不算虧損)
+        const divs = j?.chart?.result?.[0]?.events?.dividends || {};
+        for (const k of Object.keys(divs)) { const dv = divs[k]; if (tpeDate(dv.date) === today && dv.amount > 0) exDiv[c] = { date: today, amount: dv.amount }; }
         const pc = m.previousClose || m.chartPreviousClose;   // 昨收 → 算今日漲跌%
         if (prev && pc > 0) prev[c] = pc;
         return;
@@ -87,7 +90,7 @@ async function fromYahoo(codes, prev, today, symHint = {}) {
     }
   };
   await Promise.all(codes.map(one));
-  return { live, sym };
+  return { live, sym, exDiv };
 }
 
 // 即時來源 2:證交所 MIS(z=成交 → pz=最後揭示;不取昨收 y,以免用舊價倒退)
@@ -174,12 +177,13 @@ async function main() {
 
   // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的;prevClose 收集各檔昨收(算今日漲跌%)
   // 兩個來源都只接受「最後成交日 = 今日」的價,平日休市(國定假日)不會把昨日收盤當即時價寫進 history
-  const live = {}, prevClose = {}, yahooSym = {};
+  const live = {}, prevClose = {}, yahooSym = {}, exDivs = {};
   const symHint = {};
   holdings.forEach(h => { if (h.code && h.yahooSym) symHint[h.code] = h.yahooSym; });
   try {
     const y = await fromYahoo(codes, prevClose, today, symHint);
-    Object.assign(live, y.live); Object.assign(yahooSym, y.sym);
+    Object.assign(live, y.live); Object.assign(yahooSym, y.sym); Object.assign(exDivs, y.exDiv || {});
+    if (Object.keys(exDivs).length) console.log('今日除息:', Object.entries(exDivs).map(([c, d]) => `${c} ${d.amount}`).join('、'));
     console.log(`Yahoo 即時: 取得 ${Object.keys(y.live).length}/${codes.length}`);
   } catch (e) { console.log(`Yahoo 失敗(${e.message})`); }
 
@@ -207,6 +211,8 @@ async function main() {
     if (!h.code) continue;
     if (prevClose[h.code] > 0) h.prevClose = prevClose[h.code];   // 昨收(供前端算今日漲跌%)
     if (yahooSym[h.code]) h.yahooSym = yahooSym[h.code];           // 記住上市/上櫃後綴,下次省一次必失敗的查詢
+    if (exDivs[h.code]) h.exDiv = exDivs[h.code];                   // 今日除息(供前端調整昨收)
+    else if (h.exDiv && h.exDiv.date !== today) delete h.exDiv;    // 過期的清掉
     if (live[h.code] > 0) {
       liveHit++;
       h.priceTime = stamp;                                   // 最後抓到即時價的時間(有抓到就更新)
