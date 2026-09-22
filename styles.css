@@ -641,11 +641,13 @@
     background: color-mix(in srgb, var(--card) 92%, var(--bg));
     border-bottom: 1px solid var(--border); box-shadow: 0 4px 14px rgba(20,30,50,.10); backdrop-filter: blur(12px);
     font-size: var(--fs-md); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; color: var(--text);
-    transform: translateY(-110%); transition: transform .22s ease;
+    /* 藏起來 = 位移 + 透明 + visibility 三重:iOS 全螢幕下 translateY(-110%) 算出來的距離不夠,下拉回彈時會露出來;透明 + hidden 保證看不見 */
+    transform: translateY(-120%); opacity: 0; visibility: hidden;
+    transition: transform .22s ease, opacity .22s ease, visibility 0s linear .22s;
     pointer-events: none;                                   /* 純資訊列,亮著也不擋底下任何點擊 */
   }
   .mini-hero .k { color: var(--muted); font-weight: var(--fw-medium); }
-  .mini-hero.show { transform: none; }
+  .mini-hero.show { transform: none; opacity: 1; visibility: visible; transition: transform .22s ease, opacity .22s ease; }
   @media (max-width: 600px) { .mini-hero { display: flex; } }
 
   /* ===== 胖虎賺錢跳一下(每次開頁最多一次;減少動態時由全域規則關掉) ===== */

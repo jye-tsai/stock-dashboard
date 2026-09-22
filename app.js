@@ -1142,8 +1142,13 @@ function syncMiniHero() {
   if (!mini || !heroPanel) return;
   const atTop = (window.scrollY || document.documentElement.scrollTop || 0) <= 40;
   const gone = !atTop && heroPanel.style.display !== 'none' && heroPanel.getBoundingClientRect().bottom < 0;
-  mini.classList.toggle('show', gone && !!HERO);
+  const show = gone && !!HERO;
+  mini.classList.toggle('show', show);
+  // 保底:亮著的期間每 500ms 對一次(只在亮著時跑,一次 getBoundingClientRect),事件全漏也會在半秒內關掉
+  if (show && !_miniWatch) _miniWatch = setInterval(syncMiniHero, 500);
+  else if (!show && _miniWatch) { clearInterval(_miniWatch); _miniWatch = 0; }
 }
+let _miniWatch = 0;
 let _miniTimer = 0;
 const syncMiniHeroSettled = () => { syncMiniHero(); clearTimeout(_miniTimer); _miniTimer = setTimeout(syncMiniHero, 150); };
 window.addEventListener('scroll', syncMiniHeroSettled, { passive: true });
