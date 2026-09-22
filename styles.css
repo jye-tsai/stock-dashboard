@@ -463,16 +463,17 @@
   #edit-banner { background: rgba(255,180,84,.12); border: 1px solid #ffb454; color: #ffb454; border-radius: var(--r-md);
     padding: 8px 14px; font-size: var(--fs-md); margin-bottom: var(--sp-4); display: none; }
   body.editing #edit-banner { display: block; }
-  /* PWA 全螢幕(已安裝成 App)時,留出頂部/底部安全區,避免標題被狀態列(時間)蓋住 */
-  @media (display-mode: standalone) {
-    body { padding-top: calc(env(safe-area-inset-top) + 12px); padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
-  }
   /* 總覽 Hero:今日損益大字 + 總市值 / 總報酬 */
   .hero-panel { margin-bottom: var(--sp-5); }
   #hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 26px; flex-wrap: wrap; }
   #hero .label { color: var(--label, var(--muted)); font-size: var(--fs-md); font-weight: var(--fw-bold); margin-bottom: var(--sp-1); }
   .hero-num { font-size: clamp(30px, 3vw, 40px); font-weight: var(--fw-hero); font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: .01em; }
   .hero-pct { font-size: .5em; font-weight: var(--fw-bold); }
+  /* Hero 右側:近 30 個交易日總市值小走勢(inline SVG,漲紅跌綠) */
+  .hero-spark { flex: 1 1 180px; max-width: 280px; min-width: 0; }
+  .hero-spark svg { display: block; width: 100%; height: 56px; }
+  .hero-spark .k { font-size: var(--fs-xs); color: var(--muted); font-weight: var(--fw-medium); display: flex; justify-content: space-between; margin-bottom: 2px; }
+  .hero-spark.up { color: var(--up); } .hero-spark.down { color: var(--down); }
   .hero-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-3); margin-top: 10px; font-size: var(--fs-sm); color: var(--muted); }
   .hero-opt { cursor: pointer; user-select: none; }
   /* 持股表 / 手機卡片的近 30 日小走勢(inline SVG,漲紅跌綠) */
@@ -552,17 +553,17 @@
     .title-input { width: 100%; font-size: var(--fs-xl); }
     header { gap: var(--sp-2); margin-bottom: var(--sp-3); }
     header > div { gap: 6px; width: 100%; }
-    .meta { width: 100%; order: -1; }
+    .meta { width: auto; order: 0; margin-left: auto; font-size: var(--fs-xs); }   /* 與 解鎖 / 設定 同一排,靠右;鈕多時自然換行 */
     .toolbar-label { display: none; }
     .btn { padding: 5px 10px; font-size: var(--fs-sm); }
     .select-group { gap: var(--sp-1); }
     .view-tabs { padding: 4px; gap: var(--sp-1); margin-bottom: 10px; }
     .tab-btn { padding: 7px 11px; font-size: var(--fs-md); flex: 1; }
-    .card { min-height: 76px; padding: 10px 14px; }
-    .card .label { font-size: var(--fs-sm); margin-bottom: var(--sp-1); }
-    .card .value { font-size: 19px; }
-    .card .sub { font-size: var(--fs-xs); margin-top: var(--sp-1); }
-    .cards { grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
+    .card { min-height: 64px; padding: 8px 10px; border-radius: var(--r-md); }
+    .card .label { font-size: var(--fs-xs); margin-bottom: 2px; }
+    .card .value { font-size: 16px; letter-spacing: 0; }
+    .card .sub { font-size: 10.5px; margin-top: 2px; }
+    .cards { grid-template-columns: repeat(3, 1fr); gap: 6px; }   /* 3 欄 × 2 列,首屏少捲半頁 */
     .dashboard-top .cards { grid-template-columns: repeat(2, 1fr); }
     .charts { gap: var(--sp-3); margin-bottom: var(--sp-3); }
     .chart-box { height: 260px; }
@@ -592,7 +593,14 @@
     }
     .bnav-btn .bnav-ico { font-size: 18px; line-height: 1; }
     .bnav-btn.active { color: var(--accent); background: var(--total-bg); }
-  
+    /* 三張子圖改橫向滑動卡片(scroll-snap),一次看一張、左右撥;桌機維持三欄 */
+    .sub-charts { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: var(--sp-3); padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .sub-charts::-webkit-scrollbar { display: none; }
+    .sub-charts > div { flex: 0 0 88%; scroll-snap-align: start; }
+    .sub-charts .chart-subtitle { min-height: 0; }
+    /* 區間鈕:滿寬五等分,排在標題下方 */
+    .nav-range { display: flex; width: 100%; float: none; margin-top: var(--sp-2); gap: 4px; }
+    .nav-range .btn { flex: 1; text-align: center; padding: 6px 0; }
   }
 
   /* ===== max-width: 800px:原本散在各處的同條件 media 併成一塊 ===== */
@@ -652,4 +660,21 @@
     .panel, .card, .h-card { break-inside: avoid; box-shadow: none !important; transform: none !important; }
     .panel:hover, .card:hover { transform: none !important; }
     a { color: inherit; text-decoration: none; }
+  }
+
+  /* ===== PWA 全螢幕(已安裝成 App):留出頂部安全區,標題不被 iOS 狀態列蓋住 =====
+     一定要放在 max-width:600px 那塊之後 —— 那裡的 body { padding: 10px } 是 shorthand,會把 padding-top 蓋掉(2026-09-22 踩過)。
+     底部:手機由底部分頁列那條 padding-bottom 負責;寬螢幕(平板 PWA)沒有底部列,才在這裡補安全區 */
+  @media (display-mode: standalone) {
+    body { padding-top: calc(env(safe-area-inset-top) + 12px); }
+  }
+  @media (display-mode: standalone) and (min-width: 601px) {
+    body { padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
+  }
+
+  /* ===== 觸控裝置:沒有真正的 hover,點過的面板 / 卡片不要卡在「浮起 + 主色框」狀態 ===== */
+  @media (hover: none) {
+    .card:hover, .panel:hover, [data-theme="agent"] .card:hover, [data-theme="agent"] .panel:hover, [data-theme="cute"] .card:hover {
+      transform: none; border-color: var(--border); box-shadow: var(--shadow);
+    }
   }

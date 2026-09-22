@@ -106,6 +106,24 @@ function deferFrame(fn) {
   requestAnimationFrame(run);
   setTimeout(run, 300);
 }
+// Hero 右側小走勢:近 30 個交易日總市值(全史,不受區間鈕影響);不足 2 點回空字串
+function heroSparkSvg() {
+  const full = PfCalc.histSlices(DATA && DATA.history, 0, tpeNow().date).full.slice(-30);
+  if (full.length < 2) return '';
+  const vals = full.map(p => Number(p.mv) || 0), lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+  const w = 240, h = 56, n = vals.length;
+  const pt = (v, i) => `${(i / (n - 1) * w).toFixed(1)},${(h - 3 - (v - lo) / span * (h - 8)).toFixed(1)}`;
+  const line = vals.map(pt).join(' ');
+  const area = `M0,${h} L${line.replace(/ /g, ' L')} L${w},${h} Z`;
+  const chg = vals[0] ? (vals[n - 1] / vals[0] - 1) * 100 : 0, dir = chg >= 0 ? 'up' : 'down';
+  const from = String(full[0].date).slice(5), to = String(full[n - 1].date).slice(5);
+  return `<div class="hero-spark ${dir}" title="近 ${n} 個交易日總市值 ${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%">
+      <div class="k"><span>總市值 近 ${n} 日</span><span class="${dir}">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%</span></div>
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="近 ${n} 個交易日總市值走勢 ${from} 到 ${to}">
+        <defs><linearGradient id="hsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".35"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+        <path d="${area}" fill="url(#hsg)"/><polyline points="${line}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      </svg></div>`;
+}
 function render(opts) {
   const d = DATA;
   const withCharts = !(opts && opts.charts === false);   // 只動表格(排序 / 隱藏零股)時不重畫圖表
@@ -180,7 +198,7 @@ function render(opts) {
         <div class="label">今日損益</div>
         <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
-      </div>`;                                   // 總市值 / 總報酬看正下方的摘要卡片列,Hero 只講今日損益一件事
+      </div>${heroSparkSvg()}`;                  // 右側:近 30 日總市值小走勢;總市值 / 總報酬看正下方的摘要卡片列
     }
   }
 
@@ -871,6 +889,8 @@ document.addEventListener('drop', async e => {
   }
 });
 document.getElementById('hide-zero').addEventListener('change', () => DATA && render({ charts: false }));
+// 跨 600px 斷點(轉向 / 分割畫面)時重畫:熱圖週數、子圖排法都跟寬度走
+if (window.matchMedia) matchMedia('(max-width: 600px)').addEventListener('change', () => { if (DATA) render(); });
 // 顯示全部欄位:純 CSS 切換(body.all-cols),不重畫;記住偏好
 {
   const allCols = document.getElementById('all-cols');

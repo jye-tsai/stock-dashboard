@@ -799,7 +799,7 @@ function drawHeatmap(T, histFull) {
   if (pts.length < 2) { panel.style.display = 'none'; return; }
   const chg = PfCalc.dailyChanges(pts.map(p => Number(p.un) || 0));
   const days = pts.slice(1).map((p, i) => ({ date: String(p.date), chg: chg[i + 1] }));   // 第一筆沒前值不列
-  const MAX_WEEKS = 26;
+  const MAX_WEEKS = window.innerWidth < 600 ? 13 : 26;                // 窄螢幕 13 週,格子才看得出深淺;跨斷點時 app.js 會重畫
   const toDate = ds => { const m = ds.split('-'); return new Date(+m[0], +m[1] - 1, +m[2]); };
   const monday = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); x.setHours(0, 0, 0, 0); return x; };
   const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
