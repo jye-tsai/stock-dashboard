@@ -31,6 +31,12 @@ Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回�
 情境、分數、門檻、權重、級距、動作句全部在 `chips/panghu.json`，改那裡就好，不用動程式。網頁、LINE、週報都只看胖虎指標，沒有手寫部位檔。
 這是機械式指標加總，不是投資建議；實際下不下單是人的事。匯率來源 Yahoo（`TWD=X`、`DX-Y.NYB`），一次抓三個月日線快取。
 
+## 回測（驗證胖虎指標）
+GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資料（約 40～80 分鐘，抓不完會存進度，再跑一次接著抓），依目前的 `chips/panghu.json` 重算每一天的胖虎指標，報告頁在 `chips/backtest/`（籌碼站胖虎指標卡的「📊 回測」）。
+報告內容：策略績效（照建議倉位操作 vs 全程滿倉 vs 固定五成，含第一年樣本內 / 第二年樣本外）、淨值曲線、溫度分組之後的報酬、各指標分數與之後報酬的相關、每個情境出現次數與之後表現（標出「方向不符」）。
+改了 `panghu.json` 之後，Run workflow 時 `eval_only` 填 `true`，幾秒就重算完，不用重抓。
+限制：台指 VIX 官方只留近 3 個月，回測期間大多沒有，該項不計分；「15:40 版」模擬發 LINE 當下，融資尚未公布不計分；決策後隔日收盤才換倉；加權為價格指數不含股息。
+
 ## 台指 VIX
 來源是期交所官方月檔 `Dailydownload/vix/log2data/YYYYMMnew.txt`（big5、tab 分隔，欄位為交易日期 / 時間 / 波動率指數 / 收盤前 1 分鐘平均），值與永豐快訊的「VIX 指標」一致。官方只留近 3 個月，更早的日子抓不到就留空。
 歷史日子要補 VIX，跑 Run workflow 時 `backfill` 填天數並把 `force` 設 `true`（會重寫已存在的當日 json）。
