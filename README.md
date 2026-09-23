@@ -16,7 +16,7 @@
 - **HTML 不寫 `onclick`**:按鈕用 `data-action="fn" data-args='[...]'`,由 `app.js` §16b 的委派 listener 查允許清單(`ACTIONS`)呼叫;Enter 送出用 `data-enter="fn"`。新增按鈕記得把函式名加進 `ACTIONS`。
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
-- **改完要重新上傳到 repo**(用 GitHub「Upload files」拖檔,**別用網頁編輯器貼**,貼上容易截斷)。
+- **改完用 GitHub Desktop push**(本機資料夾已是 git repo,接著 `origin/main`):開 GitHub Desktop → 看 Changes 清單 → 寫一行摘要 → Commit → Push。子資料夾、隱藏資料夾、刪檔全部一次同步,不會再漏。`cloudflare-worker.js` 已在 `.git/info/exclude`,不會被推上去;`data.json` 不要勾(排程會自己 commit,你本機那份永遠比較舊)。
 - **上傳前一鍵**:`node tools/bump.mjs` → 先跑測試,綠燈才把 `index.html` 四處 `?v=` 與 `sw.js` 的 `ASSET_VER` / `CACHE` 換成新值(台北日期 + 序號字母),並印出要上傳哪些檔。**不要再手改版號**。
 - **一鍵檢查**:`node tests/run.mjs`(語法 + `tests/calc.test.mjs` + `tests/sw.test.mjs`);push 到 repo 會由 `.github/workflows/check.yml` 自動跑,紅燈 = 上錯 / 漏檔。改 `calc.js` 順手補測。
 - **畫面卡住 / 看不到新版**:⚙️ 設定 →「🧹 清快取重新載入」(unregister SW + 清 caches + reload)。render 炸掉或 12 秒載不完時頂部也會自動出這條紅色橫幅(`index.html` head 內嵌,不依賴 app.js)。
@@ -63,7 +63,8 @@
 | `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
-| `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試;本機 `node tests/run.mjs` |
+| `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試(Node 三檔 + Python 三支);本機 `node tests/run.mjs` |
+| `chips/` + `.github/workflows/chips.yml` | 子專案「盤後籌碼站」:期交所 / 證交所 / 永豐盤後資料,15:40 排程後推 LINE(含庫存段,讀本 repo 的 `data.json`);見 `chips/README.md` |
 | `tools/bump.mjs` | 上傳前一鍵:測試 + 換版號(不在 SW 快取清單,純本機工具) |
 | `manifest.json` / `sw.js` | PWA 設定 / Service Worker(離線快取) |
 | `panghu-icon.png`(192px,iOS apple-touch-icon)/ `panghu-icon.webp`(512px,manifest + splash + intro)/ `favicon.png`(64px) | PWA App 圖示 / 網頁小圖示 |
@@ -189,7 +190,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 1. **GitHub Pages**:repo → Settings → Pages,來源設 `main` 分支根目錄。
 2. **GitHub Token**(fine-grained PAT,只給此 repo):`Contents: Read and write`(存檔)+ `Actions: Read and write`(觸發 workflow_dispatch)。用於儀表板「⚙️ 設定 → GitHub 同步」與 Cloudflare 的 `GH_TOKEN`。
 3. **GitHub Action 權限**:repo → Settings → Actions → Workflow permissions → **Read and write**。
-4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`;Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/15 1-5 * * *`、`0 6 * * *`。
+4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/15 1-5 * * *`、`0 6 * * *`(收盤價)+ `40 7 * * 1-5`、`40 8 * * 1-5`(籌碼站)。
 5. **PWA 安裝**:手機開 Pages 網址 → 加入主畫面(需 https)。
 
 ---
