@@ -1,0 +1,62 @@
+name: backtest
+
+# 胖虎指標回測:抓 1~2 年歷史逐日資料(可中斷續跑)→ 依 chips/panghu.json 重算每天的胖虎指標 → 產出 chips/backtest/result.json。
+# 報告頁:https://jye-tsai.github.io/stock-dashboard/chips/backtest/
+# 第一次抓兩年約 40~80 分鐘;抓不完會把進度 commit 上去,再跑一次會接著抓。改了 panghu.json 只要 eval_only=true 重算(幾秒)。
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "回測年數（預設 2）"
+        required: false
+        default: "2"
+      minutes:
+        description: "這次最多抓幾分鐘；抓不完會存進度，再跑一次接著抓"
+        required: false
+        default: "100"
+      eval_only:
+        description: "只重算不抓資料（改了 panghu.json 後填 true）"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests pandas beautifulsoup4
+
+      - name: 抓歷史資料（可續跑）
+        if: ${{ github.event.inputs.eval_only != 'true' }}
+        run: python chips/scripts/backtest.py fetch --years "${{ github.event.inputs.years || '2' }}" --minutes "${{ github.event.inputs.minutes || '100' }}"
+
+      - name: 重算與統計
+        run: python chips/scripts/backtest.py eval
+
+      # 抓到一半失敗也要把進度存上去(always),下次接著抓
+      - name: Commit
+        if: always()
+        run: |
+          git config user.name  "panghu-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add chips/backtest
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "backtest: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
+          pushed=0
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then pushed=1; break; fi
+            git rebase --abort 2>/dev/null || true
+            echo "push 失敗,重試 $i"; sleep 5
+          done
+          [ "$pushed" = 1 ] || { echo "::error::push 三次都失敗"; exit 1; }

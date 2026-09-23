@@ -7,6 +7,9 @@ on:
     paths-ignore:
       - "data.json"          # 排程每 15 分鐘 commit 一次 data.json,那些不用跑
       - "stocks.json"        # 股票池,同一支排程每天 14:00 更新
+      - "chips/data/**"      # 籌碼站每天盤後 commit 的資料
+      - "chips/backtest/raw/**"
+      - "chips/backtest/*.json"
   pull_request:
   workflow_dispatch:
 
@@ -28,4 +31,4 @@ jobs:
         with:
           python-version: "3.11"
       - name: Python syntax (chips)
-        run: python -m py_compile chips/scripts/fetch_all.py chips/scripts/notify.py chips/scripts/weekly_report.py
+        run: python -m py_compile chips/scripts/fetch_all.py chips/scripts/notify.py chips/scripts/weekly_report.py chips/scripts/backtest.py
