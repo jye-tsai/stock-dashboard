@@ -15,7 +15,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC",-apple-system,system-ui,sans-serif}
 header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
-header .logo{width:44px;height:44px;border-radius:50%;background:#FFD682;display:grid;place-items:center;font-size:26px}
+header .logo{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 12%;border:2px solid var(--gold);box-shadow:0 0 0 3px #ffd68233,0 4px 14px #0006;background:#fff;flex:0 0 auto}   /* 與主站 img.mascot 同款 */
 header h1{font-size:18px;margin:0;line-height:1.2}
 header .sub{font-size:12px;color:#FFD682}
 header .sp{flex:1}
@@ -70,7 +70,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 </head>
 <body>
 <header>
-  <div class="logo">🐶</div>
+  <img class="logo" src="../panghu-icon.webp" alt="胖虎" onerror="this.style.display='none'">
   <div><h1>胖虎盤後籌碼站</h1><div class="sub" id="hdrDate">讀取中…</div></div>
   <div class="sp"></div>
   <a class="btn-ghost" href="../" title="回胖虎的小財庫" aria-label="回儀表板" style="text-decoration:none;display:inline-block;flex:none;white-space:nowrap;padding:9px 14px;border-radius:10px;font-size:14px;margin-right:8px">🏠</a>
