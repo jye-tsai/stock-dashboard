@@ -1,0 +1,2984 @@
+{
+ "date": "2026/09/14",
+ "txf": {
+  "自營商": {
+   "long": 5427,
+   "short": 3467,
+   "net": 1960,
+   "day_net": -849
+  },
+  "投信": {
+   "long": 77583,
+   "short": 3135,
+   "net": 74448,
+   "day_net": -239
+  },
+  "外資": {
+   "long": 9490,
+   "short": 92148,
+   "net": -82658,
+   "day_net": 2313
+  }
+ },
+ "mtx": {
+  "自營商": {
+   "long": 3152,
+   "short": 6330,
+   "net": -3178,
+   "day_net": 333
+  },
+  "投信": {
+   "long": 95,
+   "short": 159,
+   "net": -64,
+   "day_net": 1
+  },
+  "外資": {
+   "long": 5457,
+   "short": 832,
+   "net": 4625,
+   "day_net": 3144
+  }
+ },
+ "tmf": {
+  "自營商": {
+   "long": 3428,
+   "short": 65342,
+   "net": -61914,
+   "day_net": 3735
+  },
+  "投信": {
+   "long": 0,
+   "short": 0,
+   "net": 0,
+   "day_net": 0
+  },
+  "外資": {
+   "long": 20702,
+   "short": 1355,
+   "net": 19347,
+   "day_net": 8406
+  }
+ },
+ "mtx_retail": {
+  "market_oi": 38835,
+  "retail_long": 30131,
+  "retail_short": 31514,
+  "retail_net": -1383,
+  "ratio_pct": -3.56
+ },
+ "tmf_retail": {
+  "market_oi": 109499,
+  "retail_long": 85369,
+  "retail_short": 42802,
+  "retail_net": 42567,
+  "ratio_pct": 38.87
+ },
+ "opt": {
+  "自營商": {
+   "call": 11386,
+   "put": -4107
+  },
+  "投信": {
+   "call": -5869,
+   "put": 106
+  },
+  "外資": {
+   "call": -871,
+   "put": 1964
+  }
+ },
+ "pc": {
+  "volume_ratio_pct": 107.09,
+  "oi_ratio_pct": 88.04
+ },
+ "index": {
+  "close": 45862.52,
+  "chg": -322.33,
+  "amount_yi": 6653
+ },
+ "inst": {
+  "自營": -150.92,
+  "投信": 36.96,
+  "外資": -369.64,
+  "合計": -483.61
+ },
+ "margin": 5838.8,
+ "vix": null,
+ "tx": {
+  "contract": "202609",
+  "close": 45780.0,
+  "night_close": 46588.0
+ },
+ "basis": -82.52,
+ "missing": [],
+ "prev": {
+  "date": "2026/09/11",
+  "txf": {
+   "自營商": {
+    "long": 6359,
+    "short": 3557,
+    "net": 2802,
+    "day_net": 1380
+   },
+   "投信": {
+    "long": 77818,
+    "short": 3131,
+    "net": 74687,
+    "day_net": 204
+   },
+   "外資": {
+    "long": 8242,
+    "short": 93309,
+    "net": -85067,
+    "day_net": -368
+   }
+  },
+  "mtx": {
+   "自營商": {
+    "long": 3222,
+    "short": 6708,
+    "net": -3486,
+    "day_net": -116
+   },
+   "投信": {
+    "long": 93,
+    "short": 158,
+    "net": -65,
+    "day_net": -15
+   },
+   "外資": {
+    "long": 2343,
+    "short": 1056,
+    "net": 1287,
+    "day_net": -2754
+   }
+  },
+  "tmf": {
+   "自營商": {
+    "long": 3021,
+    "short": 68655,
+    "net": -65634,
+    "day_net": -15768
+   },
+   "投信": {
+    "long": 0,
+    "short": 0,
+    "net": 0,
+    "day_net": 0
+   },
+   "外資": {
+    "long": 18207,
+    "short": 4376,
+    "net": 13831,
+    "day_net": -2508
+   }
+  },
+  "mtx_retail": {
+   "market_oi": 38878,
+   "retail_long": 33220,
+   "retail_short": 30956,
+   "retail_net": 2264,
+   "ratio_pct": 5.82
+  },
+  "tmf_retail": {
+   "market_oi": 114532,
+   "retail_long": 93304,
+   "retail_short": 41501,
+   "retail_net": 51803,
+   "ratio_pct": 45.23
+  },
+  "opt": {
+   "自營商": {
+    "call": 10119,
+    "put": -1054
+   },
+   "投信": {
+    "call": -5049,
+    "put": 106
+   },
+   "外資": {
+    "call": -2150,
+    "put": 2181
+   }
+  },
+  "pc": {
+   "volume_ratio_pct": 91.56,
+   "oi_ratio_pct": 87.7
+  },
+  "index": {
+   "close": 46184.85,
+   "chg": -755.64,
+   "amount_yi": 7622
+  },
+  "inst": {
+   "自營": -302.01,
+   "投信": 82.14,
+   "外資": -892.7,
+   "合計": -1112.59
+  },
+  "margin": 5878.7,
+  "vix": null,
+  "tx": {
+   "contract": "202609",
+   "close": 46218.0,
+   "night_close": 46072.0
+  },
+  "basis": 33.15,
+  "missing": [],
+  "prev": {
+   "date": "2026/09/10",
+   "txf": {
+    "自營商": {
+     "long": 5007,
+     "short": 3628,
+     "net": 1379,
+     "day_net": 1643
+    },
+    "投信": {
+     "long": 77635,
+     "short": 3152,
+     "net": 74483,
+     "day_net": -336
+    },
+    "外資": {
+     "long": 8264,
+     "short": 92182,
+     "net": -83918,
+     "day_net": -2049
+    }
+   },
+   "mtx": {
+    "自營商": {
+     "long": 2537,
+     "short": 5799,
+     "net": -3262,
+     "day_net": -182
+    },
+    "投信": {
+     "long": 104,
+     "short": 154,
+     "net": -50,
+     "day_net": 0
+    },
+    "外資": {
+     "long": 2642,
+     "short": 1408,
+     "net": 1234,
+     "day_net": -3279
+    }
+   },
+   "tmf": {
+    "自營商": {
+     "long": 3033,
+     "short": 52579,
+     "net": -49546,
+     "day_net": -15737
+    },
+    "投信": {
+     "long": 0,
+     "short": 0,
+     "net": 0,
+     "day_net": 0
+    },
+    "外資": {
+     "long": 17821,
+     "short": 3067,
+     "net": 14754,
+     "day_net": -5843
+    }
+   },
+   "mtx_retail": {
+    "market_oi": 36259,
+    "retail_long": 30976,
+    "retail_short": 28898,
+    "retail_net": 2078,
+    "ratio_pct": 5.73
+   },
+   "tmf_retail": {
+    "market_oi": 97498,
+    "retail_long": 76644,
+    "retail_short": 41852,
+    "retail_net": 34792,
+    "ratio_pct": 35.68
+   },
+   "opt": {
+    "自營商": {
+     "call": 8888,
+     "put": 991
+    },
+    "投信": {
+     "call": -5229,
+     "put": 106
+    },
+    "外資": {
+     "call": -1959,
+     "put": 1696
+    }
+   },
+   "pc": {
+    "volume_ratio_pct": 94.38,
+    "oi_ratio_pct": 82.67
+   },
+   "index": {
+    "close": 46940.49,
+    "chg": -242.87,
+    "amount_yi": 7507
+   },
+   "inst": {
+    "自營": -137.64,
+    "投信": 33.51,
+    "外資": -383.34,
+    "合計": -487.47
+   },
+   "margin": 5919.0,
+   "vix": null,
+   "tx": {
+    "contract": "202609",
+    "close": 46870.0,
+    "night_close": 46984.0
+   },
+   "basis": -70.49,
+   "missing": [],
+   "prev": {
+    "date": "2026/09/09",
+    "txf": {
+     "自營商": {
+      "long": 3336,
+      "short": 3712,
+      "net": -376,
+      "day_net": -184
+     },
+     "投信": {
+      "long": 77969,
+      "short": 3150,
+      "net": 74819,
+      "day_net": 221
+     },
+     "外資": {
+      "long": 10526,
+      "short": 91592,
+      "net": -81066,
+      "day_net": 1164
+     }
+    },
+    "mtx": {
+     "自營商": {
+      "long": 3436,
+      "short": 6266,
+      "net": -2830,
+      "day_net": -331
+     },
+     "投信": {
+      "long": 104,
+      "short": 154,
+      "net": -50,
+      "day_net": 0
+     },
+     "外資": {
+      "long": 3734,
+      "short": 2397,
+      "net": 1337,
+      "day_net": 2999
+     }
+    },
+    "tmf": {
+     "自營商": {
+      "long": 4680,
+      "short": 37499,
+      "net": -32819,
+      "day_net": 2215
+     },
+     "投信": {
+      "long": 0,
+      "short": 0,
+      "net": 0,
+      "day_net": 0
+     },
+     "外資": {
+      "long": 20741,
+      "short": 324,
+      "net": 20417,
+      "day_net": 6628
+     }
+    },
+    "mtx_retail": {
+     "market_oi": 37046,
+     "retail_long": 29772,
+     "retail_short": 28229,
+     "retail_net": 1543,
+     "ratio_pct": 4.17
+    },
+    "tmf_retail": {
+     "market_oi": 86874,
+     "retail_long": 61453,
+     "retail_short": 49051,
+     "retail_net": 12402,
+     "ratio_pct": 14.28
+    },
+    "opt": {
+     "自營商": {
+      "call": 10039,
+      "put": 196
+     },
+     "投信": {
+      "call": -4715,
+      "put": 106
+     },
+     "外資": {
+      "call": -2204,
+      "put": 665
+     }
+    },
+    "pc": {
+     "volume_ratio_pct": 109.78,
+     "oi_ratio_pct": 96.34
+    },
+    "index": {
+     "close": 47183.36,
+     "chg": 77.58,
+     "amount_yi": 8160
+    },
+    "inst": {
+     "自營": -18.84,
+     "投信": 20.85,
+     "外資": 209.24,
+     "合計": 211.25
+    },
+    "margin": 5871.7,
+    "vix": null,
+    "tx": {
+     "contract": "202609",
+     "close": 47187.0,
+     "night_close": 47055.0
+    },
+    "basis": 3.64,
+    "missing": [],
+    "prev": {
+     "date": "2026/09/08",
+     "txf": {
+      "自營商": {
+       "long": 3608,
+       "short": 3788,
+       "net": -180,
+       "day_net": 1792
+      },
+      "投信": {
+       "long": 77729,
+       "short": 3131,
+       "net": 74598,
+       "day_net": -848
+      },
+      "外資": {
+       "long": 10316,
+       "short": 92578,
+       "net": -82262,
+       "day_net": -2771
+      }
+     },
+     "mtx": {
+      "自營商": {
+       "long": 3349,
+       "short": 5882,
+       "net": -2533,
+       "day_net": -45
+      },
+      "投信": {
+       "long": 104,
+       "short": 154,
+       "net": -50,
+       "day_net": -3
+      },
+      "外資": {
+       "long": 2208,
+       "short": 3932,
+       "net": -1724,
+       "day_net": -4323
+      }
+     },
+     "tmf": {
+      "自營商": {
+       "long": 3606,
+       "short": 38625,
+       "net": -35019,
+       "day_net": -8061
+      },
+      "投信": {
+       "long": 0,
+       "short": 0,
+       "net": 0,
+       "day_net": 0
+      },
+      "外資": {
+       "long": 15254,
+       "short": 515,
+       "net": 14739,
+       "day_net": -12458
+      }
+     },
+     "mtx_retail": {
+      "market_oi": 37225,
+      "retail_long": 31564,
+      "retail_short": 27257,
+      "retail_net": 4307,
+      "ratio_pct": 11.57
+     },
+     "tmf_retail": {
+      "market_oi": 89186,
+      "retail_long": 70326,
+      "retail_short": 50046,
+      "retail_net": 20280,
+      "ratio_pct": 22.74
+     },
+     "opt": {
+      "自營商": {
+       "call": 2734,
+       "put": -2127
+      },
+      "投信": {
+       "call": -4415,
+       "put": 106
+      },
+      "外資": {
+       "call": -2442,
+       "put": 3677
+      }
+     },
+     "pc": {
+      "volume_ratio_pct": 103.43,
+      "oi_ratio_pct": 105.23
+     },
+     "index": {
+      "close": 47105.78,
+      "chg": -220.49,
+      "amount_yi": 9227
+     },
+     "inst": {
+      "自營": -185.4,
+      "投信": -72.43,
+      "外資": 132.69,
+      "合計": -125.15
+     },
+     "margin": 5862.7,
+     "vix": null,
+     "tx": {
+      "contract": "202609",
+      "close": 46980.0,
+      "night_close": 47329.0
+     },
+     "basis": -125.78,
+     "missing": [],
+     "prev": {
+      "date": "2026/09/07",
+      "txf": {
+       "自營商": {
+        "long": 2735,
+        "short": 4780,
+        "net": -2045,
+        "day_net": -1346
+       },
+       "投信": {
+        "long": 78538,
+        "short": 3092,
+        "net": 75446,
+        "day_net": -728
+       },
+       "外資": {
+        "long": 10793,
+        "short": 90192,
+        "net": -79399,
+        "day_net": 1344
+       }
+      },
+      "mtx": {
+       "自營商": {
+        "long": 4341,
+        "short": 6619,
+        "net": -2278,
+        "day_net": 668
+       },
+       "投信": {
+        "long": 105,
+        "short": 152,
+        "net": -47,
+        "day_net": 3
+       },
+       "外資": {
+        "long": 4080,
+        "short": 1398,
+        "net": 2682,
+        "day_net": 2377
+       }
+      },
+      "tmf": {
+       "自營商": {
+        "long": 5281,
+        "short": 31829,
+        "net": -26548,
+        "day_net": 14526
+       },
+       "投信": {
+        "long": 0,
+        "short": 0,
+        "net": 0,
+        "day_net": 0
+       },
+       "外資": {
+        "long": 24950,
+        "short": 8,
+        "net": 24942,
+        "day_net": 834
+       }
+      },
+      "mtx_retail": {
+       "market_oi": 37686,
+       "retail_long": 29160,
+       "retail_short": 29517,
+       "retail_net": -357,
+       "ratio_pct": -0.95
+      },
+      "tmf_retail": {
+       "market_oi": 90501,
+       "retail_long": 60270,
+       "retail_short": 58664,
+       "retail_net": 1606,
+       "ratio_pct": 1.77
+      },
+      "opt": {
+       "自營商": {
+        "call": 5325,
+        "put": -3437
+       },
+       "投信": {
+        "call": -4414,
+        "put": 106
+       },
+       "外資": {
+        "call": -2319,
+        "put": 24
+       }
+      },
+      "pc": {
+       "volume_ratio_pct": 123.89,
+       "oi_ratio_pct": 111.69
+      },
+      "index": {
+       "close": 47326.27,
+       "chg": 775.14,
+       "amount_yi": 9979
+      },
+      "inst": {
+       "自營": 156.88,
+       "投信": 87.24,
+       "外資": 883.08,
+       "合計": 1127.19
+      },
+      "margin": 5882.7,
+      "vix": null,
+      "tx": {
+       "contract": "202609",
+       "close": 47470.0,
+       "night_close": 47182.0
+      },
+      "basis": 143.73,
+      "missing": [],
+      "prev": {
+       "date": "2026/09/04",
+       "txf": {
+        "自營商": {
+         "long": 3338,
+         "short": 4035,
+         "net": -697,
+         "day_net": -1856
+        },
+        "投信": {
+         "long": 79274,
+         "short": 3100,
+         "net": 76174,
+         "day_net": 1785
+        },
+        "外資": {
+         "long": 8153,
+         "short": 90542,
+         "net": -82389,
+         "day_net": -880
+        }
+       },
+       "mtx": {
+        "自營商": {
+         "long": 3587,
+         "short": 6546,
+         "net": -2959,
+         "day_net": 184
+        },
+        "投信": {
+         "long": 104,
+         "short": 154,
+         "net": -50,
+         "day_net": 5
+        },
+        "外資": {
+         "long": 7473,
+         "short": 1218,
+         "net": 6255,
+         "day_net": 3044
+        }
+       },
+       "tmf": {
+        "自營商": {
+         "long": 3662,
+         "short": 44711,
+         "net": -41049,
+         "day_net": 6944
+        },
+        "投信": {
+         "long": 0,
+         "short": 0,
+         "net": 0,
+         "day_net": 0
+        },
+        "外資": {
+         "long": 27278,
+         "short": 0,
+         "net": 27278,
+         "day_net": 8790
+        }
+       },
+       "mtx_retail": {
+        "market_oi": 41567,
+        "retail_long": 30403,
+        "retail_short": 33649,
+        "retail_net": -3246,
+        "ratio_pct": -7.81
+       },
+       "tmf_retail": {
+        "market_oi": 95151,
+        "retail_long": 64211,
+        "retail_short": 50440,
+        "retail_net": 13771,
+        "ratio_pct": 14.47
+       },
+       "opt": {
+        "自營商": {
+         "call": 6652,
+         "put": -524
+        },
+        "投信": {
+         "call": -4117,
+         "put": 106
+        },
+        "外資": {
+         "call": -3398,
+         "put": -560
+        }
+       },
+       "pc": {
+        "volume_ratio_pct": 98.45,
+        "oi_ratio_pct": 99.8
+       },
+       "index": {
+        "close": 46551.13,
+        "chg": 693.47,
+        "amount_yi": 8582
+       },
+       "inst": {
+        "自營": 63.7,
+        "投信": -9.11,
+        "外資": 562.13,
+        "合計": 616.72
+       },
+       "margin": 5818.9,
+       "vix": null,
+       "tx": {
+        "contract": "202609",
+        "close": 46704.0,
+        "night_close": 46487.0
+       },
+       "basis": 152.87,
+       "missing": [],
+       "prev": {
+        "date": "2026/09/03",
+        "txf": {
+         "自營商": {
+          "long": 4590,
+          "short": 3456,
+          "net": 1134,
+          "day_net": 96
+         },
+         "投信": {
+          "long": 77604,
+          "short": 3215,
+          "net": 74389,
+          "day_net": -673
+         },
+         "外資": {
+          "long": 7604,
+          "short": 89179,
+          "net": -81575,
+          "day_net": 3704
+         }
+        },
+        "mtx": {
+         "自營商": {
+          "long": 3661,
+          "short": 6815,
+          "net": -3154,
+          "day_net": 425
+         },
+         "投信": {
+          "long": 104,
+          "short": 159,
+          "net": -55,
+          "day_net": -3
+         },
+         "外資": {
+          "long": 4532,
+          "short": 1710,
+          "net": 2822,
+          "day_net": 2843
+         }
+        },
+        "tmf": {
+         "自營商": {
+          "long": 4444,
+          "short": 51882,
+          "net": -47438,
+          "day_net": -675
+         },
+         "投信": {
+          "long": 0,
+          "short": 0,
+          "net": 0,
+          "day_net": 0
+         },
+         "外資": {
+          "long": 22684,
+          "short": 931,
+          "net": 21753,
+          "day_net": 10558
+         }
+        },
+        "mtx_retail": {
+         "market_oi": 39167,
+         "retail_long": 30870,
+         "retail_short": 30483,
+         "retail_net": 387,
+         "ratio_pct": 0.99
+        },
+        "tmf_retail": {
+         "market_oi": 100203,
+         "retail_long": 73075,
+         "retail_short": 47390,
+         "retail_net": 25685,
+         "ratio_pct": 25.63
+        },
+        "opt": {
+         "自營商": {
+          "call": 9397,
+          "put": -2036
+         },
+         "投信": {
+          "call": -4457,
+          "put": 146
+         },
+         "外資": {
+          "call": -3254,
+          "put": 51
+         }
+        },
+        "pc": {
+         "volume_ratio_pct": 100.26,
+         "oi_ratio_pct": 77.16
+        },
+        "index": {
+         "close": 45857.66,
+         "chg": -307.06,
+         "amount_yi": 9933
+        },
+        "inst": {
+         "自營": -167.08,
+         "投信": 6.94,
+         "外資": -481.46,
+         "合計": -641.6
+        },
+        "margin": 5787.4,
+        "vix": null,
+        "tx": {
+         "contract": "202609",
+         "close": 45837.0,
+         "night_close": 46336.0
+        },
+        "basis": -20.66,
+        "missing": [],
+        "prev": {
+         "date": "2026/09/02",
+         "txf": {
+          "自營商": {
+           "long": 4543,
+           "short": 3434,
+           "net": 1109,
+           "day_net": 2220
+          },
+          "投信": {
+           "long": 78292,
+           "short": 3230,
+           "net": 75062,
+           "day_net": -965
+          },
+          "外資": {
+           "long": 6686,
+           "short": 92015,
+           "net": -85329,
+           "day_net": -5039
+          }
+         },
+         "mtx": {
+          "自營商": {
+           "long": 3212,
+           "short": 6850,
+           "net": -3638,
+           "day_net": -515
+          },
+          "投信": {
+           "long": 104,
+           "short": 156,
+           "net": -52,
+           "day_net": -3
+          },
+          "外資": {
+           "long": 2918,
+           "short": 3110,
+           "net": -192,
+           "day_net": -10886
+          }
+         },
+         "tmf": {
+          "自營商": {
+           "long": 4125,
+           "short": 52013,
+           "net": -47888,
+           "day_net": -31904
+          },
+          "投信": {
+           "long": 0,
+           "short": 0,
+           "net": 0,
+           "day_net": 0
+          },
+          "外資": {
+           "long": 18101,
+           "short": 5051,
+           "net": 13050,
+           "day_net": -21376
+          }
+         },
+         "mtx_retail": {
+          "market_oi": 40774,
+          "retail_long": 34540,
+          "retail_short": 30658,
+          "retail_net": 3882,
+          "ratio_pct": 9.52
+         },
+         "tmf_retail": {
+          "market_oi": 105729,
+          "retail_long": 83503,
+          "retail_short": 48665,
+          "retail_net": 34838,
+          "ratio_pct": 32.95
+         },
+         "opt": {
+          "自營商": {
+           "call": 7741,
+           "put": 316
+          },
+          "投信": {
+           "call": -4457,
+           "put": 146
+          },
+          "外資": {
+           "call": -3692,
+           "put": 26
+          }
+         },
+         "pc": {
+          "volume_ratio_pct": 85.45,
+          "oi_ratio_pct": 83.9
+         },
+         "index": {
+          "close": 46164.72,
+          "chg": -784.0,
+          "amount_yi": 9765
+         },
+         "inst": {
+          "自營": -203.62,
+          "投信": -35.28,
+          "外資": -913.55,
+          "合計": -1152.44
+         },
+         "margin": 5856.8,
+         "vix": null,
+         "tx": {
+          "contract": "202609",
+          "close": 46189.0,
+          "night_close": 46679.0
+         },
+         "basis": 24.28,
+         "missing": [],
+         "prev": {
+          "date": "2026/09/01",
+          "txf": {
+           "自營商": {
+            "long": 3092,
+            "short": 4082,
+            "net": -990,
+            "day_net": -2405
+           },
+           "投信": {
+            "long": 79188,
+            "short": 3161,
+            "net": 76027,
+            "day_net": 149
+           },
+           "外資": {
+            "long": 9797,
+            "short": 88503,
+            "net": -78706,
+            "day_net": 4251
+           }
+          },
+          "mtx": {
+           "自營商": {
+            "long": 3520,
+            "short": 7145,
+            "net": -3625,
+            "day_net": 986
+           },
+           "投信": {
+            "long": 104,
+            "short": 153,
+            "net": -49,
+            "day_net": -2
+           },
+           "外資": {
+            "long": 6209,
+            "short": 1203,
+            "net": 5006,
+            "day_net": 4948
+           }
+          },
+          "tmf": {
+           "自營商": {
+            "long": 6530,
+            "short": 22619,
+            "net": -16089,
+            "day_net": 19350
+           },
+           "投信": {
+            "long": 0,
+            "short": 0,
+            "net": 0,
+            "day_net": 0
+           },
+           "外資": {
+            "long": 31193,
+            "short": 7,
+            "net": 31186,
+            "day_net": 13397
+           }
+          },
+          "mtx_retail": {
+           "market_oi": 37613,
+           "retail_long": 27780,
+           "retail_short": 29112,
+           "retail_net": -1332,
+           "ratio_pct": -3.54
+          },
+          "tmf_retail": {
+           "market_oi": 87646,
+           "retail_long": 49923,
+           "retail_short": 65020,
+           "retail_net": -15097,
+           "ratio_pct": -17.22
+          },
+          "opt": {
+           "自營商": {
+            "call": 8054,
+            "put": -3899
+           },
+           "投信": {
+            "call": -4313,
+            "put": 206
+           },
+           "外資": {
+            "call": -3438,
+            "put": 1629
+           }
+          },
+          "pc": {
+           "volume_ratio_pct": 111.61,
+           "oi_ratio_pct": 110.04
+          },
+          "index": {
+           "close": 46948.72,
+           "chg": 820.25,
+           "amount_yi": 11876
+          },
+          "inst": {
+           "自營": 163.29,
+           "投信": 136.0,
+           "外資": 267.08,
+           "合計": 566.37
+          },
+          "margin": 5781.2,
+          "vix": null,
+          "tx": {
+           "contract": "202609",
+           "close": 47209.0,
+           "night_close": 45978.0
+          },
+          "basis": 260.28,
+          "missing": [],
+          "prev": {
+           "date": "2026/08/31",
+           "txf": {
+            "自營商": {
+             "long": 4825,
+             "short": 3216,
+             "net": 1609,
+             "day_net": 973
+            },
+            "投信": {
+             "long": 79165,
+             "short": 3287,
+             "net": 75878,
+             "day_net": -874
+            },
+            "外資": {
+             "long": 8105,
+             "short": 91075,
+             "net": -82970,
+             "day_net": 712
+            }
+           },
+           "mtx": {
+            "自營商": {
+             "long": 3517,
+             "short": 8704,
+             "net": -5187,
+             "day_net": 571
+            },
+            "投信": {
+             "long": 106,
+             "short": 153,
+             "net": -47,
+             "day_net": -4
+            },
+            "外資": {
+             "long": 2770,
+             "short": 2524,
+             "net": 246,
+             "day_net": -2959
+            }
+           },
+           "tmf": {
+            "自營商": {
+             "long": 4539,
+             "short": 40978,
+             "net": -36439,
+             "day_net": -13644
+            },
+            "投信": {
+             "long": 0,
+             "short": 0,
+             "net": 0,
+             "day_net": 0
+            },
+            "外資": {
+             "long": 17753,
+             "short": 644,
+             "net": 17109,
+             "day_net": -3794
+            }
+           },
+           "mtx_retail": {
+            "market_oi": 35341,
+            "retail_long": 28948,
+            "retail_short": 23960,
+            "retail_net": 4988,
+            "ratio_pct": 14.11
+           },
+           "tmf_retail": {
+            "market_oi": 86515,
+            "retail_long": 64223,
+            "retail_short": 44893,
+            "retail_net": 19330,
+            "ratio_pct": 22.34
+           },
+           "opt": {
+            "自營商": {
+             "call": 5957,
+             "put": 771
+            },
+            "投信": {
+             "call": -4312,
+             "put": 166
+            },
+            "外資": {
+             "call": -4183,
+             "put": 335
+            }
+           },
+           "pc": {
+            "volume_ratio_pct": 118.35,
+            "oi_ratio_pct": 96.12
+           },
+           "index": {
+            "close": 46128.47,
+            "chg": -202.98,
+            "amount_yi": 12892
+           },
+           "inst": {
+            "自營": -74.53,
+            "投信": -40.0,
+            "外資": -143.92,
+            "合計": -258.46
+           },
+           "margin": 5698.8,
+           "vix": null,
+           "tx": {
+            "contract": "202609",
+            "close": 45983.0,
+            "night_close": 45900.0
+           },
+           "basis": -145.47,
+           "missing": [],
+           "prev": {
+            "date": "2026/08/28",
+            "txf": {
+             "自營商": {
+              "long": 3992,
+              "short": 3335,
+              "net": 657,
+              "day_net": 295
+             },
+             "投信": {
+              "long": 80036,
+              "short": 3284,
+              "net": 76752,
+              "day_net": -82
+             },
+             "外資": {
+              "long": 8732,
+              "short": 92387,
+              "net": -83655,
+              "day_net": 1137
+             }
+            },
+            "mtx": {
+             "自營商": {
+              "long": 2185,
+              "short": 8054,
+              "net": -5869,
+              "day_net": 232
+             },
+             "投信": {
+              "long": 109,
+              "short": 152,
+              "net": -43,
+              "day_net": 1
+             },
+             "外資": {
+              "long": 4183,
+              "short": 901,
+              "net": 3282,
+              "day_net": 1452
+             }
+            },
+            "tmf": {
+             "自營商": {
+              "long": 3660,
+              "short": 26320,
+              "net": -22660,
+              "day_net": 3222
+             },
+             "投信": {
+              "long": 0,
+              "short": 0,
+              "net": 0,
+              "day_net": 0
+             },
+             "外資": {
+              "long": 19978,
+              "short": 0,
+              "net": 19978,
+              "day_net": 2575
+             }
+            },
+            "mtx_retail": {
+             "market_oi": 35158,
+             "retail_long": 28681,
+             "retail_short": 26051,
+             "retail_net": 2630,
+             "ratio_pct": 7.48
+            },
+            "tmf_retail": {
+             "market_oi": 80333,
+             "retail_long": 56695,
+             "retail_short": 54013,
+             "retail_net": 2682,
+             "ratio_pct": 3.34
+            },
+            "opt": {
+             "自營商": {
+              "call": 7107,
+              "put": 1157
+             },
+             "投信": {
+              "call": -3530,
+              "put": 166
+             },
+             "外資": {
+              "call": -4281,
+              "put": 92
+             }
+            },
+            "pc": {
+             "volume_ratio_pct": 100.72,
+             "oi_ratio_pct": 101.44
+            },
+            "index": {
+             "close": 46331.45,
+             "chg": 356.23,
+             "amount_yi": 10690
+            },
+            "inst": {
+             "自營": 42.71,
+             "投信": -1.97,
+             "外資": 417.54,
+             "合計": 458.28
+            },
+            "margin": 5671.8,
+            "vix": null,
+            "tx": {
+             "contract": "202609",
+             "close": 46357.0,
+             "night_close": 46388.0
+            },
+            "basis": 25.55,
+            "missing": [],
+            "prev": {
+             "date": "2026/08/27",
+             "txf": {
+              "自營商": {
+               "long": 4142,
+               "short": 3766,
+               "net": 376,
+               "day_net": 794
+              },
+              "投信": {
+               "long": 80120,
+               "short": 3286,
+               "net": 76834,
+               "day_net": -1209
+              },
+              "外資": {
+               "long": 6963,
+               "short": 91799,
+               "net": -84836,
+               "day_net": -1148
+              }
+             },
+             "mtx": {
+              "自營商": {
+               "long": 2546,
+               "short": 8665,
+               "net": -6119,
+               "day_net": 421
+              },
+              "投信": {
+               "long": 109,
+               "short": 153,
+               "net": -44,
+               "day_net": 1
+              },
+              "外資": {
+               "long": 2824,
+               "short": 1061,
+               "net": 1763,
+               "day_net": -3574
+              }
+             },
+             "tmf": {
+              "自營商": {
+               "long": 3651,
+               "short": 29723,
+               "net": -26072,
+               "day_net": -5601
+              },
+              "投信": {
+               "long": 0,
+               "short": 0,
+               "net": 0,
+               "day_net": 0
+              },
+              "外資": {
+               "long": 18830,
+               "short": 212,
+               "net": 18618,
+               "day_net": -3271
+              }
+             },
+             "mtx_retail": {
+              "market_oi": 34823,
+              "retail_long": 29344,
+              "retail_short": 24944,
+              "retail_net": 4400,
+              "ratio_pct": 12.64
+             },
+             "tmf_retail": {
+              "market_oi": 80829,
+              "retail_long": 58348,
+              "retail_short": 50894,
+              "retail_net": 7454,
+              "ratio_pct": 9.22
+             },
+             "opt": {
+              "自營商": {
+               "call": 2702,
+               "put": 180
+              },
+              "投信": {
+               "call": -3980,
+               "put": 106
+              },
+              "外資": {
+               "call": -3493,
+               "put": 485
+              }
+             },
+             "pc": {
+              "volume_ratio_pct": 121.76,
+              "oi_ratio_pct": 105.81
+             },
+             "index": {
+              "close": 45975.22,
+              "chg": 142.6,
+              "amount_yi": 9675
+             },
+             "inst": {
+              "自營": 150.35,
+              "投信": -14.5,
+              "外資": 490.94,
+              "合計": 626.79
+             },
+             "margin": 5599.2,
+             "vix": null,
+             "tx": {
+              "contract": "202609",
+              "close": 46078.0,
+              "night_close": 45993.0
+             },
+             "basis": 102.78,
+             "missing": [],
+             "prev": {
+              "date": "2026/08/26",
+              "txf": {
+               "自營商": {
+                "long": 3499,
+                "short": 3920,
+                "net": -421,
+                "day_net": -2666
+               },
+               "投信": {
+                "long": 81249,
+                "short": 3206,
+                "net": 78043,
+                "day_net": 1734
+               },
+               "外資": {
+                "long": 8657,
+                "short": 92311,
+                "net": -83654,
+                "day_net": 1659
+               }
+              },
+              "mtx": {
+               "自營商": {
+                "long": 2379,
+                "short": 8916,
+                "net": -6537,
+                "day_net": -582
+               },
+               "投信": {
+                "long": 109,
+                "short": 154,
+                "net": -45,
+                "day_net": 0
+               },
+               "外資": {
+                "long": 6390,
+                "short": 752,
+                "net": 5638,
+                "day_net": 4302
+               }
+              },
+              "tmf": {
+               "自營商": {
+                "long": 3647,
+                "short": 24073,
+                "net": -20426,
+                "day_net": 11089
+               },
+               "投信": {
+                "long": 0,
+                "short": 0,
+                "net": 0,
+                "day_net": 0
+               },
+               "外資": {
+                "long": 19704,
+                "short": 0,
+                "net": 19704,
+                "day_net": 13764
+               }
+              },
+              "mtx_retail": {
+               "market_oi": 37429,
+               "retail_long": 28551,
+               "retail_short": 27607,
+               "retail_net": 944,
+               "ratio_pct": 2.52
+              },
+              "tmf_retail": {
+               "market_oi": 77736,
+               "retail_long": 54385,
+               "retail_short": 53663,
+               "retail_net": 722,
+               "ratio_pct": 0.93
+              },
+              "opt": {
+               "自營商": {
+                "call": 4510,
+                "put": 175
+               },
+               "投信": {
+                "call": -3729,
+                "put": 106
+               },
+               "外資": {
+                "call": -3301,
+                "put": 21
+               }
+              },
+              "pc": {
+               "volume_ratio_pct": 112.2,
+               "oi_ratio_pct": 103.04
+              },
+              "index": {
+               "close": 45832.62,
+               "chg": 663.16,
+               "amount_yi": 8431
+              },
+              "inst": {
+               "自營": 179.34,
+               "投信": 33.66,
+               "外資": 366.13,
+               "合計": 579.13
+              },
+              "margin": 5548.0,
+              "vix": null,
+              "tx": {
+               "contract": "202609",
+               "close": 46011.0,
+               "night_close": 45437.0
+              },
+              "basis": 178.38,
+              "missing": [],
+              "prev": {
+               "date": "2026/08/25",
+               "txf": {
+                "自營商": {
+                 "long": 5693,
+                 "short": 3192,
+                 "net": 2501,
+                 "day_net": 292
+                },
+                "投信": {
+                 "long": 79638,
+                 "short": 3329,
+                 "net": 76309,
+                 "day_net": 501
+                },
+                "外資": {
+                 "long": 5030,
+                 "short": 90410,
+                 "net": -85380,
+                 "day_net": -1880
+                }
+               },
+               "mtx": {
+                "自營商": {
+                 "long": 2531,
+                 "short": 9234,
+                 "net": -6703,
+                 "day_net": 255
+                },
+                "投信": {
+                 "long": 109,
+                 "short": 154,
+                 "net": -45,
+                 "day_net": 1
+                },
+                "外資": {
+                 "long": 2578,
+                 "short": 1520,
+                 "net": 1058,
+                 "day_net": -587
+                }
+               },
+               "tmf": {
+                "自營商": {
+                 "long": 3055,
+                 "short": 36155,
+                 "net": -33100,
+                 "day_net": -3426
+                },
+                "投信": {
+                 "long": 0,
+                 "short": 0,
+                 "net": 0,
+                 "day_net": 0
+                },
+                "外資": {
+                 "long": 9030,
+                 "short": 360,
+                 "net": 8670,
+                 "day_net": 9079
+                }
+               },
+               "mtx_retail": {
+                "market_oi": 33646,
+                "retail_long": 28428,
+                "retail_short": 22738,
+                "retail_net": 5690,
+                "ratio_pct": 16.91
+               },
+               "tmf_retail": {
+                "market_oi": 79933,
+                "retail_long": 67848,
+                "retail_short": 43418,
+                "retail_net": 24430,
+                "ratio_pct": 30.56
+               },
+               "opt": {
+                "自營商": {
+                 "call": 1402,
+                 "put": 1654
+                },
+                "投信": {
+                 "call": -4029,
+                 "put": 166
+                },
+                "外資": {
+                 "call": -2744,
+                 "put": 946
+                }
+               },
+               "pc": {
+                "volume_ratio_pct": 110.78,
+                "oi_ratio_pct": 101.99
+               },
+               "index": {
+                "close": 45169.46,
+                "chg": 407.14,
+                "amount_yi": 7243
+               },
+               "inst": {
+                "自營": 0.6,
+                "投信": -39.84,
+                "外資": -7.87,
+                "合計": -47.11
+               },
+               "margin": 5469.4,
+               "vix": null,
+               "tx": {
+                "contract": "202609",
+                "close": 45027.0,
+                "night_close": 44532.0
+               },
+               "basis": -142.46,
+               "missing": []
+              },
+              "log": [
+               "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+               "— 2026/09/22",
+               "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/21",
+               "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/18",
+               "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/17",
+               "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/16",
+               "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/15",
+               "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/14",
+               "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/11",
+               "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/10",
+               "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/09",
+               "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/08",
+               "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/07",
+               "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/04",
+               "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/03",
+               "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/02",
+               "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/09/01",
+               "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/08/31",
+               "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/08/28",
+               "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/08/27",
+               "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/08/26",
+               "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']",
+               "— 2026/08/25",
+               "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+               "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+               "  融資 keys：['stat', 'date', 'tables']"
+              ],
+              "generated_at": "2026-09-23T12:40:10",
+              "claude_text": "【台股盤後數據】2026/08/26（前一交易日 2026/08/25）\n加權指數 45,832.62  +663.16（自算 +1.47%，分母前收 45169.46）  成交 8,431 億\n三大法人 +579.13 億｜外資 +366.13｜投信 +33.66｜自營 +179.34\n融資餘額 5,548.0 億（證交所口徑，含 ETF；前值 5469.4）\n台指期近月收 46,011（正價差 +178）　夜盤收 45,437\n── 臺股期貨 未平倉（前→今）──\n自營商：多 5,693→3,499（-2,194）  空 3,192→3,920（+728）  淨 2,501→-421（-2,922）\n投信：多 79,638→81,249（+1,611）  空 3,329→3,206（-123）  淨 76,309→78,043（+1,734）\n外資：多 5,030→8,657（+3,627）  空 90,410→92,311（+1,901）  淨 -85,380→-83,654（+1,726）\n外資買權淨OI -2744→-3301（-557）  賣權淨OI 946→21（-925）\n小台散戶多空比 +16.91% → +2.52%（散戶淨 +5,690→+944；全市場OI 37,429）\n微台散戶多空比 +30.56% → +0.93%（散戶淨 +24,430→+722；全市場OI 77,736）\n全市場 Put/Call（OI）101.99% → 103.04%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']"
+             },
+             "log": [
+              "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+              "— 2026/09/22",
+              "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/21",
+              "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/18",
+              "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/17",
+              "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/16",
+              "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/15",
+              "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/14",
+              "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/11",
+              "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/10",
+              "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/09",
+              "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/08",
+              "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/07",
+              "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/04",
+              "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/03",
+              "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/02",
+              "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/09/01",
+              "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/08/31",
+              "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/08/28",
+              "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/08/27",
+              "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/08/26",
+              "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']",
+              "— 2026/08/25",
+              "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+              "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+              "  融資 keys：['stat', 'date', 'tables']"
+             ],
+             "generated_at": "2026-09-23T12:40:10",
+             "claude_text": "【台股盤後數據】2026/08/27（前一交易日 2026/08/26）\n加權指數 45,975.22  +142.6（自算 +0.31%，分母前收 45832.62）  成交 9,675 億\n三大法人 +626.79 億｜外資 +490.94｜投信 -14.50｜自營 +150.35\n融資餘額 5,599.2 億（證交所口徑，含 ETF；前值 5548.0）\n台指期近月收 46,078（正價差 +103）　夜盤收 45,993\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,499→4,142（+643）  空 3,920→3,766（-154）  淨 -421→376（+797）\n投信：多 81,249→80,120（-1,129）  空 3,206→3,286（+80）  淨 78,043→76,834（-1,209）\n外資：多 8,657→6,963（-1,694）  空 92,311→91,799（-512）  淨 -83,654→-84,836（-1,182）\n外資買權淨OI -3301→-3493（-192）  賣權淨OI 21→485（+464）\n小台散戶多空比 +2.52% → +12.64%（散戶淨 +944→+4,400；全市場OI 34,823）\n微台散戶多空比 +0.93% → +9.22%（散戶淨 +722→+7,454；全市場OI 80,829）\n全市場 Put/Call（OI）103.04% → 105.81%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+             "prev_summary": "【台股盤後數據】2026/08/26（前一交易日 2026/08/25）\n加權指數 45,832.62  +663.16（自算 +1.47%，分母前收 45169.46）  成交 8,431 億\n三大法人 +579.13 億｜外資 +366.13｜投信 +33.66｜自營 +179.34\n融資餘額 5,548.0 億（證交所口徑，含 ETF；前值 5469.4）"
+            },
+            "log": [
+             "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+             "— 2026/09/22",
+             "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/21",
+             "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/18",
+             "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/17",
+             "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/16",
+             "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/15",
+             "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/14",
+             "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/11",
+             "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/10",
+             "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/09",
+             "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/08",
+             "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/07",
+             "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/04",
+             "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/03",
+             "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/02",
+             "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/09/01",
+             "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/08/31",
+             "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/08/28",
+             "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/08/27",
+             "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/08/26",
+             "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']",
+             "— 2026/08/25",
+             "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+             "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+             "  融資 keys：['stat', 'date', 'tables']"
+            ],
+            "generated_at": "2026-09-23T12:40:10",
+            "claude_text": "【台股盤後數據】2026/08/28（前一交易日 2026/08/27）\n加權指數 46,331.45  +356.23（自算 +0.77%，分母前收 45975.22）  成交 10,690 億\n三大法人 +458.28 億｜外資 +417.54｜投信 -1.97｜自營 +42.71\n融資餘額 5,671.8 億（證交所口徑，含 ETF；前值 5599.2）\n台指期近月收 46,357（正價差 +26）　夜盤收 46,388\n── 臺股期貨 未平倉（前→今）──\n自營商：多 4,142→3,992（-150）  空 3,766→3,335（-431）  淨 376→657（+281）\n投信：多 80,120→80,036（-84）  空 3,286→3,284（-2）  淨 76,834→76,752（-82）\n外資：多 6,963→8,732（+1,769）  空 91,799→92,387（+588）  淨 -84,836→-83,655（+1,181）\n外資買權淨OI -3493→-4281（-788）  賣權淨OI 485→92（-393）\n小台散戶多空比 +12.64% → +7.48%（散戶淨 +4,400→+2,630；全市場OI 35,158）\n微台散戶多空比 +9.22% → +3.34%（散戶淨 +7,454→+2,682；全市場OI 80,333）\n全市場 Put/Call（OI）105.81% → 101.44%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+            "prev_summary": "【台股盤後數據】2026/08/27（前一交易日 2026/08/26）\n加權指數 45,975.22  +142.6（自算 +0.31%，分母前收 45832.62）  成交 9,675 億\n三大法人 +626.79 億｜外資 +490.94｜投信 -14.50｜自營 +150.35\n融資餘額 5,599.2 億（證交所口徑，含 ETF；前值 5548.0）"
+           },
+           "log": [
+            "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+            "— 2026/09/22",
+            "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/21",
+            "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/18",
+            "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/17",
+            "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/16",
+            "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/15",
+            "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/14",
+            "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/11",
+            "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/10",
+            "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/09",
+            "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/08",
+            "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/07",
+            "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/04",
+            "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/03",
+            "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/02",
+            "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/09/01",
+            "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/08/31",
+            "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/08/28",
+            "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/08/27",
+            "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/08/26",
+            "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']",
+            "— 2026/08/25",
+            "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+            "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+            "  融資 keys：['stat', 'date', 'tables']"
+           ],
+           "generated_at": "2026-09-23T12:40:10",
+           "claude_text": "【台股盤後數據】2026/08/31（前一交易日 2026/08/28）\n加權指數 46,128.47  -202.98（自算 -0.44%，分母前收 46331.45）  成交 12,892 億\n三大法人 -258.46 億｜外資 -143.92｜投信 -40.00｜自營 -74.53\n融資餘額 5,698.8 億（證交所口徑，含 ETF；前值 5671.8）\n台指期近月收 45,983（逆價差 -145）　夜盤收 45,900\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,992→4,825（+833）  空 3,335→3,216（-119）  淨 657→1,609（+952）\n投信：多 80,036→79,165（-871）  空 3,284→3,287（+3）  淨 76,752→75,878（-874）\n外資：多 8,732→8,105（-627）  空 92,387→91,075（-1,312）  淨 -83,655→-82,970（+685）\n外資買權淨OI -4281→-4183（+98）  賣權淨OI 92→335（+243）\n小台散戶多空比 +7.48% → +14.11%（散戶淨 +2,630→+4,988；全市場OI 35,341）\n微台散戶多空比 +3.34% → +22.34%（散戶淨 +2,682→+19,330；全市場OI 86,515）\n全市場 Put/Call（OI）101.44% → 96.12%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+           "prev_summary": "【台股盤後數據】2026/08/28（前一交易日 2026/08/27）\n加權指數 46,331.45  +356.23（自算 +0.77%，分母前收 45975.22）  成交 10,690 億\n三大法人 +458.28 億｜外資 +417.54｜投信 -1.97｜自營 +42.71\n融資餘額 5,671.8 億（證交所口徑，含 ETF；前值 5599.2）"
+          },
+          "log": [
+           "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+           "— 2026/09/22",
+           "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/21",
+           "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/18",
+           "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/17",
+           "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/16",
+           "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/15",
+           "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/14",
+           "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/11",
+           "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/10",
+           "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/09",
+           "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/08",
+           "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/07",
+           "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/04",
+           "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/03",
+           "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/02",
+           "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/09/01",
+           "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/08/31",
+           "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/08/28",
+           "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/08/27",
+           "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/08/26",
+           "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']",
+           "— 2026/08/25",
+           "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+           "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+           "  融資 keys：['stat', 'date', 'tables']"
+          ],
+          "generated_at": "2026-09-23T12:40:10",
+          "claude_text": "【台股盤後數據】2026/09/01（前一交易日 2026/08/31）\n加權指數 46,948.72  +820.25（自算 +1.78%，分母前收 46128.47）  成交 11,876 億\n三大法人 +566.37 億｜外資 +267.08｜投信 +136.00｜自營 +163.29\n融資餘額 5,781.2 億（證交所口徑，含 ETF；前值 5698.8）\n台指期近月收 47,209（正價差 +260）　夜盤收 45,978\n── 臺股期貨 未平倉（前→今）──\n自營商：多 4,825→3,092（-1,733）  空 3,216→4,082（+866）  淨 1,609→-990（-2,599）\n投信：多 79,165→79,188（+23）  空 3,287→3,161（-126）  淨 75,878→76,027（+149）\n外資：多 8,105→9,797（+1,692）  空 91,075→88,503（-2,572）  淨 -82,970→-78,706（+4,264）\n外資買權淨OI -4183→-3438（+745）  賣權淨OI 335→1629（+1,294）\n小台散戶多空比 +14.11% → -3.54%（散戶淨 +4,988→-1,332；全市場OI 37,613）\n微台散戶多空比 +22.34% → -17.22%（散戶淨 +19,330→-15,097；全市場OI 87,646）\n全市場 Put/Call（OI）96.12% → 110.04%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+          "prev_summary": "【台股盤後數據】2026/08/31（前一交易日 2026/08/28）\n加權指數 46,128.47  -202.98（自算 -0.44%，分母前收 46331.45）  成交 12,892 億\n三大法人 -258.46 億｜外資 -143.92｜投信 -40.00｜自營 -74.53\n融資餘額 5,698.8 億（證交所口徑，含 ETF；前值 5671.8）"
+         },
+         "log": [
+          "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+          "— 2026/09/22",
+          "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/21",
+          "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/18",
+          "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/17",
+          "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/16",
+          "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/15",
+          "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/14",
+          "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/11",
+          "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/10",
+          "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/09",
+          "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/08",
+          "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/07",
+          "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/04",
+          "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/03",
+          "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/02",
+          "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/09/01",
+          "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/08/31",
+          "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/08/28",
+          "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/08/27",
+          "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/08/26",
+          "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']",
+          "— 2026/08/25",
+          "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+          "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+          "  融資 keys：['stat', 'date', 'tables']"
+         ],
+         "generated_at": "2026-09-23T12:40:10",
+         "claude_text": "【台股盤後數據】2026/09/02（前一交易日 2026/09/01）\n加權指數 46,164.72  -784.0（自算 -1.67%，分母前收 46948.72）  成交 9,765 億\n三大法人 -1152.44 億｜外資 -913.55｜投信 -35.28｜自營 -203.62\n融資餘額 5,856.8 億（證交所口徑，含 ETF；前值 5781.2）\n台指期近月收 46,189（正價差 +24）　夜盤收 46,679\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,092→4,543（+1,451）  空 4,082→3,434（-648）  淨 -990→1,109（+2,099）\n投信：多 79,188→78,292（-896）  空 3,161→3,230（+69）  淨 76,027→75,062（-965）\n外資：多 9,797→6,686（-3,111）  空 88,503→92,015（+3,512）  淨 -78,706→-85,329（-6,623）\n外資買權淨OI -3438→-3692（-254）  賣權淨OI 1629→26（-1,603）\n小台散戶多空比 -3.54% → +9.52%（散戶淨 -1,332→+3,882；全市場OI 40,774）\n微台散戶多空比 -17.22% → +32.95%（散戶淨 -15,097→+34,838；全市場OI 105,729）\n全市場 Put/Call（OI）110.04% → 83.9%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+         "prev_summary": "【台股盤後數據】2026/09/01（前一交易日 2026/08/31）\n加權指數 46,948.72  +820.25（自算 +1.78%，分母前收 46128.47）  成交 11,876 億\n三大法人 +566.37 億｜外資 +267.08｜投信 +136.00｜自營 +163.29\n融資餘額 5,781.2 億（證交所口徑，含 ETF；前值 5698.8）"
+        },
+        "log": [
+         "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+         "— 2026/09/22",
+         "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/21",
+         "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/18",
+         "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/17",
+         "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/16",
+         "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/15",
+         "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/14",
+         "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/11",
+         "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/10",
+         "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/09",
+         "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/08",
+         "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/07",
+         "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/04",
+         "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/03",
+         "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/02",
+         "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/09/01",
+         "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/08/31",
+         "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/08/28",
+         "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/08/27",
+         "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/08/26",
+         "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']",
+         "— 2026/08/25",
+         "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+         "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+         "  融資 keys：['stat', 'date', 'tables']"
+        ],
+        "generated_at": "2026-09-23T12:40:10",
+        "claude_text": "【台股盤後數據】2026/09/03（前一交易日 2026/09/02）\n加權指數 45,857.66  -307.06（自算 -0.67%，分母前收 46164.72）  成交 9,933 億\n三大法人 -641.60 億｜外資 -481.46｜投信 +6.94｜自營 -167.08\n融資餘額 5,787.4 億（證交所口徑，含 ETF；前值 5856.8）\n台指期近月收 45,837（逆價差 -21）　夜盤收 46,336\n── 臺股期貨 未平倉（前→今）──\n自營商：多 4,543→4,590（+47）  空 3,434→3,456（+22）  淨 1,109→1,134（+25）\n投信：多 78,292→77,604（-688）  空 3,230→3,215（-15）  淨 75,062→74,389（-673）\n外資：多 6,686→7,604（+918）  空 92,015→89,179（-2,836）  淨 -85,329→-81,575（+3,754）\n外資買權淨OI -3692→-3254（+438）  賣權淨OI 26→51（+25）\n小台散戶多空比 +9.52% → +0.99%（散戶淨 +3,882→+387；全市場OI 39,167）\n微台散戶多空比 +32.95% → +25.63%（散戶淨 +34,838→+25,685；全市場OI 100,203）\n全市場 Put/Call（OI）83.9% → 77.16%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+        "prev_summary": "【台股盤後數據】2026/09/02（前一交易日 2026/09/01）\n加權指數 46,164.72  -784.0（自算 -1.67%，分母前收 46948.72）  成交 9,765 億\n三大法人 -1152.44 億｜外資 -913.55｜投信 -35.28｜自營 -203.62\n融資餘額 5,856.8 億（證交所口徑，含 ETF；前值 5781.2）"
+       },
+       "log": [
+        "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+        "— 2026/09/22",
+        "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/21",
+        "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/18",
+        "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/17",
+        "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/16",
+        "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/15",
+        "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/14",
+        "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/11",
+        "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/10",
+        "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/09",
+        "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/08",
+        "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/07",
+        "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/04",
+        "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/03",
+        "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/02",
+        "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/09/01",
+        "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/08/31",
+        "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/08/28",
+        "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/08/27",
+        "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/08/26",
+        "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']",
+        "— 2026/08/25",
+        "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+        "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+        "  融資 keys：['stat', 'date', 'tables']"
+       ],
+       "generated_at": "2026-09-23T12:40:10",
+       "claude_text": "【台股盤後數據】2026/09/04（前一交易日 2026/09/03）\n加權指數 46,551.13  +693.47（自算 +1.51%，分母前收 45857.66）  成交 8,582 億\n三大法人 +616.72 億｜外資 +562.13｜投信 -9.11｜自營 +63.70\n融資餘額 5,818.9 億（證交所口徑，含 ETF；前值 5787.4）\n台指期近月收 46,704（正價差 +153）　夜盤收 46,487\n── 臺股期貨 未平倉（前→今）──\n自營商：多 4,590→3,338（-1,252）  空 3,456→4,035（+579）  淨 1,134→-697（-1,831）\n投信：多 77,604→79,274（+1,670）  空 3,215→3,100（-115）  淨 74,389→76,174（+1,785）\n外資：多 7,604→8,153（+549）  空 89,179→90,542（+1,363）  淨 -81,575→-82,389（-814）\n外資買權淨OI -3254→-3398（-144）  賣權淨OI 51→-560（-611）\n小台散戶多空比 +0.99% → -7.81%（散戶淨 +387→-3,246；全市場OI 41,567）\n微台散戶多空比 +25.63% → +14.47%（散戶淨 +25,685→+13,771；全市場OI 95,151）\n全市場 Put/Call（OI）77.16% → 99.8%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+       "prev_summary": "【台股盤後數據】2026/09/03（前一交易日 2026/09/02）\n加權指數 45,857.66  -307.06（自算 -0.67%，分母前收 46164.72）  成交 9,933 億\n三大法人 -641.60 億｜外資 -481.46｜投信 +6.94｜自營 -167.08\n融資餘額 5,787.4 億（證交所口徑，含 ETF；前值 5856.8）"
+      },
+      "log": [
+       "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+       "— 2026/09/22",
+       "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/21",
+       "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/18",
+       "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/17",
+       "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/16",
+       "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/15",
+       "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/14",
+       "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/11",
+       "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/10",
+       "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/09",
+       "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/08",
+       "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/07",
+       "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/04",
+       "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/03",
+       "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/02",
+       "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/09/01",
+       "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/08/31",
+       "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/08/28",
+       "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/08/27",
+       "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/08/26",
+       "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']",
+       "— 2026/08/25",
+       "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+       "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+       "  融資 keys：['stat', 'date', 'tables']"
+      ],
+      "generated_at": "2026-09-23T12:40:10",
+      "claude_text": "【台股盤後數據】2026/09/07（前一交易日 2026/09/04）\n加權指數 47,326.27  +775.14（自算 +1.67%，分母前收 46551.13）  成交 9,979 億\n三大法人 +1127.19 億｜外資 +883.08｜投信 +87.24｜自營 +156.88\n融資餘額 5,882.7 億（證交所口徑，含 ETF；前值 5818.9）\n台指期近月收 47,470（正價差 +144）　夜盤收 47,182\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,338→2,735（-603）  空 4,035→4,780（+745）  淨 -697→-2,045（-1,348）\n投信：多 79,274→78,538（-736）  空 3,100→3,092（-8）  淨 76,174→75,446（-728）\n外資：多 8,153→10,793（+2,640）  空 90,542→90,192（-350）  淨 -82,389→-79,399（+2,990）\n外資買權淨OI -3398→-2319（+1,079）  賣權淨OI -560→24（+584）\n小台散戶多空比 -7.81% → -0.95%（散戶淨 -3,246→-357；全市場OI 37,686）\n微台散戶多空比 +14.47% → +1.77%（散戶淨 +13,771→+1,606；全市場OI 90,501）\n全市場 Put/Call（OI）99.8% → 111.69%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+      "prev_summary": "【台股盤後數據】2026/09/04（前一交易日 2026/09/03）\n加權指數 46,551.13  +693.47（自算 +1.51%，分母前收 45857.66）  成交 8,582 億\n三大法人 +616.72 億｜外資 +562.13｜投信 -9.11｜自營 +63.70\n融資餘額 5,818.9 億（證交所口徑，含 ETF；前值 5787.4）"
+     },
+     "log": [
+      "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+      "— 2026/09/22",
+      "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/21",
+      "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/18",
+      "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/17",
+      "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/16",
+      "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/15",
+      "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/14",
+      "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/11",
+      "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/10",
+      "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/09",
+      "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/08",
+      "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/07",
+      "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/04",
+      "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/03",
+      "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/02",
+      "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/09/01",
+      "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/08/31",
+      "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/08/28",
+      "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/08/27",
+      "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/08/26",
+      "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']",
+      "— 2026/08/25",
+      "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+      "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+      "  融資 keys：['stat', 'date', 'tables']"
+     ],
+     "generated_at": "2026-09-23T12:40:10",
+     "claude_text": "【台股盤後數據】2026/09/08（前一交易日 2026/09/07）\n加權指數 47,105.78  -220.49（自算 -0.47%，分母前收 47326.27）  成交 9,227 億\n三大法人 -125.15 億｜外資 +132.69｜投信 -72.43｜自營 -185.40\n融資餘額 5,862.7 億（證交所口徑，含 ETF；前值 5882.7）\n台指期近月收 46,980（逆價差 -126）　夜盤收 47,329\n── 臺股期貨 未平倉（前→今）──\n自營商：多 2,735→3,608（+873）  空 4,780→3,788（-992）  淨 -2,045→-180（+1,865）\n投信：多 78,538→77,729（-809）  空 3,092→3,131（+39）  淨 75,446→74,598（-848）\n外資：多 10,793→10,316（-477）  空 90,192→92,578（+2,386）  淨 -79,399→-82,262（-2,863）\n外資買權淨OI -2319→-2442（-123）  賣權淨OI 24→3677（+3,653）\n小台散戶多空比 -0.95% → +11.57%（散戶淨 -357→+4,307；全市場OI 37,225）\n微台散戶多空比 +1.77% → +22.74%（散戶淨 +1,606→+20,280；全市場OI 89,186）\n全市場 Put/Call（OI）111.69% → 105.23%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+     "prev_summary": "【台股盤後數據】2026/09/07（前一交易日 2026/09/04）\n加權指數 47,326.27  +775.14（自算 +1.67%，分母前收 46551.13）  成交 9,979 億\n三大法人 +1127.19 億｜外資 +883.08｜投信 +87.24｜自營 +156.88\n融資餘額 5,882.7 億（證交所口徑，含 ETF；前值 5818.9）"
+    },
+    "log": [
+     "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+     "— 2026/09/22",
+     "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/21",
+     "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/18",
+     "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/17",
+     "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/16",
+     "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/15",
+     "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/14",
+     "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/11",
+     "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/10",
+     "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/09",
+     "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/08",
+     "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/07",
+     "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/04",
+     "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/03",
+     "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/02",
+     "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/09/01",
+     "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/08/31",
+     "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/08/28",
+     "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/08/27",
+     "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/08/26",
+     "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']",
+     "— 2026/08/25",
+     "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+     "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+     "  融資 keys：['stat', 'date', 'tables']"
+    ],
+    "generated_at": "2026-09-23T12:40:10",
+    "claude_text": "【台股盤後數據】2026/09/09（前一交易日 2026/09/08）\n加權指數 47,183.36  +77.58（自算 +0.16%，分母前收 47105.78）  成交 8,160 億\n三大法人 +211.25 億｜外資 +209.24｜投信 +20.85｜自營 -18.84\n融資餘額 5,871.7 億（證交所口徑，含 ETF；前值 5862.7）\n台指期近月收 47,187（正價差 +4）　夜盤收 47,055\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,608→3,336（-272）  空 3,788→3,712（-76）  淨 -180→-376（-196）\n投信：多 77,729→77,969（+240）  空 3,131→3,150（+19）  淨 74,598→74,819（+221）\n外資：多 10,316→10,526（+210）  空 92,578→91,592（-986）  淨 -82,262→-81,066（+1,196）\n外資買權淨OI -2442→-2204（+238）  賣權淨OI 3677→665（-3,012）\n小台散戶多空比 +11.57% → +4.17%（散戶淨 +4,307→+1,543；全市場OI 37,046）\n微台散戶多空比 +22.74% → +14.28%（散戶淨 +20,280→+12,402；全市場OI 86,874）\n全市場 Put/Call（OI）105.23% → 96.34%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+    "prev_summary": "【台股盤後數據】2026/09/08（前一交易日 2026/09/07）\n加權指數 47,105.78  -220.49（自算 -0.47%，分母前收 47326.27）  成交 9,227 億\n三大法人 -125.15 億｜外資 +132.69｜投信 -72.43｜自營 -185.40\n融資餘額 5,862.7 億（證交所口徑，含 ETF；前值 5882.7）"
+   },
+   "log": [
+    "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+    "— 2026/09/22",
+    "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/21",
+    "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/18",
+    "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/17",
+    "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/16",
+    "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/15",
+    "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/14",
+    "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/11",
+    "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/10",
+    "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/09",
+    "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/08",
+    "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/07",
+    "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/04",
+    "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/03",
+    "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/02",
+    "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/09/01",
+    "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/08/31",
+    "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/08/28",
+    "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/08/27",
+    "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/08/26",
+    "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']",
+    "— 2026/08/25",
+    "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+    "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+    "  融資 keys：['stat', 'date', 'tables']"
+   ],
+   "generated_at": "2026-09-23T12:40:10",
+   "claude_text": "【台股盤後數據】2026/09/10（前一交易日 2026/09/09）\n加權指數 46,940.49  -242.87（自算 -0.51%，分母前收 47183.36）  成交 7,507 億\n三大法人 -487.47 億｜外資 -383.34｜投信 +33.51｜自營 -137.64\n融資餘額 5,919.0 億（證交所口徑，含 ETF；前值 5871.7）\n台指期近月收 46,870（逆價差 -70）　夜盤收 46,984\n── 臺股期貨 未平倉（前→今）──\n自營商：多 3,336→5,007（+1,671）  空 3,712→3,628（-84）  淨 -376→1,379（+1,755）\n投信：多 77,969→77,635（-334）  空 3,150→3,152（+2）  淨 74,819→74,483（-336）\n外資：多 10,526→8,264（-2,262）  空 91,592→92,182（+590）  淨 -81,066→-83,918（-2,852）\n外資買權淨OI -2204→-1959（+245）  賣權淨OI 665→1696（+1,031）\n小台散戶多空比 +4.17% → +5.73%（散戶淨 +1,543→+2,078；全市場OI 36,259）\n微台散戶多空比 +14.28% → +35.68%（散戶淨 +12,402→+34,792；全市場OI 97,498）\n全市場 Put/Call（OI）96.34% → 82.67%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+   "prev_summary": "【台股盤後數據】2026/09/09（前一交易日 2026/09/08）\n加權指數 47,183.36  +77.58（自算 +0.16%，分母前收 47105.78）  成交 8,160 億\n三大法人 +211.25 億｜外資 +209.24｜投信 +20.85｜自營 -18.84\n融資餘額 5,871.7 億（證交所口徑，含 ETF；前值 5862.7）"
+  },
+  "log": [
+   "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+   "— 2026/09/22",
+   "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/21",
+   "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/18",
+   "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/17",
+   "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/16",
+   "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/15",
+   "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/14",
+   "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/11",
+   "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/10",
+   "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/09",
+   "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/08",
+   "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/07",
+   "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/04",
+   "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/03",
+   "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/02",
+   "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/09/01",
+   "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/08/31",
+   "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/08/28",
+   "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/08/27",
+   "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/08/26",
+   "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']",
+   "— 2026/08/25",
+   "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+   "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+   "  融資 keys：['stat', 'date', 'tables']"
+  ],
+  "generated_at": "2026-09-23T12:40:10",
+  "claude_text": "【台股盤後數據】2026/09/11（前一交易日 2026/09/10）\n加權指數 46,184.85  -755.64（自算 -1.61%，分母前收 46940.49）  成交 7,622 億\n三大法人 -1112.59 億｜外資 -892.70｜投信 +82.14｜自營 -302.01\n融資餘額 5,878.7 億（證交所口徑，含 ETF；前值 5919.0）\n台指期近月收 46,218（正價差 +33）　夜盤收 46,072\n── 臺股期貨 未平倉（前→今）──\n自營商：多 5,007→6,359（+1,352）  空 3,628→3,557（-71）  淨 1,379→2,802（+1,423）\n投信：多 77,635→77,818（+183）  空 3,152→3,131（-21）  淨 74,483→74,687（+204）\n外資：多 8,264→8,242（-22）  空 92,182→93,309（+1,127）  淨 -83,918→-85,067（-1,149）\n外資買權淨OI -1959→-2150（-191）  賣權淨OI 1696→2181（+485）\n小台散戶多空比 +5.73% → +5.82%（散戶淨 +2,078→+2,264；全市場OI 38,878）\n微台散戶多空比 +35.68% → +45.23%（散戶淨 +34,792→+51,803；全市場OI 114,532）\n全市場 Put/Call（OI）82.67% → 87.7%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+  "prev_summary": "【台股盤後數據】2026/09/10（前一交易日 2026/09/09）\n加權指數 46,940.49  -242.87（自算 -0.51%，分母前收 47183.36）  成交 7,507 億\n三大法人 -487.47 億｜外資 -383.34｜投信 +33.51｜自營 -137.64\n融資餘額 5,919.0 億（證交所口徑，含 ETF；前值 5871.7）"
+ },
+ "log": [
+  "回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22",
+  "— 2026/09/22",
+  "  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/21",
+  "  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/18",
+  "  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/17",
+  "  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/16",
+  "  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/15",
+  "  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/14",
+  "  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/11",
+  "  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/10",
+  "  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/09",
+  "  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/08",
+  "  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/07",
+  "  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/04",
+  "  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/03",
+  "  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/02",
+  "  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/09/01",
+  "  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/08/31",
+  "  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/08/28",
+  "  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/08/27",
+  "  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/08/26",
+  "  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']",
+  "— 2026/08/25",
+  "  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）",
+  "  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）",
+  "  融資 keys：['stat', 'date', 'tables']"
+ ],
+ "generated_at": "2026-09-23T12:40:10",
+ "claude_text": "【台股盤後數據】2026/09/14（前一交易日 2026/09/11）\n加權指數 45,862.52  -322.33（自算 -0.70%，分母前收 46184.85）  成交 6,653 億\n三大法人 -483.61 億｜外資 -369.64｜投信 +36.96｜自營 -150.92\n融資餘額 5,838.8 億（證交所口徑，含 ETF；前值 5878.7）\n台指期近月收 45,780（逆價差 -83）　夜盤收 46,588\n── 臺股期貨 未平倉（前→今）──\n自營商：多 6,359→5,427（-932）  空 3,557→3,467（-90）  淨 2,802→1,960（-842）\n投信：多 77,818→77,583（-235）  空 3,131→3,135（+4）  淨 74,687→74,448（-239）\n外資：多 8,242→9,490（+1,248）  空 93,309→92,148（-1,161）  淨 -85,067→-82,658（+2,409）\n外資買權淨OI -2150→-871（+1,279）  賣權淨OI 2181→1964（-217）\n小台散戶多空比 +5.82% → -3.56%（散戶淨 +2,264→-1,383；全市場OI 38,835）\n微台散戶多空比 +45.23% → +38.87%（散戶淨 +51,803→+42,567；全市場OI 109,499）\n全市場 Put/Call（OI）87.7% → 88.04%\n資料：期交所（OI/選擇權/PC）＋證交所（指數/法人/融資）＋永豐（對照）；多空比為自算（永豐口徑）\n── 抓取日誌 ──\n回補 20 個交易日：2026/08/25（僅當前一日）… 2026/09/22\n— 2026/09/22\n  MTX 全市場OI 32,581（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 68,703（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/21\n  MTX 全市場OI 35,151（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 76,519（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/18\n  MTX 全市場OI 33,035（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 69,663（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/17\n  MTX 全市場OI 30,410（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 60,764（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/16\n  MTX 全市場OI 32,983（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,435（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/15\n  MTX 全市場OI 38,910（19 列；欄 未沖銷契約數）\n  TMF 全市場OI 113,994（18 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/14\n  MTX 全市場OI 38,835（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 109,499（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/11\n  MTX 全市場OI 38,878（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 114,532（17 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/10\n  MTX 全市場OI 36,259（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 97,498（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/09\n  MTX 全市場OI 37,046（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,874（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/08\n  MTX 全市場OI 37,225（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 89,186（13 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/07\n  MTX 全市場OI 37,686（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 90,501（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/04\n  MTX 全市場OI 41,567（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 95,151（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/03\n  MTX 全市場OI 39,167（13 列；欄 未沖銷契約數）\n  TMF 全市場OI 100,203（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/02\n  MTX 全市場OI 40,774（17 列；欄 未沖銷契約數）\n  TMF 全市場OI 105,729（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/09/01\n  MTX 全市場OI 37,613（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 87,646（14 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/31\n  MTX 全市場OI 35,341（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 86,515（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/28\n  MTX 全市場OI 35,158（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,333（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/27\n  MTX 全市場OI 34,823（16 列；欄 未沖銷契約數）\n  TMF 全市場OI 80,829（15 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/26\n  MTX 全市場OI 37,429（18 列；欄 未沖銷契約數）\n  TMF 全市場OI 77,736（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']\n— 2026/08/25\n  MTX 全市場OI 33,646（15 列；欄 未沖銷契約數）\n  TMF 全市場OI 79,933（16 列；欄 未沖銷契約數）\n  融資 keys：['stat', 'date', 'tables']",
+ "prev_summary": "【台股盤後數據】2026/09/11（前一交易日 2026/09/10）\n加權指數 46,184.85  -755.64（自算 -1.61%，分母前收 46940.49）  成交 7,622 億\n三大法人 -1112.59 億｜外資 -892.70｜投信 +82.14｜自營 -302.01\n融資餘額 5,878.7 億（證交所口徑，含 ETF；前值 5919.0）"
+}
