@@ -9,7 +9,7 @@ fetch_all.py ─ 台股盤後籌碼一鍵抓取（期交所＋證交所＋永豐
   data/YYYYMMDD_spf_*.png   永豐 籌碼快訊／盤後快訊 轉圖
 用法：python scripts/fetch_all.py [YYYY/MM/DD]
 """
-import sys, os, io, re, json, datetime as dt
+import sys, os, io, re, json, time, datetime as dt
 import requests, pandas as pd
 from urllib.parse import urljoin
 
@@ -330,8 +330,72 @@ def claude_text(t, p):
     if LOG: L.append("── 抓取日誌 ──"); L += LOG
     return "\n".join(L)
 
+# ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
+def finish_day(t, p):
+    """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
+    if t.get("margin") is None and p.get("margin") is not None:
+        t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {p['date']} 值"; log("  融資：" + t["margin_note"])
+    t["prev"] = p; t["log"] = LOG
+    t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
+    t["claude_text"] = claude_text(t, p)
+    prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）
+    if os.path.exists(prev_file):
+        try:
+            pj = json.load(open(prev_file, encoding="utf-8"))
+            t["prev_summary"] = "\n".join((pj.get("claude_text") or "").splitlines()[:4])
+        except Exception: pass
+
+def load_index():
+    p = os.path.join(DATA, "index.json")
+    return json.load(open(p)) if os.path.exists(p) else []
+
+def save_index(idx):
+    idx = sorted(set(idx), reverse=True)[:250]
+    json.dump(idx, open(os.path.join(DATA, "index.json"), "w"), indent=0)
+
+def write_day(t, idx, latest):
+    tag = ymd(t["date"])
+    json.dump(t, open(os.path.join(DATA, f"{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    open(os.path.join(DATA, f"{tag}_claude.txt"), "w", encoding="utf-8").write(t["claude_text"])
+    if latest: json.dump(t, open(os.path.join(DATA, "latest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    if tag not in idx: idx.append(tag)
+
+# ─────────────── 回補 ───────────────
+def backfill(n, start=None):
+    """往回補 n 個交易日（20 日走勢圖用）。從 start（YYYY/MM/DD）或最近交易日往前找 n+1 個有期交所資料的日子，
+    每日 collect 一次；已有 {tag}.json 的日子略過（不覆蓋當日含永豐圖的正式檔）。永豐 PDF 只有當日，回補不抓；不動 latest.json。"""
+    if start:
+        today, df = start, taifex_fut(start)
+    else:
+        today, df = latest_trading_day()
+    if df is None: sys.exit("回補：找不到起始交易日")
+    days = [(today, df)]
+    while len(days) < n + 1:
+        d, f = prev_trading_day(days[-1][0])
+        if d is None: break
+        days.append((d, f)); time.sleep(0.5)
+    log(f"回補 {len(days) - 1} 個交易日：{days[-1][0]}（僅當前一日）… {today}")
+    cols = []
+    for d, f in days:
+        log(f"— {d}"); cols.append(collect(d, f)); time.sleep(1)
+    idx = load_index(); written = []
+    for i in range(len(cols) - 2, -1, -1):                     # 由舊到新，昨日摘要才接得上
+        t, p = cols[i], cols[i + 1]; tag = ymd(t["date"])
+        if os.path.exists(os.path.join(DATA, f"{tag}.json")): log(f"  {tag} 已存在，略過"); continue
+        finish_day(t, p); write_day(t, idx, latest=False); written.append(tag)
+    save_index(idx)
+    print(f"\n回補完成：寫入 {len(written)} 天 {written[:1]}…{written[-1:] if written else ''}；略過 {len(cols) - 1 - len(written)} 天")
+
+# ─────────────── 主流程 ───────────────
 def main():
-    arg = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
+    n_back = 0                                                     # python fetch_all.py [YYYY/MM/DD] --backfill 20
+    if "--backfill" in argv:
+        k = argv.index("--backfill"); n_back = 20
+        if k + 1 < len(argv) and argv[k + 1].isdigit(): n_back = int(argv[k + 1]); del argv[k + 1]   # 數字是 --backfill 的值，不是日期
+        del argv[k]
+    arg = [a for a in argv if not a.startswith("--")]
+    if n_back: return backfill(n_back, arg[0] if arg else None)
     if arg:
         today = arg[0]; df_t = taifex_fut(today)
         if df_t is None: sys.exit(f"{today} 期交所尚無資料")
@@ -341,29 +405,10 @@ def main():
     prev, df_p = prev_trading_day(today)
     log(f"今日 {today}｜前一交易日 {prev}")
     t = collect(today, df_t); p = collect(prev, df_p)
-    if t.get("margin") is None and p.get("margin") is not None:
-        t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {prev} 值"; log("  融資：" + t["margin_note"])
     t["spf"] = spf_fetch(today)
     cleanup_pngs(ymd(today), {fn for v in t["spf"].values() for fn in v})
-    t["prev"] = p; t["log"] = LOG
-    t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
-    t["claude_text"] = claude_text(t, p)
-    # 給「複製給 Claude」用的昨日摘要（前 4 行）
-    prev_tag = ymd(prev); prev_file = os.path.join(DATA, f"{prev_tag}.json")
-    if os.path.exists(prev_file):
-        try:
-            pj = json.load(open(prev_file, encoding="utf-8"))
-            t["prev_summary"] = "\n".join((pj.get("claude_text") or "").splitlines()[:4])
-        except Exception: pass
-
-    tag = ymd(today)
-    json.dump(t, open(os.path.join(DATA, f"{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    json.dump(t, open(os.path.join(DATA, "latest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    open(os.path.join(DATA, f"{tag}_claude.txt"), "w", encoding="utf-8").write(t["claude_text"])
-    idx_path = os.path.join(DATA, "index.json")
-    idx = json.load(open(idx_path)) if os.path.exists(idx_path) else []
-    if tag not in idx: idx.append(tag); idx.sort(reverse=True)
-    json.dump(idx[:250], open(idx_path, "w"), indent=0)
+    finish_day(t, p)
+    idx = load_index(); write_day(t, idx, latest=True); save_index(idx)
     print("\n" + t["claude_text"])
 
 if __name__ == "__main__":
