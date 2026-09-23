@@ -142,6 +142,29 @@ async function fromMis(codes, prev, today) {
   return live;
 }
 
+// 股票池 stocks.json(持股表單的代號智能查詢用):證交所 + 櫃買 OpenAPI 全部上市 / 上櫃個股與 ETF 的 [代號, 名稱, 市場]。
+// 公開資料、明碼、約 60 KB;一天只換一次(14:00 那班;沒檔就馬上補)。來源異常筆數太少就不覆寫,寧可舊也不要空。
+const STOCKS_FILE = process.env.STOCKS_FILE || 'stocks.json';
+async function refreshStockPool(today, hh) {
+  let cur = null;
+  try { cur = JSON.parse(fs.readFileSync(STOCKS_FILE, 'utf8')); } catch (e) { /* 沒檔 → 下面直接補 */ }
+  if (cur && cur.updated === today) return;
+  if (cur && hh < 14) return;
+  const out = [];
+  try {
+    const tw = await fetchJson('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL', 30000);
+    for (const r of tw || []) if (r.Code && r.Name) out.push([String(r.Code).trim(), String(r.Name).trim(), 'TW']);
+  } catch (e) { console.log(`股票池 上市 失敗:${e.message}`); }
+  try {
+    const otc = await fetchJson('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes', 30000);
+    for (const r of otc || []) if (r.SecuritiesCompanyCode && r.CompanyName) out.push([String(r.SecuritiesCompanyCode).trim(), String(r.CompanyName).trim(), 'OTC']);
+  } catch (e) { console.log(`股票池 上櫃 失敗:${e.message}`); }
+  if (out.length < 1000) { console.log(`股票池 只有 ${out.length} 筆,疑似來源異常,不覆寫`); return; }
+  out.sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  fs.writeFileSync(STOCKS_FILE, JSON.stringify({ updated: today, list: out }));
+  console.log(`股票池 stocks.json:${out.length} 檔(上市 ${out.filter(x => x[2] === 'TW').length} / 上櫃 ${out.filter(x => x[2] === 'OTC').length})`);
+}
+
 // 加權指數(TAIEX,^TWII)當前點位 → 供前端「對比大盤」
 async function fromTaiex() {
   try {
@@ -204,6 +227,7 @@ async function main() {
   const stamp = taipeiStamp();
   const today = stamp.slice(0, 10);
   console.log(`時間 ${stamp}`);
+  try { await refreshStockPool(today, +stamp.slice(11, 13)); } catch (e) { console.log(`股票池 失敗:${e.message}`); }   // 與市價無關,失敗不影響後面
 
   // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的;prevClose 收集各檔昨收(算今日漲跌%)
   // 兩個來源都只接受「最後成交日 = 今日」的價,平日休市(國定假日)不會把昨日收盤當即時價寫進 history

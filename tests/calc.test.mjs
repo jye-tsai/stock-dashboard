@@ -79,6 +79,16 @@ ok('benchLines 大盤 / 台積電正規化', near(B.tw[1], 10) && near(B.tsmc[1]
 ok('benchLines 沒 cost 退回市值正規化', near(PfCalc.benchLines(mv, [0, 200, 220, 220, 210], null).me[1], 100));
 ok('benchLines 大盤不足 2 點 → null', PfCalc.benchLines([1, 2], [0, 5], null) === null);
 
+// stockSearch:代號前綴優先、名稱包含其次、limit / total、空字串
+const POOL = [['0050', '元大台灣50', 'TW'], ['2330', '台積電', 'TW'], ['2303', '聯電', 'TW'], ['00981A', '統一台股增長主動式', 'TW'], ['6488', '環球晶', 'OTC'], ['2317', '鴻海', 'TW']];
+const S1 = PfCalc.stockSearch(POOL, '23');
+ok('stockSearch 前綴 23 → 3 檔', S1.total === 3 && S1.items.every(s => s[0].startsWith('23')));
+ok('stockSearch 名稱包含', PfCalc.stockSearch(POOL, '台積').items[0][0] === '2330');
+ok('stockSearch 代號優先於名稱', PfCalc.stockSearch(POOL, '0')[0] === undefined && PfCalc.stockSearch(POOL, '0').items[0][0] === '0050');
+ok('stockSearch 小寫 a 也對到 00981A', PfCalc.stockSearch(POOL, '00981a').total === 1);
+ok('stockSearch limit / total', PfCalc.stockSearch(POOL, '2', 2).items.length === 2 && PfCalc.stockSearch(POOL, '2', 2).total === 3);
+ok('stockSearch 空字串 → 空', PfCalc.stockSearch(POOL, '  ').total === 0 && PfCalc.stockSearch(null, 'x').total === 0);
+
 /* ---------- 今日損益 + 除息調整 ---------- */
 const rows = [{ code: 'a', price: 110, prevClose: 100, lots: 1 }, { code: 'b', price: 50, prevClose: 0, lots: 2 }];
 const tc = PfCalc.todayChange(rows, { mv: 999 }, 210000, '2026-09-22');

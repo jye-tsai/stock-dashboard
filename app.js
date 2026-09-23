@@ -128,6 +128,7 @@ function render(opts) {
   const d = DATA;
   const withCharts = !(opts && opts.charts === false);   // 只動表格(排序 / 隱藏零股)時不重畫圖表
   const { rows, t } = compute(d);
+  rows.forEach((r, i) => { r._i = i; });                 // 原始索引:表格排序後仍能對回 DATA.holdings[i](編輯抽屜用)
   const realized = d['已實現損益'] || 0;
   const dividend = d['股息收入'] || 0;
   const totalPL = realized + t.unrealized + dividend;
@@ -269,8 +270,8 @@ function render(opts) {
       + (tw ? `<polyline class="spark-tw" points="${path(tw)}" fill="none" stroke-width="1" stroke-dasharray="2 2"/>` : '')
       + `<polyline points="${path(me)}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   };
-  // 排序(僅檢視模式;編輯模式維持原順序,避免欄位索引錯位)
-  if (holdSort.key && !E) {
+  // 排序(編輯模式也可以:列上帶 _i 原始索引,抽屜靠它寫回)
+  if (holdSort.key) {
     const k = holdSort.key, dir = holdSort.dir;
     rows.sort((a, b) => {
       const va = a[k], vb = b[k];
@@ -286,14 +287,7 @@ function render(opts) {
       const hitStop = r.stop > 0 && r.price <= r.stop;
       const hitClass = hitTarget ? 'hit-target' : hitStop ? 'hit-stop' : '';
       const flag = hitTarget ? ' 🎯' : hitStop ? ' ⚠️' : '';
-      const cells = E ? `
-        <td><select class="ed narrow" data-path="holdings.${i}.type">${types.map(tp => `<option ${tp===r.type?'selected':''}>${tp}</option>`).join('')}</select></td>
-        <td><input class="ed narrow" data-path="holdings.${i}.code" value="${esc(r.code)}"></td>
-        <td><input class="ed wide" data-path="holdings.${i}.name" value="${esc(r.name)}"></td>
-        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.cost" value="${r.cost}"></td>
-        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.price" value="${r.price}"></td>
-        <td></td>
-        <td><input class="ed" type="number" step="any" data-path="holdings.${i}.lots" value="${r.lots}"></td>` : `
+      const cells = `
         <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
         <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td class="spark" data-action="openStock" data-args='["${esc(r.code)}"]' title="點一下看近 90 日走勢">${sparkSvg(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       const sellNet = r.mv - r.sellCost;
@@ -301,9 +295,8 @@ function render(opts) {
       const dstat = (k, v) => `<span class="d-stat"><span class="d-k">${k}</span><span class="d-v">${v}</span></span>`;
       let detailInner;
       if (E) {
-        detailInner = `<span class="d-stat"><span class="d-k">🎯 目標價</span><input class="ed narrow" type="number" step="any" data-path="holdings.${i}.target" value="${r.target || ''}"></span>`
-          + `<span class="d-stat"><span class="d-k">⚠️ 停損價</span><input class="ed narrow" type="number" step="any" data-path="holdings.${i}.stop" value="${r.stop || ''}"></span>`
-          + dstat('賣出可拿回', fmt(sellNet));
+        detailInner = dstat('賣出可拿回', fmt(sellNet))
+          + `<button class="btn sm primary" type="button" data-action="openHolding" data-args='[${r._i}]'>✏️ 編輯這檔</button>`;
       } else {
         const toT = r.target > 0 ? (r.price >= r.target ? '已達標 🎯' : '距目標 ' + pct((r.target - r.price) / r.price)) : '';
         const toS = r.stop > 0 ? (r.price <= r.stop ? '已觸停損 ⚠️' : '距停損 ' + pct((r.price - r.stop) / r.price)) : '';
@@ -312,13 +305,13 @@ function render(opts) {
           + dstat('⚠️ 停損價', r.stop > 0 ? `${fmt2(r.stop)}　${toS}` : '—')
           + `<button class="btn sm" type="button" data-action="openStock" data-args='["${esc(r.code)}"]'>📈 近 90 日走勢</button>`;
       }
-      return `<tr class="hold-row ${hitClass}" data-action="toggleHoldDetail">${cells}
+      return `<tr class="hold-row ${hitClass}${E ? ' editable' : ''}" data-action="${E ? 'openHolding' : 'toggleHoldDetail'}"${E ? ` data-args='[${r._i}]'` : ''}>${cells}
         <td>${fmt(r.costAmt)}</td><td>${fmt(r.mv)}</td><td class="col-opt">${fmt(r.sellCost)}</td>
         <td class="${cls(r.unrealized)}">${sign(r.unrealized)}${fmt(r.unrealized)}</td>
         <td class="${cls(r.unrealized)}">${pct(r.plRatio)}</td>
         <td class="col-opt">${pct(r.costPctOfTotal)}</td><td class="col-opt">${pct(r.mvPctOfTotal)}</td>
         ${ptimeCell(r)}
-        ${E ? `<td><button class="btn sm danger" data-action="delHolding" data-args='[${i}]'>🗑</button></td>` : ''}
+        ${E ? `<td><button class="btn sm" type="button" data-action="openHolding" data-args='[${r._i}]' title="編輯這檔">✏️</button></td>` : ''}
       </tr>
       <tr class="hold-detail" style="display:${E ? '' : 'none'}"><td colspan="${colspan}">${detailInner}</td></tr>`;
     }).join('') +
@@ -338,6 +331,7 @@ function render(opts) {
         <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
         <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}</span>
         <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
+        ${E ? `<button class="btn sm" type="button" data-action="openHolding" data-args='[${r._i}]' aria-label="編輯 ${esc(r.name)}">✏️</button>` : ''}
         ${sparkSvg(r) ? `<button class="spark-btn" type="button" data-action="openStock" data-args='["${esc(r.code)}"]' aria-label="看 ${esc(r.name)} 近 90 日走勢">${sparkSvg(r)}</button>` : ''}
       </div>
       <div class="h-stats">
@@ -661,10 +655,79 @@ async function toggleEdit() {
   document.getElementById('save-btn').classList.toggle('hidden', !editMode);
   render();
 }
-function addHolding() {
-  DATA.holdings.push({ type: 'ETF', code: '', name: '', cost: 0, price: 0, lots: 0 });
-  render();
+function addHolding() { openHolding(-1); }
+
+/* ---- 持股抽屜表單(手機直式;桌機置中 modal):一次編一檔,代號欄有股票池智能查詢 ---- */
+let holdEditIdx = -1;            // 正在編輯的 DATA.holdings 索引;-1 = 新增
+let holdPick = null;             // 從股票池選到的 { code, sym },儲存時帶 yahooSym 省 Action 一次失敗查詢
+let STOCKS = null, stocksLoading = null;
+function loadStocks() {
+  if (STOCKS) return Promise.resolve(STOCKS);
+  if (!stocksLoading) stocksLoading = fetch('stocks.json').then(r => r.ok ? r.json() : null).then(j => (STOCKS = (j && j.list) || [])).catch(() => (STOCKS = []));
+  return stocksLoading;
 }
+function openHolding(i) {
+  holdEditIdx = i; holdPick = null;
+  const h = i >= 0 ? DATA.holdings[i] : { type: 'ETF', code: '', name: '', cost: 0, lots: 0 };
+  const types = Object.keys(DATA.fees.taxRates);
+  const $ = id => document.getElementById(id);
+  $('hold-type').innerHTML = types.map(tp => `<option${tp === h.type ? ' selected' : ''}>${esc(tp)}</option>`).join('');
+  $('hold-code').value = h.code || ''; $('hold-name').value = h.name || '';
+  $('hold-lots').value = h.lots || ''; $('hold-cost').value = h.cost || '';
+  $('hold-target').value = h.target || ''; $('hold-stop').value = h.stop || '';
+  $('hold-title').textContent = i >= 0 ? `✏️ ${h.code} ${h.name}` : '➕ 新增持股';
+  $('hold-del').classList.toggle('hidden', i < 0);
+  $('hold-sugg').hidden = true; $('hold-sugg').innerHTML = '';
+  $('hold-modal').classList.remove('hidden');
+  if (i < 0) setTimeout(() => $('hold-code').focus(), 30);
+  loadStocks();
+}
+function closeHoldModal() { document.getElementById('hold-modal').classList.add('hidden'); }
+function saveHolding() {
+  const g = id => document.getElementById(id).value.trim();
+  const num = id => parseFloat(g(id)) || 0;
+  const code = g('hold-code').toUpperCase();
+  if (!code) { toast('代號不能空白'); document.getElementById('hold-code').focus(); return; }
+  const isNew = holdEditIdx < 0;
+  const h = isNew ? { price: 0 } : DATA.holdings[holdEditIdx];
+  const codeChanged = !isNew && String(h.code) !== code;
+  Object.assign(h, { type: g('hold-type'), code, name: g('hold-name'), lots: num('hold-lots'), cost: num('hold-cost'), target: num('hold-target'), stop: num('hold-stop') });
+  if (codeChanged) { h.price = 0; delete h.prevClose; delete h.priceTime; delete h.yahooSym; delete h.exDiv; }   // 換了標的,舊價全部作廢,下次 Action 重抓
+  if (holdPick && holdPick.code === code) h.yahooSym = holdPick.sym;
+  if (isNew) DATA.holdings.push(h);
+  cache(); render(); closeHoldModal();
+  toast(isNew ? '➕ 已新增,記得按「💾 儲存 JSON」' : '✏️ 已更新,記得按「💾 儲存 JSON」');
+}
+async function delHoldingCur() {
+  if (holdEditIdx < 0) return;
+  const h = DATA.holdings[holdEditIdx];
+  if (await uiConfirm(`確定刪除 ${h.code} ${h.name}?`)) { DATA.holdings.splice(holdEditIdx, 1); cache(); render(); closeHoldModal(); }
+}
+// 從下拉選一檔:帶代號 / 名稱 / 市場,類別依代號猜(00 開頭 = ETF)
+function pickStock(code, name, market) {
+  const $ = id => document.getElementById(id);
+  $('hold-code').value = code; $('hold-name').value = name;
+  const types = Object.keys(DATA.fees.taxRates);
+  const guess = /^00/.test(code) ? (types.find(tp => tp === 'ETF') || types[0]) : (types.find(tp => !/ETF/.test(tp)) || types[0]);
+  if (guess) $('hold-type').value = guess;
+  holdPick = { code, sym: market === 'OTC' ? '.TWO' : '.TW' };
+  $('hold-sugg').hidden = true; $('hold-sugg').innerHTML = '';
+  $('hold-lots').focus();
+}
+async function renderSugg(q) {
+  const box = document.getElementById('hold-sugg');
+  q = q.trim();
+  if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+  const list = await loadStocks();
+  if (document.getElementById('hold-code').value.trim() !== q) return;          // 打字比抓檔快,丟掉過期結果
+  if (!list.length) { box.innerHTML = '<div class="sugg-more">股票池尚未產生(Action 每日 14:00 更新 stocks.json)</div>'; box.hidden = false; return; }
+  const r = PfCalc.stockSearch(list, q, 8);
+  box.innerHTML = r.items.map(s => `<button type="button" class="sugg-item" data-action="pickStock" data-args='${esc(JSON.stringify([s[0], s[1], s[2]]))}'><b>${esc(s[0])}</b><span class="sugg-name">${esc(s[1])}</span><span class="tag">${s[2] === 'OTC' ? '上櫃' : '上市'}</span></button>`).join('')
+    + (r.total > r.items.length ? `<div class="sugg-more">還有 ${r.total - r.items.length} 檔,再多打一碼</div>` : '')
+    + (!r.total ? '<div class="sugg-more">沒有符合的代號或名稱</div>' : '');
+  box.hidden = false;
+}
+document.addEventListener('input', e => { if (e.target && e.target.id === 'hold-code') { holdPick = null; renderSugg(e.target.value); } });
 async function delHolding(i) {
   const h = DATA.holdings[i];
   if (await uiConfirm(`確定刪除 ${h.code} ${h.name}?`)) { DATA.holdings.splice(i, 1); cache(); render(); }
@@ -1236,7 +1299,8 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
   'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
-  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal']);
+  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
+  'openHolding', 'closeHoldModal', 'saveHolding', 'delHoldingCur', 'pickStock']);
 const callAction = (name, args) => {
   if (!ACTIONS.has(name) || typeof window[name] !== 'function') { console.debug('[pf] 未知 data-action', name); return; }
   return window[name](...(args || []));

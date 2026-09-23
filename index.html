@@ -47,15 +47,15 @@
   })();
 </script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script defer src="scripts/calc.js?v=20260923d"></script>
-<script defer src="charts.js?v=20260923d"></script>
-<script defer src="app.js?v=20260923d"></script>
+<script defer src="scripts/calc.js?v=20260923e"></script>
+<script defer src="charts.js?v=20260923e"></script>
+<script defer src="app.js?v=20260923e"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260923d">
+<link rel="stylesheet" href="styles.css?v=20260923e">
 </head>
 <body>
 <div id="splash">
@@ -93,7 +93,7 @@
     </header>
     <div class="mini-hero" id="mini-hero" aria-hidden="true"></div>
 
-    <div id="edit-banner">編輯模式:可修改標題、持股、年度與帳戶欄位,數值會即時重算。完成後按「💾 儲存 JSON」寫回 data.json。</div>
+    <div id="edit-banner">編輯模式:點持股列（或卡片上的 ✏️）一檔一檔改,代號欄打字會列出股票池;標題、年度、帳戶欄位直接改。完成後按「💾 儲存 JSON」寫回 data.json。</div>
 
     <div class="view-tabs" aria-label="儀表板頁籤">
       <button class="tab-btn active" type="button" data-tab="overview" data-action="switchTab" data-args='["overview"]'>📊 總覽</button>
@@ -318,6 +318,31 @@
   </div>
 </div>
 <!-- 通用確認視窗(取代手機上不穩的 confirm) -->
+<!-- 持股抽屜表單:手機從底部滑出、桌機置中;一次編一檔 -->
+<div id="hold-modal" class="modal-bg sheet hidden" role="dialog" aria-modal="true" aria-labelledby="hold-title" data-action="backdrop" data-args='["closeHoldModal"]'>
+  <div class="modal hold-modal">
+    <h3 id="hold-title">➕ 新增持股</h3>
+    <label>類別<select class="btn" id="hold-type"></select></label>
+    <label class="hold-code-wrap">代號<input id="hold-code" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="打 2 → 列 2 開頭;打名稱也行" aria-describedby="hold-sugg">
+      <div class="sugg" id="hold-sugg" hidden></div>
+    </label>
+    <label>名稱<input id="hold-name" autocomplete="off" placeholder="選了代號會自動帶"></label>
+    <div class="hold-grid">
+      <label>張數<input id="hold-lots" type="number" step="any" inputmode="decimal" placeholder="1 張 = 1;零股填 0.5"></label>
+      <label>成本（每股）<input id="hold-cost" type="number" step="any" inputmode="decimal"></label>
+      <label>🎯 目標價<input id="hold-target" type="number" step="any" inputmode="decimal" placeholder="不填 = 無"></label>
+      <label>⚠️ 停損價<input id="hold-stop" type="number" step="any" inputmode="decimal" placeholder="不填 = 無"></label>
+    </div>
+    <p class="modal-hint">市價不用填,Action 每 10 分鐘會自己抓;新標的第一次由收盤價初始化。</p>
+    <div class="modal-actions hold-actions">
+      <button class="btn danger hidden" id="hold-del" type="button" data-action="delHoldingCur">🗑 刪除</button>
+      <span class="sp"></span>
+      <button class="btn" type="button" data-action="closeHoldModal">取消</button>
+      <button class="btn primary" type="button" data-action="saveHolding">儲存</button>
+    </div>
+  </div>
+</div>
+
 <div id="stock-modal" class="modal-bg hidden" role="dialog" aria-modal="true" data-action="backdrop" data-args='["closeStockModal"]'>
   <div class="modal stock-modal">
     <h3 id="stock-title">個股走勢</h3>

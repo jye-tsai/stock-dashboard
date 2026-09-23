@@ -61,6 +61,7 @@
 | `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
 | `styles.css` / `app.js` / `charts.js` | 前端三件套:設計 token(`--fs-* / --fw-* / --r-* / --sp-* / --font-ui / --font-num / --ring`)+ 主題顏色 + 版面。字體:系統堆疊(iPhone / Mac PingFang、Windows Segoe + 微軟正黑),金額用 Google Fonts **Inter**(載不到退回系統字) / 主程式(載入、render、編輯、密碼、GitHub、分享卡、事件委派)/ 八張圖 + 熱圖。**尺寸一律用 token**,主題只改顏色;字重最重 800,880 只給 Hero 大字 |
 | `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
+| `stocks.json` | 股票池(上市 + 上櫃全部代號 / 名稱 / 市場,明碼約 60 KB):持股表單代號欄的智能查詢用;由 `update-prices.mjs` 每日 14:00 那班從證交所 / 櫃買 OpenAPI 更新 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試(Node 三檔 + Python 三支);本機 `node tests/run.mjs` |

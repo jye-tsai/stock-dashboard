@@ -178,6 +178,21 @@
     return null;
   }
 
+  // 股票池搜尋(持股表單代號欄):代號「前綴」優先(2 → 所有 2 開頭;23 → 23 開頭),其次名稱「包含」(台積 → 2330)
+  // list = [[code, name, market], ...];回傳 { items: 最多 limit 筆, total: 全部符合數 },大小寫不分
+  function stockSearch(list, q, limit) {
+    q = String(q == null ? '' : q).trim().toUpperCase(); limit = limit || 8;
+    if (!q) return { items: [], total: 0 };
+    var byCode = [], byName = [];
+    (list || []).forEach(function (s) {
+      if (!s) return;
+      if (String(s[0]).toUpperCase().indexOf(q) === 0) byCode.push(s);
+      else if (String(s[1] || '').toUpperCase().indexOf(q) >= 0) byName.push(s);
+    });
+    var all = byCode.concat(byName);
+    return { items: all.slice(0, limit), total: all.length };
+  }
+
   // sparkline:近 n 筆有該檔價的 history → { pts:[價], taiex:[同日大盤|null] };不足 2 點 → null
   function sparkSeries(history, code, n) {
     var out = [];
@@ -208,6 +223,6 @@
     holdingAmounts: holdingAmounts, compute: compute, totals: totals,
     isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
     drawdown: drawdown, worstDrawdown: worstDrawdown, twrIndex: twrIndex, benchLines: benchLines, dailyStats: dailyStats,
-    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange
+    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch
   };
 });

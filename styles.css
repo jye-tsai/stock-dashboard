@@ -403,10 +403,36 @@
   .h-stat .v { font-weight: var(--fw-bold); white-space: nowrap; }
 
   /* ===== 手機版面 ===== */
-  /* 檢視模式 + 窄螢幕 → 表格換成卡片;編輯模式仍用表格(可左右捲動) */
+  /* 窄螢幕 → 表格換成卡片(編輯模式也是:卡片上的 ✏️ 開抽屜表單,不再橫向捲表格) */
   @media (max-width: 700px) {
-    body:not(.editing) #holdings-wrap { display: none; }
-    body:not(.editing) .h-cards { display: grid; gap: 10px; }
+    #holdings-wrap { display: none; }
+    .h-cards { display: grid; gap: 10px; }
+  }
+  tr.hold-row.editable { cursor: pointer; }
+  tr.hold-row.editable:hover td { background: var(--row-hover); }
+
+  /* ===== 持股抽屜表單 ===== */
+  .hold-modal { max-width: 460px; }
+  .hold-modal label { position: relative; }
+  .hold-modal label select { display: block; width: 100%; margin-top: var(--sp-1); text-align: left; }
+  .hold-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-3); }
+  .hold-actions .sp { flex: 1; }
+  .hold-actions { flex-wrap: wrap; }
+  .sugg { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; margin-top: 4px; max-height: 240px; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); }
+  .sugg[hidden] { display: none; }
+  .sugg-item { display: flex; align-items: center; gap: var(--sp-2); width: 100%; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--border);
+    background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-md); cursor: pointer; }
+  .sugg-item:last-child { border-bottom: none; }
+  .sugg-item:hover, .sugg-item:focus-visible { background: var(--row-hover); outline: none; }
+  .sugg-item b { font-family: var(--font-num); min-width: 5.5em; color: var(--accent); }
+  .sugg-item .sugg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sugg-more { padding: 8px 12px; font-size: var(--fs-sm); color: var(--muted); }
+  @media (max-width: 600px) {
+    /* 手機:抽屜從底部滑出、貼齊 safe-area,鍵盤彈出時欄位仍在可視範圍 */
+    .modal-bg.sheet { align-items: flex-end; padding: 0; }
+    .modal-bg.sheet .modal { max-width: none; border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 18px 16px calc(env(safe-area-inset-bottom) + 16px); max-height: 92vh; overflow-y: auto; }
+    .hold-grid { grid-template-columns: 1fr 1fr; }
   }
 
   #loader { text-align: center; padding: 40px 20px; }
