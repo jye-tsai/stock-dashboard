@@ -362,7 +362,7 @@ const SPARKS={
 };
 function miniSpark(key){
   const S=SPARKS[key]; if(!S)return '<span class="mut">無此指標</span>';
-  const last=series.slice(-10);
+  const last=series.slice(-20);   // 跟下面「20 日走勢」同區間,展開後看到的長度一致
   if(last.length<2)return '<span class="mut">資料累積 2 天後顯示</span>';
   return spark(S.t+'　近 '+last.length+' 日',last.map(t=>({d:dLbl(t),v:S.g(t)})),S.f,S.o)||'<span class="mut">此指標近期無資料</span>';
 }
