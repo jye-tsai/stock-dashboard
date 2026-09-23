@@ -20,6 +20,10 @@ on:
         description: "觸發來源：cron（Cloudflare 排程，會 LINE 通知）／manual（手動，不通知）"
         required: false
         default: "manual"
+      backfill:
+        description: "往回補 N 個交易日（20 日走勢用；0 = 不回補，只抓最近一日）"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
@@ -41,7 +45,8 @@ jobs:
 
       - name: 抓資料
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
-        run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }}
+        # backfill > 0 → 只回補歷史(不抓永豐圖、不動 latest.json、不通知),之後再照常跑一次當日即可
+        run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }} ${{ github.event.inputs.backfill && github.event.inputs.backfill != '0' && format('--backfill {0}', github.event.inputs.backfill) || '' }}
 
       # 通知時機:GitHub 15:40 排程,或 Cloudflare Worker 準時打進來的 dispatch(inputs.source=cron;跟收盤價更新同一套機制,
       # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
