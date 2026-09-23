@@ -68,5 +68,13 @@ jobs:
           git config user.name  "panghu-bot"
           git config user.email "bot@users.noreply.github.com"
           git add chips/data
-          git diff --cached --quiet && echo "no change" || git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
-          git push
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
+          # 收盤價排程每 10 分鐘會 push data.json,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次(同 update-prices.yml)
+          pushed=0
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then pushed=1; break; fi
+            git rebase --abort 2>/dev/null || true
+            echo "push 失敗,重試 $i"; sleep 5
+          done
+          [ "$pushed" = 1 ] || { echo "::error::push 三次都失敗"; exit 1; }
