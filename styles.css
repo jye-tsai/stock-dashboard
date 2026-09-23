@@ -590,6 +590,7 @@
       background: transparent; border: none; border-radius: var(--r-md);
       color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-bold);
       padding: 5px 0 4px; cursor: pointer; font-family: inherit;
+      text-decoration: none;   /* 籌碼那格是 <a>,跟 button 長一樣 */
     }
     .bnav-btn .bnav-ico { font-size: 18px; line-height: 1; }
     .bnav-btn.active { color: var(--accent); background: var(--total-bg); }
