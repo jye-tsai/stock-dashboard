@@ -18,8 +18,11 @@
 收盤 → 開網頁 → 確認日期是今天 → 「📋 複製給 Claude」→ 貼到對話（永豐 PNG 可一併拖給 Claude 對照）。
 
 ## 排程
-跟收盤價一樣：**Cloudflare Worker 準時打 `workflow_dispatch`**（台北 15:40、16:40，帶 `inputs.source=cron`），GitHub 自己的 `schedule` 當備援（會漂移）。Worker 程式在本機 `cloudflare-worker.js`（不進 repo），Cron Triggers 加 `40 7 * * 1-5` 與 `40 8 * * 1-5`（UTC）。
+跟收盤價一樣：**Cloudflare Worker 準時打 `workflow_dispatch`**（台北 15:40、16:40，帶 `inputs.source=cron`），GitHub 自己的 `schedule` 當備援（會漂移）。Worker 程式在本機 `cloudflare-worker.js`（不進 repo），Cron Triggers 加 `40 7 * * 2-6` 與 `40 8 * * 2-6`（UTC；**Cloudflare 星期欄 1=日 … 7=六**，跟 GitHub 的 0=日不同，寫 `1-5` 會變週日～週四）。
 舊圖：每次抓完會刪「當日不在清單裡的 png」與「30 天前的 png」，repo 不會被 PDF 轉圖越撐越肥。
+
+## 回補歷史（20 日走勢）
+Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回補 20 個交易日（期交所 / 證交所歷史都能按日查；永豐 PDF 只有當日，回補不抓）。已存在的日子不覆蓋，不動 `latest.json`，不會 LINE 通知。本機：`python chips/scripts/fetch_all.py --backfill 20`。
 
 ## LINE 通知
 只在 **15:40 排程或 Cloudflare cron 那班**推一則（免費方案每月 200 則；手動 Run workflow 與頁面「立即抓取」不通知），同一交易日不重發（`data/notified.json`）。
