@@ -332,7 +332,9 @@ function spark(title,vals,fmtV,opts={}){
   }
   s+=`<text x="${pl-4}" y="${pt+4}" text-anchor="end">${fmtV(mx)}</text><text x="${pl-4}" y="${Hh-pb}" text-anchor="end">${fmtV(mn)}</text>`;
   s+=`<text x="${pl}" y="${Hh-4}">${vals[0].d}</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">${vals[vals.length-1].d}</text>`;
-  const lv=vals[vals.length-1].v;s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">今 ${fmtV(lv)}</text>`;
+  // 當日資料還沒公布(如三大法人 16:00 後才出)就退到最後一個有值的點,標「最新」而不是「今 —」
+  const li=vals.map(v=>v.v).reduce((a,v,i)=>v==null?a:i,-1);
+  if(li>=0)s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">${li===vals.length-1?'今':'最新 '+vals[li].d} ${fmtV(vals[li].v)}</text>`;
   return s+'</svg></div>';
 }
 // ── 今日解讀（fetch_all 算好存在當日 json 的 insight；回補的舊日子沒有就不顯示）
@@ -392,7 +394,7 @@ function renderCharts(){
 (function(){
   const box=$('#charts'),btn=$('#btnCharts');
   const set=open=>{box.hidden=!open;btn.textContent=open?'收起':'展開';try{localStorage.setItem('twdaily_charts',open?'1':'0')}catch(e){}};
-  let open=false; try{open=localStorage.getItem('twdaily_charts')==='1'}catch(e){}
+  let open=true; try{const v=localStorage.getItem('twdaily_charts');if(v!=null)open=v==='1'}catch(e){}   // 預設展開;自己收起過才記住
   set(open); btn.onclick=()=>set(box.hidden);
 })();
 $('#dateSel').onchange=e=>loadDay(e.target.value);
