@@ -251,7 +251,7 @@ function render(t){
   $('#sentGrid').innerHTML=g.join('')||'<span class="mut">—</span>';
   $('#claudeText').textContent=t.claude_text||'—';
   const imgs=Object.values(t.spf||{}).flat();
-  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（Action 16:40 會再抓一次）</span>';
+  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（永豐收盤後才放；排程 15:40 抓第一次、16:40 再補一次）</span>';
   $('#logBox').textContent=(t.log||[]).join('\n')||'—';
   renderIns(t); renderDisc(t); renderLabels(t); renderCharts();
 }
