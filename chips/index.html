@@ -65,6 +65,7 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .ins div{font-size:14px;line-height:1.6}
 .ins b{color:var(--gold)}
 .btn-mini{background:transparent;border:1px solid var(--line);color:var(--gray);font-size:12px;padding:3px 10px;border-radius:8px;margin-left:auto}
+.locked{display:none !important}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
 .kpi .d{font-size:12px}
 .status{font-size:13px;color:var(--gray);padding:6px 2px}
@@ -91,8 +92,9 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 <main>
   <div class="row" style="margin-bottom:12px">
     <select id="dateSel"></select>
-    <button class="btn-gold" id="btnCopy">📋 複製給 Claude</button>
-    <button class="btn-red" id="btnRun">▶ 立即抓取</button>
+    <button class="btn-gold auth-only" id="btnCopy">📋 複製給 Claude</button>
+    <button class="btn-red auth-only" id="btnRun">▶ 立即抓取</button>
+    <a class="btn-ghost lock-hint" href="../" style="text-decoration:none;color:var(--gray);border-color:var(--line);padding:9px 14px;border-radius:10px;font-weight:700;font-size:14px" title="到儀表板按「🔒 解鎖」輸入密碼，再回來這頁">🔒 到儀表板解鎖</a>
     <button class="btn-navy" id="btnReload">🔄 重新載入</button>
     <span class="status" id="status"></span>
   </div>
@@ -136,7 +138,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div class="grid" id="sentGrid"></div>
   </div>
 
-  <div class="card">
+  <div class="card auth-only">
     <h2>給 Claude 的數據表</h2>
     <pre id="claudeText">—</pre>
   </div>
@@ -148,7 +150,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 
   <div class="card" id="weeklyCard" style="display:none"><h2>週報草稿（交接文件用）</h2><div id="weeklyList"></div></div>
 
-  <div class="card"><h2>抓取日誌</h2><pre id="logBox" class="mut">—</pre></div>
+  <div class="card auth-only"><h2>抓取日誌</h2><pre id="logBox" class="mut">—</pre></div>
 </main>
 <footer>資料：期交所・證交所・永豐期貨｜多空比＝散戶淨多單／全市場OI（自算，與永豐一致）｜量與融資為證交所口徑（含盤後零股／ETF）｜跌綠漲紅</footer>
 
@@ -397,6 +399,17 @@ function renderCharts(){
   let open=true; try{const v=localStorage.getItem('twdaily_charts');if(v!=null)open=v==='1'}catch(e){}   // 預設展開;自己收起過才記住
   set(open); btn.onclick=()=>set(box.hidden);
 })();
+// ── 解鎖狀態：沿用儀表板（同網域、同分頁）在 sessionStorage 寫的 pf-edit-unlocked-until（30 分鐘）
+// 這頁只讀不驗密碼，密碼邏輯只留在儀表板一份；沒解鎖就把「複製給 Claude / 立即抓取 / 數據表 / 抓取日誌」藏起來。
+function isUnlocked(){try{return Date.now()<Number(sessionStorage.getItem('pf-edit-unlocked-until')||0)}catch(e){return false}}
+function applyAuth(){
+  const ok=isUnlocked();
+  document.querySelectorAll('.auth-only').forEach(el=>el.classList.toggle('locked',!ok));
+  document.querySelectorAll('.lock-hint').forEach(el=>el.classList.toggle('locked',ok));
+}
+applyAuth();
+setInterval(applyAuth,30000);                       // 解鎖會過期，定時收回
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)applyAuth()});
 $('#dateSel').onchange=e=>loadDay(e.target.value);
 $('#btnReload').onclick=()=>loadIndex();
 $('#btnCopy').onclick=async()=>{
