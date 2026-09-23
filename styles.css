@@ -413,16 +413,26 @@
 
   /* ===== 持股抽屜表單 ===== */
   .hold-modal { max-width: 460px; }
-  .hold-modal label { position: relative; }
-  .hold-modal label select { display: block; width: 100%; margin-top: var(--sp-1); text-align: left; }
+  .hold-modal label { position: relative; font-size: var(--fs-base); color: var(--text); margin-top: 12px; }
+  /* 表單欄位:手指尺寸(44px)、16px 字(iOS 聚焦不縮放)、跟主題同色,不用瀏覽器預設的白底細框 */
+  .hold-modal label input, .hold-modal label select {
+    display: block; width: 100%; margin-top: 6px; min-height: 46px; padding: 10px 12px; font-size: 16px; font-family: inherit;
+    background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-md); text-align: left; -webkit-appearance: none; appearance: none;
+  }
+  .hold-modal label input::placeholder { color: var(--muted); opacity: .8; }
+  .hold-modal label input:focus, .hold-modal label select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .hold-modal #hold-code { font-family: var(--font-num); font-weight: var(--fw-bold); letter-spacing: .04em; }
+  .hold-modal .modal-hint { margin-top: 14px; }
+  .hold-actions .btn { min-height: 44px; padding: 10px 18px; font-size: var(--fs-base); }
   .hold-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-3); }
+  .hold-grid label { margin-top: 12px; }
   .hold-actions .sp { flex: 1; }
   .hold-actions { flex-wrap: wrap; }
   .sugg { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; margin-top: 4px; max-height: 240px; overflow-y: auto;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow); }
   .sugg[hidden] { display: none; }
   .sugg-item { display: flex; align-items: center; gap: var(--sp-2); width: 100%; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--border);
-    background: transparent; color: var(--text); font-family: inherit; font-size: var(--fs-md); cursor: pointer; }
+    background: transparent; color: var(--text); font-family: inherit; font-size: 16px; min-height: 46px; cursor: pointer; }
   .sugg-item:last-child { border-bottom: none; }
   .sugg-item:hover, .sugg-item:focus-visible { background: var(--row-hover); outline: none; }
   .sugg-item b { font-family: var(--font-num); min-width: 5.5em; color: var(--accent); }
