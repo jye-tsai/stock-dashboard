@@ -49,6 +49,17 @@ def chips_lines():
     if t.get("missing"): L.append("⚠ 缺：" + ", ".join(t["missing"]))
     ins = (t.get("insight") or {}).get("lines") or []
     if ins: L += ["── 解讀 ──"] + ins            # 價量 / 籌碼衍生解讀(fetch_all 算好存在 json,這裡只轉貼;全部帶,訊息上限 4900 字綽綽有餘)
+    pg = t.get("panghu") or {}
+    if pg.get("summary"):                       # 胖虎指標:摘要 / 加扣分 / 防線 / 動作(跌破時前面加 🚨)
+        d = pg.get("discipline") or {}
+        L += ["── 胖虎指標 ──", pg["summary"] + (f"({pg['partial']})" if pg.get("partial") else "")]
+        its = sorted(pg.get("items") or [], key=lambda i: -i["score"] * i["w"])
+        plus = [f"{i['name']} {i['score']:+d}" for i in its if i["score"] > 0]
+        minus = [f"{i['name']} {i['score']:+d}" for i in reversed(its) if i["score"] < 0]
+        if plus: L.append("加分:" + "、".join(plus))
+        if minus: L.append("扣分:" + "、".join(minus))
+        if d.get("line1"): L.append(f"防線 {d['line1']:,} {'守住' if d.get('line1_ok') else '跌破'}｜第二道 {d['line2']:,} {'守住' if d.get('line2_ok') else '跌破'}")
+        if d.get("action"): L.append(("🚨 " if d.get("act") in ("out", "down", "fake_break") else "") + d["action"])
     return L, t.get("date")
 
 # ── 庫存段 ──

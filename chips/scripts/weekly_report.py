@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""weekly_report.py ─ 每週日產生「交接文件更新草稿」：本週序列表＋紀律狀態＋部位歷史。
+"""weekly_report.py ─ 每週日產生「交接文件更新草稿」：本週序列表＋胖虎指標與自動紀律。
 輸出 data/weekly_YYYYMMDD.md 與 data/weekly_index.json"""
 import os, json, glob, datetime as dt
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
@@ -8,7 +8,6 @@ idx = json.load(open(os.path.join(DATA, "index.json")))
 days = sorted(idx)[-5:]                     # 最近 5 個交易日
 rows = [json.load(open(os.path.join(DATA, f"{d}.json"), encoding="utf-8")) for d in days if os.path.exists(os.path.join(DATA, f"{d}.json"))]
 if not rows: raise SystemExit("no data")
-disc = json.load(open(os.path.join(ROOT, "discipline.json"), encoding="utf-8")) if os.path.exists(os.path.join(ROOT, "discipline.json")) else {}
 def g(o, *ks, d="—"):
     for k in ks:
         if o is None: return d
@@ -36,16 +35,17 @@ L += ["", "## 二、週末狀態（校驗用前值）", "",
       f"- 外資期貨 OI：多 {n(f.get('long'))}／空 {n(f.get('short'))}／淨 {n(f.get('net'))}；投信淨多 {n(g(last,'txf','投信','net'))}；自營 {n(g(last,'txf','自營商','net'))}",
       f"- 外資選擇權：買權淨 {n(g(last,'opt','外資','call'))}、賣權淨 {n(g(last,'opt','外資','put'))}",
       f"- 散戶：小台 {n(g(last,'mtx_retail','ratio_pct'),'{:+.2f}%')}、微台 {n(g(last,'tmf_retail','ratio_pct'),'{:+.2f}%')}；P/C {n(g(last,'pc','oi_ratio_pct'))}%",
-      "", "## 三、紀律系統狀態", ""]
-if disc:
-    L += [f"- 部位：{disc.get('position','—')}（{disc.get('cap_note','')}）"]
-    for ln in disc.get("lines", []):
-        c = g(last, "index", "close", d=None)
-        st = "" if not isinstance(c, (int, float)) else ("**已跌破**" if c < ln["level"] else f"守住（+{c - ln['level']:,.0f}）")
-        L.append(f"- {ln['label']}：{ln['level']:,} {st}")
-    cd = disc.get("condition", {})
-    if cd: L.append(f"- {cd.get('label','條件')}：{cd.get('rule','')} → {cd.get('action','')}")
-    L += ["", "### 部位變動歷史", ""] + [f"- {h['date']}：{h['action']}" for h in disc.get("history", [])]
+      "", "## 三、胖虎指標與紀律（每日盤後自動）", ""]
+pgs = [(t["date"][5:], t.get("panghu") or {}) for t in rows]
+if any(pg.get("temp") is not None for _, pg in pgs):
+    L += ["| 日期 | 胖虎指標 | 判讀 | 建議倉位 | 動作 |", "|---|---|---|---|---|"]
+    for dte, pg in pgs:
+        d = pg.get("discipline") or {}
+        L.append(f"| {dte} | {n(pg.get('temp'))} | {pg.get('label', '—')} | {pg.get('suggest', '—')} | {d.get('action', '—')} |")
+    d = pgs[-1][1].get("discipline") or {}
+    if d.get("line1"): L += ["", f"- 週末防線 {d['line1']:,}、第二道 {d['line2']:,}（依收盤自動計算）"]
+else:
+    L.append("- 本週資料尚無胖虎指標")
 L += ["", "## 四、待 Claude 補寫", "", "- 劇情主線（本週四～五個交易日的因果）", "- 外資期貨方法論新增觀察", "- 散戶溫度計案例入庫", "- 紀律成本照實記（出入點位與差額）", "- 下週事件時程與補齊／防守條件"]
 fn = f"weekly_{today}.md"
 open(os.path.join(DATA, fn), "w", encoding="utf-8").write("\n".join(L))

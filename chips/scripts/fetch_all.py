@@ -9,7 +9,7 @@ fetch_all.py ─ 台股盤後籌碼一鍵抓取（期交所＋證交所＋永豐
   data/YYYYMMDD_spf_*.png   永豐 籌碼快訊／盤後快訊 轉圖
 用法：python scripts/fetch_all.py [YYYY/MM/DD]
 """
-import sys, os, io, re, json, time, datetime as dt
+import sys, os, io, re, json, time, math, datetime as dt
 import requests, pandas as pd
 from urllib.parse import urljoin
 
@@ -303,6 +303,7 @@ def collect(date, df):
         try: out[k] = f(date)
         except Exception as e: log(f"  {k} 失敗：{e}"); out[k] = None
     out["vix"] = taifex_vix(date)
+    out["fx"] = fx_for(date)                       # 美元兌台幣 / 美元指數(胖虎指標用)
     try:
         out["tx"] = taifex_tx_close(date)
         if out["tx"] and out.get("index") and out["tx"].get("close"):
@@ -435,18 +436,294 @@ def build_insight(t, p, hist):
     out["lines"] = L
     return out
 
+# ─────────────── 匯率(Yahoo):美元兌台幣 TWD=X、美元指數 DX-Y.NYB ───────────────
+# 一次抓 3 個月日線快取起來(回補 20 天也只打 2 支);Yahoo 日線用 UTC 日期,台北盤後看到的是最近一個已收盤的美國交易日,
+# 拿來判斷方向足夠。某些日子 close 會是 null(Yahoo 常態),取「該日(含)以前最後一筆有值」。
+FX_SYMS = {"usdtwd": "TWD=X", "dxy": "DX-Y.NYB"}
+FX_RANGE = "3mo"                                   # 回測(backtest.py)會改成 2y
+_FX_CACHE = {}
+def _fx_series(sym):
+    if sym in _FX_CACHE: return _FX_CACHE[sym]
+    m = {}
+    try:
+        r = requests.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}", params={"interval": "1d", "range": FX_RANGE},
+                         headers={"User-Agent": H["User-Agent"], "Accept": "application/json"}, timeout=30)
+        res = r.json()["chart"]["result"][0]
+        for ts, c in zip(res["timestamp"], res["indicators"]["quote"][0]["close"]):
+            if c: m[dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%Y/%m/%d")] = round(float(c), 4)
+        if not m: log(f"  匯率 {sym}:Yahoo 回傳沒有可用收盤")
+    except Exception as e: log(f"  匯率 {sym} 抓取失敗({e.__class__.__name__}: {e})")
+    _FX_CACHE[sym] = m
+    return m
+
+def fx_for(date):
+    out = {}
+    for k, sym in FX_SYMS.items():
+        m = _fx_series(sym); ds = sorted(d for d in m if d <= date)
+        if ds: out[k] = m[ds[-1]]; out[k + "_date"] = ds[-1]
+    return out or None
+
+# ─────────────── 胖虎指標(v2 情境版) ───────────────
+# 13 項指標各自判斷「情境」,情境決定分數(-2~+2)與說法,全部寫在 chips/panghu.json;乘權重加總映射成 0~100 溫度,
+# 再對應 0%~100% 建議倉位(每 10% 一級,越過邊界 buffer 分才換級,加碼另需外資現貨買超),最後依防線 / 第二道產生紀律動作。
+# 這是機械式指標加總,規則與權重全在設定檔,不是投資建議。
+PANGHU_CFG_PATH = os.path.join(DATA, "..", "panghu.json")
+def load_panghu_cfg():
+    return json.load(open(PANGHU_CFG_PATH, encoding="utf-8"))
+
+def _mean(xs): return sum(xs) / len(xs) if xs else None
+def _lvl(rows, v):
+    cur = rows[0]
+    for r in rows:
+        if v >= r["min"]: cur = r
+    return cur
+def _fmt(tpl, **kw):
+    try: return tpl.format(**kw)
+    except Exception: return tpl
+def _run(vals, sign):
+    """由最後往前數,連續同號(sign>0 正、<0 負)的筆數;遇 None / 0 / 反號停"""
+    n = 0
+    for v in reversed(vals):
+        if v is None or v == 0 or (v > 0) != (sign > 0): break
+        n += 1
+    return n
+
+def build_panghu(t, p, hist, cfg):
+    W, TH, NM, SC = cfg["weights"], cfg["thresholds"], cfg["names"], cfg["scenarios"]
+    FLAT = TH.get("flat_pct", 0.3)
+    ix = t.get("index") or {}; close, chg, amt = ix.get("close"), ix.get("chg"), ix.get("amount_yi")
+    pclose = _close(p) or (close - chg if (close and chg is not None) else None)
+    cp = (chg / pclose * 100) if (chg is not None and pclose) else None           # 今日指數漲跌 %
+    seq = hist + [t]; items = []
+    def add(k, key, **kw):
+        s = (SC.get(k) or {}).get(key)
+        if not s: return
+        items.append({"k": k, "name": NM.get(k, k), "scenario": key, "score": max(-2, min(2, int(s["score"]))),
+                      "w": W.get(k, 0), "note": _fmt(s["text"], **kw)})
+
+    # ① 趨勢:收盤對均線乖離 + 今日是否剛穿越 + 今日方向
+    th = TH["trend"]; n = th["ma_days"]
+    closes = [c for c in (_close(h) for h in seq[-n:]) if c]
+    if close and len(closes) >= 5:
+        ma = _mean(closes); gap = (close / ma - 1) * 100
+        pcl = [c for c in (_close(h) for h in hist[-n:]) if c]
+        pgap = (pcl[-1] / _mean(pcl) - 1) * 100 if len(pcl) >= 5 else None
+        up = (chg or 0) > 0
+        key = ("overheat" if gap >= th["hot_pct"] else "strong_bull" if gap >= th["strong_pct"] else
+               "oversold" if gap <= -th["hot_pct"] else "strong_bear" if gap <= -th["strong_pct"] else
+               "cross_up" if (pgap is not None and pgap <= 0 < gap) else
+               "cross_down" if (pgap is not None and pgap >= 0 > gap) else
+               ("above" if up else "above_pullback") if gap > th["weak_pct"] else
+               ("below_rebound" if up else "below") if gap < -th["weak_pct"] else "flat")
+        add("trend", key, close=close, ma=ma, n=len(closes), gap=gap)
+
+    # ② 量能:今日量對均量 × 漲跌方向
+    th = TH["volume"]; amts = [a for a in (_amt(h) for h in hist[-th["avg_days"]:]) if a]
+    if amt and len(amts) >= 5 and cp is not None:
+        r = amt / _mean(amts); ratio = r * 100
+        dirn = "up" if cp > FLAT else "down" if cp < -FLAT else "flat"
+        key = ({"up": "surge_up", "down": "surge_down", "flat": "surge_flat"}[dirn] if r >= th["strong"] else
+               {"up": "high_up", "down": "high_down", "flat": "high_flat"}[dirn] if r >= th["hi"] else
+               "dry" if r <= th["dry"] else
+               ({"up": "low_up", "down": "low_down"}.get(dirn, "normal")) if r <= th["low"] else "normal")
+        add("volume", key, amt=amt, n=len(amts), ratio=ratio, cp=cp)
+
+    # ③ 價量配合(日對日)
+    pamt = _amt(p)
+    if amt and pamt and cp is not None:
+        dpct = (amt / pamt - 1) * 100; more = amt > pamt
+        dirn = "up" if cp > FLAT else "down" if cp < -FLAT else "flat"
+        add("pv", f"{dirn}_{'more' if more else 'less'}", cp=cp, dpct=dpct)
+
+    # ④ 外資現貨:金額、連買連賣、翻多翻空、與指數背離
+    th = TH["foreign_spot"]; fs = [((h.get("inst") or {}).get("外資")) for h in seq]
+    fx = fs[-1]; fx_prev = fs[-2] if len(fs) >= 2 else None
+    if fx is not None:
+        if abs(fx) < th["small_yi"]: key = "flat"; run = 0
+        else:
+            s = 1 if fx > 0 else -1; run = _run(fs, s)
+            big = abs(fx) >= th["big_yi"] or run >= th["run_days"]
+            turn = fx_prev is not None and fx_prev * s < 0
+            div = cp is not None and ((s > 0 and cp < -FLAT) or (s < 0 and cp > FLAT))
+            key = (("big_buy" if big else "turn_buy" if turn else "buy_index_down" if div else "buy") if s > 0 else
+                   ("big_sell" if big else "turn_sell" if turn else "sell_index_up" if div else "sell"))
+        add("foreign_spot", key, fx=fx, run=run, cp=cp or 0, fx_prev=fx_prev or 0)
+
+    # ⑤⑥ 外資期貨多單 / 空單(分開計分;合併動作與淨空水位寫在說明裡)
+    th = TH["fut"]; fu, fp = (t.get("txf") or {}).get("外資"), (p.get("txf") or {}).get("外資")
+    if fu and fp:
+        dl, ds = fu["long"] - fp["long"], fu["short"] - fp["short"]
+        def mv(d): return 0 if abs(d) < th["deadzone"] else (2 if abs(d) >= th["big"] else 1) * (1 if d > 0 else -1)
+        ml, ms = mv(dl), mv(ds)
+        ck = ((("add_long" if ml > 0 else "cut_long") + "_" + ("add_short" if ms > 0 else "cut_short")) if (ml and ms) else
+              ("add_long" if ml > 0 else "cut_long") if ml else ("add_short" if ms > 0 else "cut_short") if ms else "none")
+        combo = SC["fut_combo"].get(ck, "")
+        base = th["baseline_net"]; net = fu["net"]
+        net_note = f"淨空 {abs(net):,} 口,{'低於' if net > base else '高於'} {abs(base) // 10000} 萬口基態"
+        kl = {2: "big_add", 1: "add", 0: "flat", -1: "cut", -2: "big_cut"}[ml]
+        ks = {2: "big_add", 1: "add", 0: "flat", -1: "cut", -2: "big_cut"}[ms]
+        add("fut_long", kl, d=dl, combo=combo); add("fut_short", ks, d=ds, net_note=net_note)
+
+    # ⑦ 散戶多空比(反指標;大漲日翻空 = 軋空燃料、大跌日翻多 = 接刀)
+    th = TH["retail"]
+    def rmean(d): xs = [x["ratio_pct"] for x in ((d or {}).get("mtx_retail"), (d or {}).get("tmf_retail")) if x and x.get("ratio_pct") is not None]; return _mean(xs)
+    r, rp = rmean(t), rmean(p)
+    if r is not None:
+        dr = (r - rp) if rp is not None else 0
+        key = ("squeeze_fuel" if (cp is not None and cp >= th["big_move_pct"] and dr <= -th["flip"]) else
+               "catch_knife" if (cp is not None and cp <= -th["big_move_pct"] and dr >= th["flip"]) else
+               "zero" if abs(r) < th["zero"] else
+               "extreme_long" if r >= th["strong"] else "long" if r >= th["mild"] else
+               "extreme_short" if r <= -th["strong"] else "short" if r <= -th["mild"] else "neutral")
+        add("retail", key, r=r, rp=rp if rp is not None else r)
+
+    # ⑧ P/C(OI):水位 + 單日急升急降
+    th = TH["pc"]; pcv = (t.get("pc") or {}).get("oi_ratio_pct"); pp = (p.get("pc") or {}).get("oi_ratio_pct")
+    if pcv is not None:
+        d = (pcv - pp) if pp is not None else 0
+        key = ("very_high" if pcv >= th["strong_hi"] else "very_low" if pcv <= th["strong_lo"] else
+               "jump_up" if d >= th["jump"] else "jump_down" if d <= -th["jump"] else
+               "high" if pcv >= th["hi"] else "low" if pcv <= th["lo"] else "neutral")
+        add("pc", key, pc=pcv, pp=pp if pp is not None else pcv)
+
+    # ⑨ VIX:絕對高檔、單日驟升 / 退潮、過度安逸、對近期均值
+    th = TH["vix"]; vx = t.get("vix"); vs = [h.get("vix") for h in hist if h.get("vix")]
+    vp = hist[-1].get("vix") if hist else None
+    if vx:
+        dd = (vx / vp - 1) if vp else 0; avg = _mean(vs) if len(vs) >= 5 else None
+        g = (vx / avg - 1) if avg else None
+        key = ("panic_abs" if vx >= th["abs_hi"] else "spike" if (vp and dd >= th["spike"]) else
+               "calm_down" if (vp and dd <= -th["spike"]) else "complacent" if vx <= th["abs_lo"] else
+               None if g is None else
+               "very_low" if g <= -th["strong"] else "low" if g <= -th["mild"] else
+               "very_high" if g >= th["strong"] else "high" if g >= th["mild"] else "normal")
+        if key: add("vix", key, vx=vx, vp=vp or vx, dd=dd * 100, n=len(vs), avg=avg or vx)
+
+    # ⑩ 融資 vs 指數(融資沿用前日值時不算,避免假訊號)
+    th = TH["margin"]; n = th["days"]
+    if close and len(seq) > n and not t.get("margin_note"):
+        base = seq[-n - 1]; m0, m1, c0 = base.get("margin"), t.get("margin"), _close(base)
+        if m0 and m1 and c0:
+            dm, dc = (m1 - m0) / m0 * 100, (close / c0 - 1) * 100
+            key = (("clean_fast" if dm <= -th["strong_pct"] else "clean") if (dc > 0 and dm < 0) else
+                   ("overheat" if dm > dc else "chase") if dc > 0 else "trapped" if dm > 0 else "exit")
+            add("margin", key, n=n, dc=dc, dm=dm)
+
+    # ⑪⑫ 美元兌台幣 / 美元指數(美元強 = 偏空):單日急變、連 N 日、對均值
+    for k in ("usdtwd", "dxy"):
+        th = TH[k]; rate = (t.get("fx") or {}).get(k)
+        rates = [x for x in (((h.get("fx") or {}).get(k)) for h in seq) if x]
+        hs = [x for x in (((h.get("fx") or {}).get(k)) for h in hist[-th["avg_days"]:]) if x]
+        if rate and len(hs) >= 5:
+            avg = _mean(hs); gap = (rate / avg - 1) * 100
+            dd = (rates[-1] / rates[-2] - 1) * 100 if len(rates) >= 2 else 0
+            diffs = [rates[i] - rates[i - 1] for i in range(1, len(rates))]
+            run_up, run_dn = _run(diffs, 1), _run(diffs, -1)
+            key = ("spike_up" if dd >= th["spike_pct"] else "spike_down" if dd <= -th["spike_pct"] else
+                   "run_up" if run_up >= th["run_days"] else "run_down" if run_dn >= th["run_days"] else
+                   "strong_up" if gap >= th["strong_pct"] else "up" if gap >= th["deadzone_pct"] else
+                   "strong_down" if gap <= -th["strong_pct"] else "down" if gap <= -th["deadzone_pct"] else "flat")
+            add(k, key, rate=rate, n=len(hs), gap=gap, dd=dd, run=max(run_up, run_dn))
+
+    # ⑬ 基差:偏熱、深逆價差、正逆翻轉、對近 N 日均
+    th = TH["basis"]; b = t.get("basis"); bp = p.get("basis")
+    bs = [h.get("basis") for h in hist[-th["avg_days"]:] if h.get("basis") is not None]
+    if b is not None and len(bs) >= 3:
+        avg = _mean(bs)
+        key = ("hot" if b >= th["hot"] else "deep_neg" if b <= th["deep_neg"] else
+               "flip_neg" if (bp is not None and bp >= 0 > b) else "flip_pos" if (bp is not None and bp < 0 <= b) else
+               "widen_pos" if (b > avg and b > 0) else "widen_neg" if (b < avg and b < 0) else "converge")
+        add("basis", key, b=b, bp=bp if bp is not None else b, n=len(bs), avg=avg)
+
+    # ── 溫度
+    tot = sum(i["score"] * i["w"] for i in items); mx = sum(2 * i["w"] for i in items)
+    temp = round((tot / mx + 1) / 2 * 100) if mx else None
+    out = {"version": cfg.get("version", 2), "items": items, "raw": round(tot, 2), "max": round(mx, 2),
+           "temp": temp, "n_items": len(items), "n_total": len(W)}
+    if temp is None: return out
+    label = _lvl(cfg["temp_labels"], temp)["label"]
+    prev_pg = (hist[-1].get("panghu") or {}) if hist else {}
+    prev_temp = prev_pg.get("temp"); prev_d = prev_pg.get("discipline") or {}
+    prev_pct = prev_d.get("suggest_pct")
+
+    # ── 倉位:線性對應 → 取整 step% → 緩衝(越過目前級距邊界 buffer 分才換)→ 加碼需外資買超
+    P = cfg["position"]; z, f_, stp, buf = P["zero_at"], P["full_at"], P["step"], P["buffer"]
+    span = (f_ - z) / (100 / stp)                                     # 每一級佔幾分溫度(預設 6)
+    def pct_of(tp): x = max(0.0, min(1.0, (tp - z) / (f_ - z))) * 100; return int(math.floor(x / stp + 0.5) * stp)
+    def band(pc): return (-1e9 if pc == 0 else z + (pc / stp - 0.5) * span, 1e9 if pc == 100 else z + (pc / stp + 0.5) * span)
+    def pname(pc): return P["names"].get(str(pc), f"{pc}%")
+    cand = pct_of(temp); base_pct = cand
+    if prev_pct is not None:
+        lo, hi = band(prev_pct)
+        if lo - buf <= temp < hi + buf: base_pct = prev_pct              # 緩衝內 → 維持昨天級距
+    fx_buy = (((t.get("inst") or {}).get("外資")) or 0) > 0
+    gated = bool(P.get("gate_foreign") and prev_pct is not None and base_pct > prev_pct and not fx_buy)
+    if gated: base_pct = prev_pct
+
+    # ── 防線 / 第二道
+    st = cfg["stops"]; cl_all = [c for c in (_close(h) for h in seq) if c]
+    line1 = line2 = None
+    if len(cl_all) >= 5 and close:
+        ma = _mean(cl_all[-TH["trend"]["ma_days"]:])
+        line1 = max(ma, min(cl_all[-st["line1_lookback"]:])); line2 = min(cl_all[-st["line2_lookback"]:])
+        if line2 >= line1: line2 = line1 * 0.985
+        line1, line2 = round(line1), round(line2)
+    cut = st["line1_cut_pct"]; suggest_pct = base_pct; act = None
+    prev_close = _close(hist[-1]) if hist else None; prev_l1 = prev_d.get("line1")
+    first_break = not (prev_close and prev_l1 and prev_close < prev_l1)
+    prev_act = prev_d.get("act")
+    if line1 and close:
+        if close < line2:                                              # 第二道:首日喊空手(🚨),之後幾天只說「仍在第二道下」
+            suggest_pct = 0; act = "below_line2" if prev_act in ("out", "below_line2") else "out"
+        elif close < line1:                                            # 防線:首日跌破才喊降級,之後幾天是「仍在防線下」
+            if first_break and temp >= st["fake_break_temp"]: act = "fake_break"
+            else: suggest_pct = max(0, base_pct - cut); act = "down" if first_break else "below_line"
+    if act is None:
+        act = ("gate" if gated else "up" if (prev_pct is not None and suggest_pct > prev_pct) else
+               "weaken" if (prev_pct is not None and suggest_pct < prev_pct) else
+               "top" if suggest_pct >= 100 else "bottom" if suggest_pct <= 0 else None)
+    streak = (prev_d.get("streak", 0) + 1) if (prev_pct is not None and prev_pct == suggest_pct) else 1
+    if act is None: act = "steady" if streak >= 3 else "hold"
+    nxt = min(100, suggest_pct + stp); next_temp = math.ceil(band(suggest_pct)[1] + buf) if suggest_pct < 100 else None
+    kw = dict(close=close or 0, line1=line1 or 0, line2=line2 or 0, temp=temp, suggest=pname(suggest_pct), base_name=pname(base_pct),
+              prev_name=pname(prev_pct) if prev_pct is not None else "—", cand_name=pname(cand), cut_name=pname(max(0, base_pct - cut)),
+              next_name=pname(nxt), next_temp=next_temp or 100, reenter=st["reenter_temp"], streak=streak)
+    action = _fmt(cfg["actions"].get(act, ""), **kw)
+    disc = {"suggest": pname(suggest_pct), "suggest_pct": suggest_pct, "cand_pct": cand, "prev_pct": prev_pct,
+            "prev_name": pname(prev_pct) if prev_pct is not None else None,
+            "line1": line1, "line2": line2,
+            "line1_ok": (close >= line1) if (line1 and close) else None, "line2_ok": (close >= line2) if (line2 and close) else None,
+            "next_name": pname(nxt) if suggest_pct < 100 else None, "next_temp": next_temp,
+            "next_ok_temp": (temp >= next_temp) if next_temp else None, "next_ok_foreign": fx_buy,
+            "act": act, "action": action, "streak": streak}
+    delta = ("delta_none" if prev_temp is None else "delta_up" if temp > prev_temp else "delta_down" if temp < prev_temp else "delta_flat")
+    dtxt = _fmt(cfg[delta], d=(temp - prev_temp) if prev_temp is not None else 0)
+    out.update({"label": label, "suggest": pname(suggest_pct), "suggest_pct": suggest_pct, "prev_temp": prev_temp,
+                "delta": dtxt, "discipline": disc})
+    out["summary"] = _fmt(cfg["summary"], temp=temp, label=label, delta=dtxt, suggest=pname(suggest_pct))
+    if len(items) < cfg.get("min_items_note", 10): out["partial"] = _fmt(cfg["partial_note"], n=len(items))
+    return out
+
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
 def finish_day(t, p):
     """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
     if t.get("margin") is None and p.get("margin") is not None:
         t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {p['date']} 值"; log("  融資：" + t["margin_note"])
     t["prev"] = p; t["log"] = LOG
-    try: t["insight"] = build_insight(t, p, recent_days(20, ymd(t["date"])))
+    hist = recent_days(20, ymd(t["date"]))
+    try: t["insight"] = build_insight(t, p, hist)
     except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
+    try: t["panghu"] = build_panghu(t, p, hist, load_panghu_cfg())
+    except Exception as e: log(f"  胖虎指標計算失敗:{e.__class__.__name__}: {e}")
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
     if (t.get("insight") or {}).get("lines"):
         t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
+    pg = t.get("panghu") or {}
+    if pg.get("summary"):
+        d = pg.get("discipline") or {}
+        t["claude_text"] += "\n【胖虎指標】" + pg["summary"] + (f"({pg['partial']})" if pg.get("partial") else "") + (("\n" + d["action"]) if d.get("action") else "") \
+            + "\n" + "\n".join(f"・{i['name']} {i['score']:+d}(×{i['w']}):{i['note']}" for i in pg["items"])
     prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）
     if os.path.exists(prev_file):
         try:
@@ -490,7 +767,13 @@ def backfill(n, start=None, force=False):
     idx = load_index(); written = []
     for i in range(len(cols) - 2, -1, -1):                     # 由舊到新，昨日摘要才接得上
         t, p = cols[i], cols[i + 1]; tag = ymd(t["date"])
-        if os.path.exists(os.path.join(DATA, f"{tag}.json")) and not force: log(f"  {tag} 已存在，略過"); continue
+        old_path = os.path.join(DATA, f"{tag}.json")
+        if os.path.exists(old_path):
+            if not force: log(f"  {tag} 已存在，略過"); continue
+            try:                                                   # --force 重寫時保留當日已抓到的永豐圖清單(回補不抓 PDF)
+                old = json.load(open(old_path, encoding="utf-8"))
+                if old.get("spf"): t["spf"] = old["spf"]
+            except Exception: pass
         finish_day(t, p); write_day(t, idx, latest=False); save_index(idx); written.append(tag)   # 每天寫完就存 index,下一天的解讀才讀得到前面幾天
     save_index(idx)
     print(f"\n回補完成：寫入 {len(written)} 天 {written[:1]}…{written[-1:] if written else ''}；略過 {len(cols) - 1 - len(written)} 天")

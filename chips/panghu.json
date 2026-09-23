@@ -1,0 +1,206 @@
+{
+  "_說明": "胖虎指標設定檔（v2 情境版）。fetch_all.py 每天盤後依此判斷每項指標的「情境」，情境決定分數（-2~+2）與說法；乘權重加總映射成 0~100 溫度，再對應 0%~100% 建議倉位（每 10% 一級、含緩衝）。改這裡不用動程式；scenarios 裡的 score 可以自己調，text 的大括號是程式帶入的數字，名字別改。這是機械式指標加總，不是投資建議。",
+  "version": 2,
+  "weights": {
+    "trend": 2, "foreign_spot": 2,
+    "fut_long": 1, "fut_short": 1,
+    "usdtwd": 1, "dxy": 0.5,
+    "volume": 1, "pv": 1, "retail": 1, "pc": 1, "vix": 1, "margin": 1, "basis": 0.5
+  },
+  "names": {
+    "trend": "趨勢", "foreign_spot": "外資現貨", "fut_long": "外資期貨多單", "fut_short": "外資期貨空單",
+    "usdtwd": "美元兌台幣", "dxy": "美元指數", "volume": "量能", "pv": "價量配合", "retail": "散戶多空比",
+    "pc": "P/C(OI)", "vix": "VIX", "margin": "融資", "basis": "基差"
+  },
+  "thresholds": {
+    "flat_pct": 0.3,
+    "trend":   { "ma_days": 20, "weak_pct": 0.5, "strong_pct": 3.0, "hot_pct": 6.0 },
+    "volume":  { "avg_days": 20, "hi": 1.2, "strong": 1.5, "low": 0.8, "dry": 0.6 },
+    "foreign_spot": { "small_yi": 10, "big_yi": 100, "run_days": 3 },
+    "fut":     { "deadzone": 500, "big": 3000, "baseline_net": -80000 },
+    "retail":  { "zero": 2, "mild": 5, "strong": 15, "big_move_pct": 1.0, "flip": 5 },
+    "pc":      { "lo": 80, "hi": 100, "strong_lo": 70, "strong_hi": 115, "jump": 10 },
+    "vix":     { "mild": 0.10, "strong": 0.20, "spike": 0.15, "abs_hi": 30, "abs_lo": 15 },
+    "margin":  { "days": 5, "strong_pct": 2.0 },
+    "usdtwd":  { "avg_days": 20, "deadzone_pct": 0.3, "strong_pct": 1.0, "spike_pct": 0.5, "run_days": 5 },
+    "dxy":     { "avg_days": 20, "deadzone_pct": 0.3, "strong_pct": 1.0, "spike_pct": 0.7, "run_days": 5 },
+    "basis":   { "avg_days": 5, "hot": 250, "deep_neg": -150 }
+  },
+  "position": {
+    "_說明": "溫度 ≤ zero_at 一律空手、≥ full_at 一律滿倉，中間線性對應再取整到 step%。要越過目前級距邊界 buffer 分才換級；加碼另需外資現貨買超（gate_foreign）。",
+    "zero_at": 20, "full_at": 80, "step": 10, "buffer": 3, "gate_foreign": true,
+    "names": { "0": "空手", "10": "一成", "20": "二成", "30": "三成", "40": "四成", "50": "五成", "60": "六成", "70": "七成", "80": "八成", "90": "九成", "100": "滿倉" }
+  },
+  "temp_labels": [
+    { "min": 0,  "label": "極度偏空" },
+    { "min": 20, "label": "偏空" },
+    { "min": 40, "label": "中性" },
+    { "min": 60, "label": "偏多" },
+    { "min": 80, "label": "極度偏多" }
+  ],
+  "stops": {
+    "_說明": "防線 = 20 日均線與近 line1_lookback 日最低收盤取高者；第二道 = 近 line2_lookback 日最低收盤。跌破防線倉位降 line1_cut_pct；首日跌破但溫度仍 ≥ fake_break_temp 先觀察一天。跌破第二道空手。",
+    "line1_lookback": 10, "line2_lookback": 20, "line1_cut_pct": 20, "fake_break_temp": 60, "reenter_temp": 50
+  },
+  "min_items_note": 10,
+  "scenarios": {
+    "trend": {
+      "overheat":       { "score": 1,  "text": "收 {close:,.0f},乖離 20 日均 {ma:,.0f} 達 {gap:+.1f}%,過熱,追高風險升高" },
+      "strong_bull":    { "score": 2,  "text": "收 {close:,.0f} 站上 {n} 日均 {ma:,.0f},乖離 {gap:+.1f}%,多方掌控" },
+      "cross_up":       { "score": 1,  "text": "收 {close:,.0f} 今日剛站上 {n} 日均 {ma:,.0f}({gap:+.1f}%),轉強訊號" },
+      "above_pullback": { "score": 1,  "text": "收 {close:,.0f} 仍在 {n} 日均 {ma:,.0f} 之上({gap:+.1f}%),今日回測" },
+      "above":          { "score": 1,  "text": "收 {close:,.0f} 在 {n} 日均 {ma:,.0f} 之上({gap:+.1f}%)" },
+      "flat":           { "score": 0,  "text": "收 {close:,.0f} 貼著 {n} 日均 {ma:,.0f} 盤整({gap:+.1f}%)" },
+      "below_rebound":  { "score": -1, "text": "收 {close:,.0f} 仍在 {n} 日均 {ma:,.0f} 之下({gap:+.1f}%),今日反彈" },
+      "below":          { "score": -1, "text": "收 {close:,.0f} 在 {n} 日均 {ma:,.0f} 之下({gap:+.1f}%)" },
+      "cross_down":     { "score": -1, "text": "收 {close:,.0f} 今日剛跌破 {n} 日均 {ma:,.0f}({gap:+.1f}%),轉弱訊號" },
+      "strong_bear":    { "score": -2, "text": "收 {close:,.0f} 遠在 {n} 日均 {ma:,.0f} 之下,乖離 {gap:+.1f}%,空方掌控" },
+      "oversold":       { "score": -1, "text": "收 {close:,.0f},負乖離達 {gap:+.1f}%,超跌,殺低風險升高" }
+    },
+    "volume": {
+      "surge_up":   { "score": 2,  "text": "爆量長紅:{amt:,} 億,為 {n} 日均量 {ratio:.0f}%,追價積極" },
+      "high_up":    { "score": 1,  "text": "放量上漲:{amt:,} 億,為 {n} 日均量 {ratio:.0f}%" },
+      "surge_flat": { "score": -1, "text": "爆量平盤:{amt:,} 億({ratio:.0f}%)但指數只動 {cp:+.2f}%,高檔換手或出貨疑慮" },
+      "high_flat":  { "score": 0,  "text": "量增價滯:{amt:,} 億({ratio:.0f}%),指數 {cp:+.2f}%" },
+      "normal":     { "score": 0,  "text": "量能 {amt:,} 億,為 {n} 日均量 {ratio:.0f}%,沒有方向訊號" },
+      "low_up":     { "score": 0,  "text": "量縮上漲:{amt:,} 億({ratio:.0f}%),惜售但追價不足" },
+      "low_down":   { "score": 0,  "text": "量縮下跌:{amt:,} 億({ratio:.0f}%),賣壓減輕" },
+      "dry":        { "score": 0,  "text": "窒息量:{amt:,} 億,僅 {n} 日均量 {ratio:.0f}%,觀望濃,留意變盤" },
+      "high_down":  { "score": -1, "text": "放量下跌:{amt:,} 億,為 {n} 日均量 {ratio:.0f}%,賣壓出籠" },
+      "surge_down": { "score": -2, "text": "爆量長黑:{amt:,} 億,為 {n} 日均量 {ratio:.0f}%,留意恐慌" }
+    },
+    "pv": {
+      "up_more":   { "score": 1,  "text": "價漲量增(指數 {cp:+.2f}%、量 {dpct:+.1f}%),量價配合" },
+      "up_less":   { "score": -1, "text": "價漲量縮(指數 {cp:+.2f}%、量 {dpct:+.1f}%),價量背離,追價意願低" },
+      "flat_more": { "score": 0,  "text": "價平量增(指數 {cp:+.2f}%、量 {dpct:+.1f}%),多空換手" },
+      "flat_less": { "score": 0,  "text": "價平量縮(指數 {cp:+.2f}%、量 {dpct:+.1f}%),觀望" },
+      "down_less": { "score": 0,  "text": "價跌量縮(指數 {cp:+.2f}%、量 {dpct:+.1f}%),殺盤縮手" },
+      "down_more": { "score": -1, "text": "價跌量增(指數 {cp:+.2f}%、量 {dpct:+.1f}%),賣壓宣洩" }
+    },
+    "foreign_spot": {
+      "big_buy":        { "score": 2,  "text": "外資現貨 {fx:+,.0f} 億,連買 {run} 日,買盤明確" },
+      "turn_buy":       { "score": 1,  "text": "外資現貨 {fx:+,.0f} 億,由賣轉買(前日 {fx_prev:+,.0f})" },
+      "buy_index_down": { "score": 1,  "text": "外資現貨買 {fx:+,.0f} 億但指數 {cp:+.2f}%,內資在賣,有人對作" },
+      "buy":            { "score": 1,  "text": "外資現貨 {fx:+,.0f} 億" },
+      "flat":           { "score": 0,  "text": "外資現貨 {fx:+,.0f} 億,無明顯方向" },
+      "sell":           { "score": -1, "text": "外資現貨 {fx:+,.0f} 億" },
+      "sell_index_up":  { "score": -1, "text": "外資現貨賣 {fx:+,.0f} 億但指數 {cp:+.2f}%,內資撐盤,留意後續" },
+      "turn_sell":      { "score": -1, "text": "外資現貨 {fx:+,.0f} 億,由買轉賣(前日 {fx_prev:+,.0f})" },
+      "big_sell":       { "score": -2, "text": "外資現貨 {fx:+,.0f} 億,連賣 {run} 日,賣壓明確" }
+    },
+    "fut_long": {
+      "big_add": { "score": 2,  "text": "多單大增 {d:+,} 口({combo})" },
+      "add":     { "score": 1,  "text": "多單增 {d:+,} 口({combo})" },
+      "flat":    { "score": 0,  "text": "多單持平 {d:+,} 口({combo})" },
+      "cut":     { "score": -1, "text": "多單減 {d:+,} 口({combo})" },
+      "big_cut": { "score": -2, "text": "多單大減 {d:+,} 口({combo})" }
+    },
+    "fut_short": {
+      "big_cut": { "score": 2,  "text": "空單大減 {d:+,} 口,{net_note}" },
+      "cut":     { "score": 1,  "text": "空單減 {d:+,} 口,{net_note}" },
+      "flat":    { "score": 0,  "text": "空單持平 {d:+,} 口,{net_note}" },
+      "add":     { "score": -1, "text": "空單增 {d:+,} 口,{net_note}" },
+      "big_add": { "score": -2, "text": "空單大增 {d:+,} 口,{net_note}" }
+    },
+    "fut_combo": {
+      "add_long_cut_short": "加多減空・拆保險",
+      "add_long_add_short": "加多加空・保險加厚",
+      "cut_long_add_short": "砍多加空・收傘",
+      "cut_long_cut_short": "砍多減空・縮手",
+      "add_long":  "只加多單",
+      "cut_long":  "只砍多單",
+      "add_short": "只加空單",
+      "cut_short": "只減空單",
+      "none":      "小動作"
+    },
+    "retail": {
+      "squeeze_fuel":  { "score": 2,  "text": "大漲日散戶反而翻空(多空比 {rp:+.1f}% → {r:+.1f}%),軋空燃料" },
+      "extreme_short": { "score": 2,  "text": "散戶多空比 {r:+.1f}%,散戶極度偏空,反向偏多" },
+      "zero":          { "score": 1,  "text": "散戶多空比 {r:+.1f}% 歸零,洗盤完成" },
+      "short":         { "score": 1,  "text": "散戶多空比 {r:+.1f}%,散戶偏空" },
+      "neutral":       { "score": 0,  "text": "散戶多空比 {r:+.1f}%,接近中性" },
+      "long":          { "score": -1, "text": "散戶多空比 {r:+.1f}%,散戶偏多" },
+      "extreme_long":  { "score": -2, "text": "散戶多空比 {r:+.1f}%,散戶極度偏多,反向偏空" },
+      "catch_knife":   { "score": -2, "text": "大跌日散戶翻多接刀(多空比 {rp:+.1f}% → {r:+.1f}%)" }
+    },
+    "pc": {
+      "very_high": { "score": 2,  "text": "P/C(OI) {pc:.0f}%,賣權明顯多於買權,支撐厚" },
+      "jump_up":   { "score": 1,  "text": "P/C(OI) {pp:.0f}% → {pc:.0f}%,賣權急增,支撐墊高" },
+      "high":      { "score": 1,  "text": "P/C(OI) {pc:.0f}%,偏多" },
+      "neutral":   { "score": 0,  "text": "P/C(OI) {pc:.0f}%,中性" },
+      "low":       { "score": -1, "text": "P/C(OI) {pc:.0f}%,偏空" },
+      "jump_down": { "score": -1, "text": "P/C(OI) {pp:.0f}% → {pc:.0f}%,賣權急撤,支撐變薄" },
+      "very_low":  { "score": -2, "text": "P/C(OI) {pc:.0f}%,買權明顯多於賣權,壓力重" }
+    },
+    "vix": {
+      "calm_down":   { "score": 1,  "text": "VIX {vp} → {vx}(單日 {dd:+.0f}%),恐慌退潮" },
+      "very_low":    { "score": 2,  "text": "VIX {vx} 低於近 {n} 日均 {avg:.1f} 兩成以上,市場安逸" },
+      "low":         { "score": 1,  "text": "VIX {vx} 低於近 {n} 日均 {avg:.1f}" },
+      "normal":      { "score": 0,  "text": "VIX {vx} 貼近近 {n} 日均 {avg:.1f}" },
+      "complacent":  { "score": 0,  "text": "VIX {vx} 低於 15,過度安逸,留意反轉" },
+      "high":        { "score": -1, "text": "VIX {vx} 高於近 {n} 日均 {avg:.1f}" },
+      "very_high":   { "score": -2, "text": "VIX {vx} 高於近 {n} 日均 {avg:.1f} 兩成以上,恐慌升溫" },
+      "spike":       { "score": -2, "text": "VIX {vp} → {vx}(單日 {dd:+.0f}%),恐慌驟升" },
+      "panic_abs":   { "score": -2, "text": "VIX {vx} 站上 30,市場恐慌" }
+    },
+    "margin": {
+      "clean_fast": { "score": 2,  "text": "近 {n} 日指數 {dc:+.2f}%、融資 {dm:+.2f}%,籌碼乾淨且加速" },
+      "clean":      { "score": 1,  "text": "近 {n} 日指數 {dc:+.2f}%、融資 {dm:+.2f}%,籌碼乾淨" },
+      "exit":       { "score": 0,  "text": "近 {n} 日指數 {dc:+.2f}%、融資 {dm:+.2f}%,融資退場,籌碼清洗" },
+      "chase":      { "score": -1, "text": "近 {n} 日指數 {dc:+.2f}%、融資 {dm:+.2f}%,散戶追價" },
+      "overheat":   { "score": -2, "text": "近 {n} 日融資 {dm:+.2f}% 大於指數 {dc:+.2f}%,融資過熱" },
+      "trapped":    { "score": -2, "text": "近 {n} 日指數 {dc:+.2f}%、融資反增 {dm:+.2f}%,套牢加碼" }
+    },
+    "usdtwd": {
+      "spike_down":  { "score": 1,  "text": "台幣 {rate:.3f},單日急升 {dd:+.2f}%,外資匯入" },
+      "run_down":    { "score": 2,  "text": "台幣 {rate:.3f},連升 {run} 日(較 {n} 日均 {gap:+.2f}%),外資持續匯入" },
+      "strong_down": { "score": 2,  "text": "台幣 {rate:.3f},較 {n} 日均強升 {gap:+.2f}%,外資匯入明顯" },
+      "down":        { "score": 1,  "text": "台幣 {rate:.3f},較 {n} 日均升值 {gap:+.2f}%" },
+      "flat":        { "score": 0,  "text": "台幣 {rate:.3f},貼近 {n} 日均({gap:+.2f}%)" },
+      "up":          { "score": -1, "text": "台幣 {rate:.3f},較 {n} 日均貶值 {gap:+.2f}%" },
+      "strong_up":   { "score": -2, "text": "台幣 {rate:.3f},較 {n} 日均重貶 {gap:+.2f}%,外資匯出明顯" },
+      "run_up":      { "score": -2, "text": "台幣 {rate:.3f},連貶 {run} 日(較 {n} 日均 {gap:+.2f}%),外資持續匯出" },
+      "spike_up":    { "score": -2, "text": "台幣 {rate:.3f},單日急貶 {dd:+.2f}%,外資匯出壓力" }
+    },
+    "dxy": {
+      "spike_down":  { "score": 1,  "text": "美元指數 {rate:.2f},單日急跌 {dd:+.2f}%,資金回流風險資產" },
+      "run_down":    { "score": 2,  "text": "美元指數 {rate:.2f},連跌 {run} 日(較 {n} 日均 {gap:+.2f}%)" },
+      "strong_down": { "score": 2,  "text": "美元指數 {rate:.2f},較 {n} 日均走弱 {gap:+.2f}%,資金回流風險資產" },
+      "down":        { "score": 1,  "text": "美元指數 {rate:.2f},較 {n} 日均偏弱 {gap:+.2f}%" },
+      "flat":        { "score": 0,  "text": "美元指數 {rate:.2f},貼近 {n} 日均({gap:+.2f}%)" },
+      "up":          { "score": -1, "text": "美元指數 {rate:.2f},較 {n} 日均偏強 {gap:+.2f}%" },
+      "strong_up":   { "score": -2, "text": "美元指數 {rate:.2f},較 {n} 日均走強 {gap:+.2f}%,資金抽離風險資產" },
+      "run_up":      { "score": -2, "text": "美元指數 {rate:.2f},連漲 {run} 日(較 {n} 日均 {gap:+.2f}%)" },
+      "spike_up":    { "score": -2, "text": "美元指數 {rate:.2f},單日急漲 {dd:+.2f}%,避險升溫" }
+    },
+    "basis": {
+      "flip_pos":  { "score": 1,  "text": "基差 {bp:+.0f} → {b:+.0f},由逆轉正" },
+      "widen_pos": { "score": 1,  "text": "基差 {b:+.0f}(近 {n} 日均 {avg:+.0f}),正價差走闊,期貨偏多" },
+      "hot":       { "score": 0,  "text": "基差 {b:+.0f},正價差偏熱,留意回檔" },
+      "converge":  { "score": 0,  "text": "基差 {b:+.0f}(近 {n} 日均 {avg:+.0f}),價差收斂" },
+      "widen_neg": { "score": -1, "text": "基差 {b:+.0f}(近 {n} 日均 {avg:+.0f}),逆價差擴大,避險轉空" },
+      "flip_neg":  { "score": -1, "text": "基差 {bp:+.0f} → {b:+.0f},由正轉逆" },
+      "deep_neg":  { "score": -2, "text": "基差 {b:+.0f},深逆價差,期貨端明顯看空" }
+    }
+  },
+  "actions": {
+    "out":        "收盤 {close:,.0f} 跌破第二道 {line2:,.0f},建議空手;指標回到 {reenter} 以上且站回防線再進場",
+    "fake_break": "收盤 {close:,.0f} 首日跌破防線 {line1:,.0f},但指標仍 {temp} 偏多,先觀察;明日收盤未站回則降到 {cut_name}",
+    "below_line2": "收盤 {close:,.0f} 仍在第二道 {line2:,.0f} 之下,維持空手;指標回到 {reenter} 以上且站回防線 {line1:,.0f} 再進場",
+    "down":       "收盤 {close:,.0f} 跌破防線 {line1:,.0f},建議由 {base_name} 降到 {suggest}",
+    "below_line": "收盤 {close:,.0f} 仍在防線 {line1:,.0f} 之下,上限壓在 {suggest};站回防線再依指標加碼",
+    "gate":       "指標 {temp} 已達 {cand_name},但外資現貨未買超,暫維持 {suggest}",
+    "up":         "指標升到 {temp},建議由 {prev_name} 加到 {suggest};防線 {line1:,.0f}",
+    "weaken":     "指標降到 {temp},防線 {line1:,.0f} 未破,建議由 {prev_name} 減到 {suggest}",
+    "top":        "已是滿倉級距,不再加碼,只管防線 {line1:,.0f}",
+    "bottom":     "指標 {temp} 偏空,維持空手;升到 {next_temp} 以上且外資買超再進場",
+    "steady":     "連 {streak} 日維持 {suggest};指標 ≥ {next_temp} 且外資買超再加到 {next_name},跌破防線 {line1:,.0f} 降到 {cut_name}",
+    "hold":       "維持 {suggest};指標 ≥ {next_temp} 且外資買超再加到 {next_name},跌破防線 {line1:,.0f} 降到 {cut_name}"
+  },
+  "summary": "{temp} {label}({delta})・建議 {suggest}",
+  "delta_up": "較昨 +{d}",
+  "delta_down": "較昨 {d}",
+  "delta_flat": "與昨持平",
+  "delta_none": "首日",
+  "partial_note": "只有 {n} 項有資料,僅供參考"
+}

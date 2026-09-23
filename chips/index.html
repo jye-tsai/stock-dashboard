@@ -64,6 +64,19 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .ins{display:grid;gap:6px}
 .ins div{font-size:14px;line-height:1.6}
 .ins b{color:var(--gold)}
+.phhead{display:flex;gap:14px;align-items:center;margin-bottom:8px}
+.phtemp{font:700 42px/1 ui-monospace,monospace;color:var(--gold);min-width:76px;text-align:center}
+.phhead>div:last-child{flex:1;min-width:0}
+.phlabel{font-weight:700;margin-bottom:8px}
+.phtrack{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,#3ECF8E55 0 20%,#3ECF8E2e 20% 40%,#8888881f 40% 60%,#FF6B6B2e 60% 80%,#FF6B6B55 80% 100%)}
+.phmark{position:absolute;top:-4px;width:20px;height:20px;border-radius:50%;background:var(--gold);border:2px solid var(--card);transform:translateX(-50%);box-shadow:0 2px 8px #0006}
+.phscale{display:flex;justify-content:space-between;font-size:11px;color:var(--gray);margin-top:5px}
+.phitems{display:grid;gap:2px;margin-top:8px}
+.phi{display:grid;grid-template-columns:34px 128px 1fr;gap:8px;align-items:baseline;font-size:13px;padding:5px 0;border-top:1px solid var(--line)}
+.phs{font:700 14px ui-monospace,monospace;text-align:center;border-radius:6px;padding:1px 0}
+.phs.up{background:#FF6B6B22}.phs.dn{background:#3ECF8E22}
+.phn{font-weight:700;white-space:nowrap}
+@media(max-width:600px){.phi{grid-template-columns:34px 1fr}.pht{grid-column:2}}
 .btn-mini{background:transparent;border:1px solid var(--line);color:var(--gray);font-size:12px;padding:3px 10px;border-radius:8px;margin-left:auto}
 .locked{display:none !important}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
@@ -104,6 +117,19 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div class="pos" id="discPos"></div>
     <div class="sm" id="discCap"></div>
     <div id="discLines"></div>
+  </div>
+
+  <div class="card" id="phCard" style="display:none">
+    <h2>胖虎指標 <span class="mut" style="font-weight:400;font-size:12px">13 項指標依情境給分加權,0 偏空 → 100 偏多;溫度 20 以下空手、80 以上滿倉,中間每 10% 一級</span></h2>
+    <div class="phhead">
+      <div class="phtemp" id="phTemp">—</div>
+      <div>
+        <div class="phlabel" id="phLabel"></div>
+        <div class="phtrack"><div class="phmark" id="phMark" style="left:50%"></div></div>
+        <div class="phscale" style="position:relative;display:block;height:15px"><span style="position:absolute;left:0">0</span><span style="position:absolute;left:20%;transform:translateX(-50%)">20 空手</span><span style="position:absolute;left:50%;transform:translateX(-50%)">50 五成</span><span style="position:absolute;left:80%;transform:translateX(-50%)">80 滿倉</span><span style="position:absolute;right:0">100</span></div>
+      </div>
+    </div>
+    <div class="phitems" id="phItems"></div>
   </div>
 
   <div class="card">
@@ -180,8 +206,7 @@ let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e
 if(!cfg.token){try{const g=JSON.parse(localStorage.getItem('pf-gh')||'null');if(g&&g.token){cfg={...cfg,owner:g.owner,repo:g.repo,token:g.token,wf:cfg.wf||'chips.yml',shared:true}}}catch(e){}}
 if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
 
-let current=null,disc=null,series=[];
-async function loadDisc(){try{disc=await (await fetch('discipline.json?'+Date.now())).json()}catch(e){disc=null}}
+let current=null,series=[];
 async function loadSeries(idx){
   const tags=idx.slice(0,20).reverse();
   const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
@@ -196,7 +221,7 @@ async function loadIndex(){
   try{
     const idx=await (await fetch('data/index.json?'+Date.now())).json();
     $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
-    await loadDisc(); await loadSeries(idx); loadWeekly();
+    await loadSeries(idx); loadWeekly();
     if(idx.length)await loadDay(idx[0]);
     else $('#status').textContent='尚無資料，請先跑一次 Action';
   }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
@@ -255,25 +280,24 @@ function render(t){
   const imgs=Object.values(t.spf||{}).flat();
   $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（永豐收盤後才放；排程 15:40 抓第一次、16:40 再補一次）</span>';
   $('#logBox').textContent=(t.log||[]).join('\n')||'—';
-  renderIns(t); renderDisc(t); renderLabels(t); renderCharts();
+  renderIns(t); renderPanghu(t); renderDisc(t); renderLabels(t); renderCharts();
 }
 // ── 紀律狀態
-function renderDisc(t){
-  if(!disc){$('#disc').style.display='none';return}
-  const c=(t.index||{}).close, fx=((t.inst||{})['外資']);
+function renderDisc(t){   // 紀律狀態:只看胖虎指標(每天盤後自動產生),沒有就整張藏起來
+  const pg=t.panghu||{},d=pg.discipline||null,c=(t.index||{}).close;
+  if(!d){$('#disc').style.display='none';return}
   $('#disc').style.display='';
-  $('#discPos').textContent=disc.position||'—';
-  $('#discCap').textContent=(disc.cap_note||'')+(disc.updated?`　（更新 ${disc.updated}）`:'');
-  let html='';
-  for(const ln of disc.lines||[]){
-    let st='—',k='wait';
-    if(c!=null){const d=c-ln.level;st=d<0?`已跌破 ${sgn(Math.round(d))}`:`守住 +${fmt(Math.round(d))}`;k=d<0?'bad':'ok'}
-    html+=`<div class="ln"><span>${ln.label}　<b>${fmt(ln.level)}</b></span><span class="${k}">${st}</span></div>`;
-  }
-  const cd=disc.condition;
-  if(cd){const a=c!=null&&c>=cd.target,b=fx!=null&&fx>0;
-    const st=a&&b?'雙勾 ✓✓':`${a?'價位✓':'價位✗'} ${b?'外資✓':'外資✗'}`;
-    html+=`<div class="ln"><span>${cd.label}：${cd.rule}<div class="sm">${cd.action||''}</div></span><span class="${a&&b?'ok':'wait'}">${st}</span></div>`}
+  const was=d.prev_name&&d.prev_pct!==d.suggest_pct?`<span class="sm">　(昨 ${d.prev_name})</span>`:'';
+  $('#discPos').innerHTML=`建議 <b>${d.suggest}</b>${was}`;
+  $('#discCap').textContent=`胖虎指標 ${pg.temp} ${pg.label}(${pg.delta||''})・依 ${t.date} 盤後資料自動判讀`+(pg.partial?`;${pg.partial}`:'');
+  const ln=(label,level,ok)=>{if(level==null)return '';const dlt=c!=null?Math.round(c-level):null;
+    const st=dlt==null?'—':ok?`守住 +${fmt(dlt)}`:`已跌破 ${sgn(dlt)}`;
+    return `<div class="ln"><span>${label}　<b>${fmt(level)}</b></span><span class="${dlt==null?'wait':ok?'ok':'bad'}">${st}</span></div>`};
+  let html=ln('防線:收盤跌破 → 降兩級',d.line1,d.line1_ok)+ln('第二道:收盤跌破 → 空手',d.line2,d.line2_ok);
+  if(d.next_name){const a=d.next_ok_temp,b=d.next_ok_foreign;
+    html+=`<div class="ln"><span>下一步:指標 ≥ ${d.next_temp} 且外資現貨買超 → ${d.next_name}</span><span class="${a&&b?'ok':'wait'}">${a&&b?'雙勾 ✓✓':`${a?'指標✓':'指標✗'} ${b?'外資✓':'外資✗'}`}</span></div>`}
+  else html+=`<div class="ln"><span>已是滿倉級距,不再加碼,只管防線</span><span class="ok">—</span></div>`;
+  if(d.action){const warn=['out','down','fake_break'].includes(d.act);html+=`<div class="ln"><span class="${warn?'bad':'sm'}" style="font-weight:700">${warn?'🚨 ':''}${d.action}</span></div>`}
   $('#discLines').innerHTML=html;
 }
 // ── 自動判讀標籤
@@ -316,10 +340,12 @@ function spark(title,vals,fmtV,opts={}){
   const W=320,Hh=110,pl=44,pr=8,pt=14,pb=18;const xs=vals.map(v=>v.v).filter(v=>v!=null);
   if(xs.length<2)return '';
   let mn=Math.min(...xs),mx=Math.max(...xs);if(opts.zero){mn=Math.min(mn,0);mx=Math.max(mx,0)}if(mn===mx){mn-=1;mx+=1}
+  if(opts.fixed){mn=opts.fixed[0];mx=opts.fixed[1]}   // 固定刻度(胖虎指標 0~100)
   const X=i=>pl+i*(W-pl-pr)/(vals.length-1),Y=v=>pt+(mx-v)*(Hh-pt-pb)/(mx-mn);
   const col=opts.color||'var(--teal)',gid='spk'+(sparkSeq++);
   let s=`<div><div class="t">${title}</div><svg class="chart" viewBox="0 0 ${W} ${Hh}">`;
   s+=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".42"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`;
+  if(opts.bands)opts.bands.forEach(b=>{s+=`<rect x="${pl}" y="${Y(b[1]).toFixed(1)}" width="${W-pl-pr}" height="${(Y(b[0])-Y(b[1])).toFixed(1)}" fill="${b[2]}"/>`});   // 倉位級距色帶
   const midY=pt+(Hh-pt-pb)/2;s+=`<line x1="${pl}" x2="${W-pr}" y1="${midY}" y2="${midY}" stroke="var(--line)" stroke-width="1"/>`;   // 淡底格線
   if(opts.zero)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--gray)" stroke-dasharray="3 3" stroke-width="1"/>`;
   if(opts.ref!=null&&opts.ref>=mn&&opts.ref<=mx)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--c-gold)" stroke-dasharray="4 3" stroke-width="1" opacity=".8"/>`+(opts.refLabel?`<text x="${W-pr}" y="${Y(opts.ref)-3}" text-anchor="end" fill="var(--c-gold)">${opts.refLabel}</text>`:'');
@@ -350,7 +376,10 @@ function renderIns(t){
 // ── KPI 點一下展開近 10 日（沿用 spark()，資料取自已載入的 series）
 const dLbl=t=>t.date.slice(5), gv=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
 const kInt=v=>v==null?'—':Math.round(v).toLocaleString();
+// 胖虎指標圖的倉位級距色帶(要在 SPARKS 之前宣告,SPARKS 會引用)
+const PH_BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
 const SPARKS={
+  panghu:{t:'胖虎指標',g:t=>gv(t,'panghu','temp'),f:v=>v==null?'—':Math.round(v)+'',o:{color:'var(--c-gold)',fixed:[0,100],bands:PH_BANDS}},
   idx:{t:'加權指數',g:t=>gv(t,'index','close'),f:kInt,o:{color:'var(--c-red)'}},
   inst_all:{t:'三大法人（億）',g:t=>gv(t,'inst','合計'),f:kInt,o:{bars:true,zero:true}},
   inst_fore:{t:'外資買賣超（億）',g:t=>gv(t,'inst','外資'),f:kInt,o:{bars:true,zero:true}},
@@ -376,14 +405,26 @@ document.addEventListener('click',e=>{
   if(!was){box.innerHTML=miniSpark(k.dataset.spark);k.classList.add('open')}
 });
 
+// ── 胖虎指標卡(溫度、建議倉位、逐項分數與理由)
+function renderPanghu(t){
+  const pg=t.panghu,card=$('#phCard');
+  if(!pg||pg.temp==null){card.style.display='none';return}
+  card.style.display='';
+  $('#phTemp').textContent=pg.temp;
+  $('#phLabel').textContent=`${pg.label}・建議 ${pg.suggest}（${pg.delta||''}）`+(pg.partial?`・${pg.partial}`:`・${pg.n_items} 項有資料`);
+  $('#phMark').style.left=pg.temp+'%';
+  $('#phItems').innerHTML=(pg.items||[]).map(i=>`<div class="phi"><span class="phs ${i.score>0?'up':i.score<0?'dn':'mut'}">${i.score>0?'+':''}${i.score}</span><span class="phn">${i.name}<span class="mut" style="font-weight:400"> ×${i.w}</span></span><span class="pht mut">${i.note}</span></div>`).join('');
+}
+
 function renderCharts(){
   if(series.length<2){$('#charts').innerHTML='<span class="mut">資料累積 2 天後顯示</span>';return}
   const d=t=>t.date.slice(5),g=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
   const sv=(f)=>series.map(t=>({d:d(t),v:f(t)}));
   const k=v=>v==null?'—':Math.round(v).toLocaleString();
   const idxClose=sv(t=>g(t,'index','close'));
-  const lines=(disc&&disc.lines||[]).map(l=>l.level);
+  const dl=(((current||{}).panghu||{}).discipline||{}).line1, lines=dl?[dl]:[];   // 加權圖的防線 = 胖虎指標自動算的防線
   $('#charts').innerHTML=[
+    spark('胖虎指標（0 偏空 → 100 偏多）',sv(t=>g(t,'panghu','temp')),v=>v==null?'—':Math.round(v)+'',{color:'var(--c-gold)',fixed:[0,100],bands:PH_BANDS}),
     spark('加權指數',idxClose,k,{color:'var(--c-red)',ref:lines[0],refLabel:lines[0]?'防線 '+fmt(lines[0]):''}),
     spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--c-green)',ref:-80000,refLabel:'8 萬口基態'}),
     spark('外資現貨買賣超（億）',sv(t=>g(t,'inst','外資')),v=>v==null?'—':Math.round(v)+'',{bars:true,zero:true}),
@@ -418,7 +459,6 @@ $('#btnCopy').onclick=async()=>{
   const imgs=Object.values(current.spf||{}).flat().map(fn=>base+fn);
   let txt=current.claude_text;
   if(current.prev_summary)txt+='\n── 昨日摘要 ──\n'+current.prev_summary;
-  if(disc){txt+='\n── 紀律狀態 ──\n部位：'+disc.position+'\n'+(disc.lines||[]).map(l=>`${l.label} ${l.level}`).join('\n')+(disc.condition?`\n${disc.condition.label}：${disc.condition.rule}`:'')}
   if(imgs.length)txt+='\n永豐圖：\n'+imgs.join('\n');
   try{await navigator.clipboard.writeText(txt);$('#status').textContent='已複製，貼到 Claude 即可'}
   catch(e){$('#status').textContent='複製失敗，請手動選取下方文字'}
