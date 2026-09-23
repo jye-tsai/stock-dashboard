@@ -16,6 +16,10 @@ on:
         description: "只產生週報草稿（true/false）"
         required: false
         default: "false"
+      source:
+        description: "觸發來源：cron（Cloudflare 排程，會 LINE 通知）／manual（手動，不通知）"
+        required: false
+        default: "manual"
 
 permissions:
   contents: write
@@ -33,14 +37,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install requests pandas beautifulsoup4 pymupdf
+      - run: pip install requests pandas beautifulsoup4 pymupdf cryptography
 
       - name: 抓資料
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
         run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }}
 
-      - name: LINE 通知（15:40 那班與手動）
-        if: ${{ github.event.schedule == '40 7 * * 1-5' || github.event_name == 'workflow_dispatch' }}
+      # 通知時機:GitHub 15:40 排程,或 Cloudflare Worker 準時打進來的 dispatch(inputs.source=cron;跟收盤價更新同一套機制,
+      # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
+      # 想手動試訊息:本機 python chips/scripts/notify.py --dry-run
+      - name: LINE 通知（排程 / Cloudflare cron）
+        if: ${{ github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron' }}
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

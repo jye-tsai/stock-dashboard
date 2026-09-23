@@ -23,3 +23,8 @@ jobs:
           node-version: "24"
       - name: Syntax + unit tests
         run: node tests/run.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python syntax (chips)
+        run: python -m py_compile chips/scripts/fetch_all.py chips/scripts/notify.py chips/scripts/weekly_report.py
