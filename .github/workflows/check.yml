@@ -6,6 +6,7 @@ on:
   push:
     paths-ignore:
       - "data.json"          # 排程每 15 分鐘 commit 一次 data.json,那些不用跑
+      - "stocks.json"        # 股票池,同一支排程每天 14:00 更新
   pull_request:
   workflow_dispatch:
 

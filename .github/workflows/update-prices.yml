@@ -32,10 +32,10 @@ jobs:
  
       - name: Commit if changed
         run: |
-          if [ -n "$(git status --porcelain data.json)" ]; then
+          if [ -n "$(git status --porcelain data.json stocks.json)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add data.json
+            git add data.json stocks.json
             git commit -m "auto update prices $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
             # 儀表板手動「儲存」會直接 PUT 到 repo,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次
             pushed=0
