@@ -63,6 +63,15 @@ function tpeDate(epochSec) {
   return new Date(epochSec * 1000 + 8 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+// Yahoo chart 回傳的日 K 棒中,日期(台北)早於 today 的最後一根 close;沒有 → 0
+function prevCloseFromBars(r, today) {
+  const ts = r && r.timestamp, cl = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
+  if (!ts || !cl) return 0;
+  let pc = 0;
+  for (let i = 0; i < ts.length; i++) { const d = tpeDate(ts[i]); if (d && d < today && cl[i] > 0) pc = cl[i]; }
+  return pc;
+}
+
 // 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價)
 // - 各檔並行查;後綴先用上次記住的(symHint:上市 .TW / 上櫃 .TWO),沒有才依序試
 // - 只接受 regularMarketTime 落在今日(台北)的價:平日休市 Yahoo 仍回上一交易日收盤,不能當即時價
@@ -83,7 +92,9 @@ async function fromYahoo(codes, prev, today, symHint = {}) {
         // 今日除息:events.dividends 的 date 是台北今天 → 記 exDiv,前端算今日損益會把昨收扣掉股息(除息價差不算虧損)
         const divs = j?.chart?.result?.[0]?.events?.dividends || {};
         for (const k of Object.keys(divs)) { const dv = divs[k]; if (tpeDate(dv.date) === today && dv.amount > 0) exDiv[c] = { date: today, amount: dv.amount }; }
-        const pc = m.previousClose || m.chartPreviousClose;   // 昨收 → 算今日漲跌%
+        // 昨收 → 前端算今日漲跌%。用日 K 棒裡「日期 < 今天的最後一根 close」;台股盤中 meta.previousClose 常是 null,
+        // 而 chartPreviousClose 是「整段 range 之前」的收盤(range=5d 就變成五天前),曾把今日損益算成一週累計,故不用。
+        const pc = prevCloseFromBars(j.chart.result[0], today) || m.previousClose;
         if (prev && pc > 0) prev[c] = pc;
         return;
       } catch (e) { console.log(`${c}${suf}: ${e.message}`); }
