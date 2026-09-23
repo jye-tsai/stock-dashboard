@@ -233,6 +233,21 @@ def spf_fetch(date):
         log(f"  永豐抓取失敗（{e.__class__.__name__}: {e}），略過")
     return out
 
+# ─────────────── 清舊圖 ───────────────
+def cleanup_pngs(tag, keep):
+    """刪掉：(1) 當日不在 spf 清單裡的 png（舊版曾把盤後快訊轉出 30 頁）；(2) 30 天前的 png（json 留著）。
+    當日 spf 一張都沒抓到（永豐尚未上傳／抓失敗）就不碰當日的圖，避免把上一班抓好的刪掉。"""
+    cutoff = (dt.datetime.utcnow() + dt.timedelta(hours=8) - dt.timedelta(days=30)).strftime("%Y%m%d")
+    removed = []
+    for fn in os.listdir(DATA):
+        if not fn.endswith(".png"): continue
+        day = fn[:8]
+        stale_today = day == tag and keep and fn not in keep
+        too_old = day.isdigit() and day < cutoff
+        if stale_today or too_old:
+            os.remove(os.path.join(DATA, fn)); removed.append(fn)
+    if removed: log(f"  清掉 {len(removed)} 張舊圖：{', '.join(removed[:5])}{'…' if len(removed) > 5 else ''}")
+
 # ─────────────── 交易日搜尋 ───────────────
 def prev_trading_day(date):
     d = dt.datetime.strptime(date, "%Y/%m/%d")
@@ -329,6 +344,7 @@ def main():
     if t.get("margin") is None and p.get("margin") is not None:
         t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {prev} 值"; log("  融資：" + t["margin_note"])
     t["spf"] = spf_fetch(today)
+    cleanup_pngs(ymd(today), {fn for v in t["spf"].values() for fn in v})
     t["prev"] = p; t["log"] = LOG
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)

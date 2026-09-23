@@ -73,6 +73,7 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
   <div class="logo">🐶</div>
   <div><h1>胖虎盤後籌碼站</h1><div class="sub" id="hdrDate">讀取中…</div></div>
   <div class="sp"></div>
+  <a class="btn-ghost" href="../" title="回胖虎的小財庫" aria-label="回儀表板" style="text-decoration:none;display:inline-block;flex:none;white-space:nowrap;padding:9px 14px;border-radius:10px;font-size:14px;margin-right:8px">🏠</a>
   <button class="btn-ghost" id="btnSettings" title="設定 GitHub 觸發">⚙️</button>
 </header>
 
@@ -137,10 +138,10 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 
 <dialog id="dlg">
   <h3 style="margin:0 0 6px">⚙️ GitHub 觸發設定</h3>
-  <div class="mut" style="font-size:13px">用 Fine-grained PAT（只勾此 repo 的 Actions 讀寫）。只存在這台裝置的 localStorage。</div>
+  <div class="mut" style="font-size:13px">用 Fine-grained PAT（只勾此 repo 的 Actions 讀寫）。只存在這台裝置的 localStorage。儀表板若已設定 GitHub 同步，這裡留空會自動借用同一把 token。</div>
   <label>帳號 (owner)</label><input id="cfgOwner" placeholder="jye-tsai">
-  <label>Repo</label><input id="cfgRepo" placeholder="tw-daily">
-  <label>Workflow 檔名</label><input id="cfgWf" value="daily.yml">
+  <label>Repo</label><input id="cfgRepo" placeholder="stock-dashboard">
+  <label>Workflow 檔名</label><input id="cfgWf" value="chips.yml">
   <label>Personal Access Token</label><input id="cfgTok" type="password" placeholder="github_pat_…">
   <label>頁面主題</label>
   <select id="cfgTheme"><option value="">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select>
@@ -157,6 +158,8 @@ const sgn=n=>n==null?'—':(n>0?'+':'')+Number(n).toLocaleString('en-US');
 const cls=n=>n>0?'up':n<0?'dn':'mut';
 const pct=(n,d=2)=>n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
 let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e){}
+// 沒設 token 就借儀表板的 GitHub 設定（同一個 origin、同一把 PAT，存在 localStorage 的 pf-gh）；有自己設的以自己的為準
+if(!cfg.token){try{const g=JSON.parse(localStorage.getItem('pf-gh')||'null');if(g&&g.token){cfg={...cfg,owner:g.owner,repo:g.repo,token:g.token,wf:cfg.wf||'chips.yml',shared:true}}}catch(e){}}
 if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
 
 let current=null,disc=null,series=[];
@@ -328,9 +331,9 @@ $('#btnCopy').onclick=async()=>{
 $('#btnRun').onclick=async()=>{
   if(!cfg.owner||!cfg.repo||!cfg.token){$('#dlg').showModal();return}
   $('#status').textContent='觸發中…';
-  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'daily.yml'}/dispatches`,{
+  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/dispatches`,{
     method:'POST',headers:{Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'},
-    body:JSON.stringify({ref:'main',inputs:{date:''}})});
+    body:JSON.stringify({ref:'main',inputs:{date:'',source:'manual'}})});   // source=manual：不 LINE 通知
   if(r.status!==204){$('#status').textContent='觸發失敗 HTTP '+r.status+'（檢查 workflow 檔名／token 權限）';return}
   $('#status').textContent='已觸發，等待 Action…';
   pollRun();
@@ -359,7 +362,7 @@ window.addEventListener('wheel',e=>{if(window.scrollY>0)return;const now=Date.no
   if(wheelAcc<-400){wheelAcc=0;$('#status').textContent='重新載入…';loadIndex()}},{passive:true});
 // 每 10 分鐘自動更新一次
 setInterval(loadIndex,600000);
-$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'daily.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
+$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'chips.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
 $('#cfgSave').onclick=()=>{cfg={owner:$('#cfgOwner').value.trim(),repo:$('#cfgRepo').value.trim(),wf:$('#cfgWf').value.trim(),token:$('#cfgTok').value.trim(),theme:$('#cfgTheme').value};
   try{localStorage.setItem('twdaily_cfg',JSON.stringify(cfg))}catch(e){}
   document.documentElement.dataset.theme=cfg.theme||'';if(!cfg.theme)delete document.documentElement.dataset.theme;$('#dlg').close()};
