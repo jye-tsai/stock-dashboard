@@ -358,10 +358,11 @@ def claude_text(t, p):
 # 只用已經在收的欄位(加權收盤 / 漲跌 / 成交金額 / 融資餘額 / 外資現貨 / 基差)算,不加新來源。
 # 結果存進當日 json 的 insight,前端「今日解讀」卡與 LINE 訊息共用一份,不各算各的。
 def recent_days(n, skip_tag):
-    """由舊到新讀最近 n 天已存檔的當日 json(不含今天);讀不到就跳過"""
+    """由舊到新讀「skip_tag 之前」最近 n 天已存檔的當日 json;讀不到就跳過。
+    只取比當天早的日子:回補舊日子時 index 裡有之後的日期,不排除會偷看未來(每天盤後跑時當天就是最新一天,不受影響)"""
     out = []
     for tag in load_index():                       # index.json 是新到舊
-        if tag == skip_tag: continue
+        if tag >= skip_tag: continue
         try: out.append(json.load(open(os.path.join(DATA, f"{tag}.json"), encoding="utf-8")))
         except Exception: continue
         if len(out) >= n: break
