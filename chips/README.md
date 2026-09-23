@@ -24,6 +24,14 @@
 ## 回補歷史（20 日走勢）
 Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回補 20 個交易日（期交所 / 證交所歷史都能按日查；永豐 PDF 只有當日，回補不抓）。已存在的日子不覆蓋，不動 `latest.json`，不會 LINE 通知。本機：`python chips/scripts/fetch_all.py --backfill 20`。
 
+## 台指 VIX
+來源是期交所官方月檔 `Dailydownload/vix/log2data/YYYYMMnew.txt`（big5、tab 分隔，欄位為交易日期 / 時間 / 波動率指數 / 收盤前 1 分鐘平均），值與永豐快訊的「VIX 指標」一致。官方只留近 3 個月，更早的日子抓不到就留空。
+歷史日子要補 VIX，跑 Run workflow 時 `backfill` 填天數並把 `force` 設 `true`（會重寫已存在的當日 json）。
+
+## 今日解讀（價量 / 籌碼）
+`fetch_all.py` 每天用已收的欄位算五項並存進當日 json 的 `insight`：量能水位（今日量 vs 近 20 日均量）、價量配合四象限、融資 vs 指數 5 日、外資現貨連買 / 連賣與指數背離、基差 vs 近 5 日均。頁面「今日解讀」卡與 LINE 訊息共用這份，不各算各的。回補的歷史日子沒有這欄，卡片會自動隱藏。
+主頁的法人 / 融資 / 散戶多空比 / P/C 等數值可以點，原地展開該指標近 10 日走勢；「20 日走勢」六張圖預設收起。
+
 ## LINE 通知
 只在 **15:40 排程或 Cloudflare cron 那班**推一則（免費方案每月 200 則；手動 Run workflow 與頁面「立即抓取」不通知），同一交易日不重發（`data/notified.json`）。
 內容 = 盤後數據摘要 ＋ **庫存段**（每檔 代號 名稱 收盤 今日% 未實現，加 今日損益 / 總市值 / 總報酬；讀 repo 根目錄 `data.json`，同前端金鑰解密）。

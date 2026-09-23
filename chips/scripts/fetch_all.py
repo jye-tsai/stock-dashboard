@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 TAIFEX = "https://www.taifex.com.tw/cht/3/"
 TWSE   = "https://www.twse.com.tw/rwd/zh/"
 SPF_LIST = "https://www.spf.com.tw/sinopacSPF/research/list.do?id=1709f20d3ff00000d8e2039e8984ed51"
+VIX_URL = "https://www.taifex.com.tw/file/taifex/Dailydownload/vix/log2data/"   # + YYYYMMnew.txt
 H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
      "Referer": "https://www.taifex.com.tw/cht/3/futContractsDate"}
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
@@ -159,8 +160,28 @@ def taifex_pc(date):
     return {"volume_ratio_pct": f(row[c_vol]), "oi_ratio_pct": f(row[c_oi])}
 
 # ─────────────── 期交所：台指VIX（盡力而為，失敗以永豐為準） ───────────────
+_VIX_CACHE = {}
 def taifex_vix(date):
-    return None   # 期交所無 CSV 端點，VIX 以永豐快訊為準
+    """臺指選擇權波動率指數（台版 VIX）當日收盤值。
+    來源：期交所「前 3 個月每日收盤之臺指選擇權波動率指數」的月檔（big5、tab 分隔），
+          https://www.taifex.com.tw/file/taifex/Dailydownload/vix/log2data/YYYYMMnew.txt
+          欄位：交易日期 / 時間 / 波動率指數 / 收盤前 1 分鐘平均；只留近 3 個月，更早的月份抓不到會回 None。
+    同一個月的檔只抓一次（回補 20 天最多打 2 支）。值與永豐快訊「VIX 指標」一致。"""
+    tag = ymd(date); ym = tag[:6]
+    if ym not in _VIX_CACHE:
+        m = {}
+        try:
+            r = requests.get(VIX_URL + ym + "new.txt", headers=H, timeout=30)
+            for ln in r.content.decode("big5", "replace").splitlines():
+                c = [x.strip() for x in ln.split("\t") if x.strip()]
+                if len(c) >= 3 and c[0].isdigit() and len(c[0]) == 8:
+                    try: m[c[0]] = float(c[2])
+                    except ValueError: pass
+            if not m: log(f"  VIX：{ym} 月檔沒有可解析的資料列")
+        except Exception as e:
+            log(f"  VIX 抓取失敗（{e.__class__.__name__}: {e}）")
+        _VIX_CACHE[ym] = m
+    return _VIX_CACHE[ym].get(tag)
 
 # ─────────────── 證交所：加權指數／成交金額 ───────────────
 def twse_index(date):
@@ -309,7 +330,9 @@ def claude_text(t, p):
     if t.get("margin") is not None:
         L.append(f"融資餘額 {t['margin']:,} 億（證交所口徑，含 ETF；" + (t['margin_note'] if t.get("margin_note") else f"前值 {p.get('margin','—')}") + "）")
     if t.get("tx") and t["tx"].get("close"):
-        b = t.get("basis"); L.append(f"台指期近月收 {t['tx']['close']:,.0f}（{'正' if b and b>=0 else '逆'}價差 {b:+,.0f}）" + (f"　夜盤收 {t['tx']['night_close']:,.0f}" if t['tx'].get('night_close') else ""))
+        b = t.get("basis")   # 盤後早班跑時證交所指數可能還沒公布 → basis 是 None,不能直接格式化
+        bs = f"（{'正' if b >= 0 else '逆'}價差 {b:+,.0f}）" if b is not None else "（價差 —,加權指數尚未公布）"
+        L.append(f"台指期近月收 {t['tx']['close']:,.0f}" + bs + (f"　夜盤收 {t['tx']['night_close']:,.0f}" if t['tx'].get('night_close') else ""))
     L.append("── 臺股期貨 未平倉（前→今）──")
     for role in ROLES:
         a, b = t["txf"].get(role), p["txf"].get(role)
@@ -330,14 +353,98 @@ def claude_text(t, p):
     if LOG: L.append("── 抓取日誌 ──"); L += LOG
     return "\n".join(L)
 
+# ─────────────── 價量 / 籌碼衍生解讀 ───────────────
+# 只用已經在收的欄位(加權收盤 / 漲跌 / 成交金額 / 融資餘額 / 外資現貨 / 基差)算,不加新來源。
+# 結果存進當日 json 的 insight,前端「今日解讀」卡與 LINE 訊息共用一份,不各算各的。
+def recent_days(n, skip_tag):
+    """由舊到新讀最近 n 天已存檔的當日 json(不含今天);讀不到就跳過"""
+    out = []
+    for tag in load_index():                       # index.json 是新到舊
+        if tag == skip_tag: continue
+        try: out.append(json.load(open(os.path.join(DATA, f"{tag}.json"), encoding="utf-8")))
+        except Exception: continue
+        if len(out) >= n: break
+    return list(reversed(out))
+
+def _close(d): return ((d or {}).get("index") or {}).get("close")
+def _amt(d): return ((d or {}).get("index") or {}).get("amount_yi")
+
+def build_insight(t, p, hist):
+    out = {}; L = []
+    ix = t.get("index") or {}
+    amt, chg, close = _amt(t), ix.get("chg"), ix.get("close")
+
+    amts = [a for a in (_amt(h) for h in hist) if a]
+    if amt and len(amts) >= 5:                                     # ① 量能水位:今日量 vs 近 N 日均量
+        avg = sum(amts) / len(amts); r = amt / avg * 100
+        lvl = "爆量" if r >= 150 else "放量" if r >= 120 else "縮量" if r <= 80 else "正常量"
+        out["volume"] = {"amount": amt, "avg": round(avg), "ratio_pct": round(r, 1), "days": len(amts), "level": lvl}
+        L.append(f"量能 {lvl}:{amt:,} 億,為近 {len(amts)} 日均量 {round(avg):,} 億的 {r:.0f}%")
+
+    pamt = _amt(p)
+    if amt and pamt and chg is not None:                           # ② 價量配合四象限
+        up, more = chg > 0, amt > pamt
+        label = "漲+放量" if up and more else "漲+縮量" if up else "跌+放量" if more else "跌+縮量"
+        note = {"漲+放量": "量價配合,買盤跟上", "漲+縮量": "價量背離,追價意願低",
+                "跌+放量": "賣壓宣洩,留意恐慌", "跌+縮量": "殺盤縮手,可能止穩"}[label]
+        out["pv"] = {"label": label, "note": note, "amount_chg_pct": round((amt / pamt - 1) * 100, 1)}
+        L.append(f"價量 {label}:{note}(量較前日 {(amt / pamt - 1) * 100:+.1f}%)")
+
+    seq = hist + [t]
+    if len(seq) >= 6 and close:                                    # ③ 融資 vs 指數(近 5 個交易日)
+        base = seq[-6]; m0, m1, c0 = base.get("margin"), t.get("margin"), _close(base)
+        if m0 and m1 and c0:
+            dm, dc = (m1 - m0) / m0 * 100, (close / c0 - 1) * 100
+            sig = ("籌碼乾淨:指數漲、融資降" if dc > 0 and dm < 0 else
+                   "散戶追價:指數漲、融資也增" if dc > 0 else
+                   "套牢加碼:指數跌、融資反增" if dm > 0 else "融資退場:指數跌、融資也降")
+            out["margin"] = {"days": 5, "index_pct": round(dc, 2), "margin_pct": round(dm, 2), "signal": sig}
+            L.append(f"融資 5 日:{sig}(指數 {dc:+.2f}%、融資 {dm:+.2f}%)")
+
+    fs = [((h.get("inst") or {}).get("外資")) for h in seq]         # ④ 外資現貨連買 / 連賣 + 同期指數
+    if fs and fs[-1] is not None:
+        run, s = 0, 1 if fs[-1] > 0 else -1 if fs[-1] < 0 else 0
+        if s:
+            for v in reversed(fs):
+                if v is None or (v > 0) != (s > 0) or v == 0: break
+                run += 1
+        if run >= 2:
+            c0 = _close(seq[-run - 1]) if len(seq) > run else None
+            dc = (close / c0 - 1) * 100 if c0 and close else None
+            word = "連買" if s > 0 else "連賣"
+            diverge = dc is not None and ((s > 0 and dc < 0) or (s < 0 and dc > 0))
+            out["foreign"] = {"run": run, "side": word, "index_pct": None if dc is None else round(dc, 2), "diverge": diverge}
+            L.append(f"外資現貨{word} {run} 日" + (f",同期指數 {dc:+.2f}%" if dc is not None else "") + (" ← 背離,留意對作" if diverge else ""))
+
+    vx = t.get("vix"); vs = [h.get("vix") for h in hist if h.get("vix")]
+    if vx and len(vs) >= 5:                                        # ⑥ VIX 水位(近 N 日均與區間)
+        avg = sum(vs) / len(vs); hi, lo = max(vs), min(vs)
+        lvl = "偏高・恐慌升溫" if vx >= avg * 1.2 else "偏低・波動鈍化" if vx <= avg * 0.8 else "中性"
+        out["vix"] = {"now": vx, "avg": round(avg, 2), "hi": hi, "lo": lo, "level": lvl}
+        L.append(f"VIX {vx}（{lvl}）：近 {len(vs)} 日均 {avg:.1f}、區間 {lo}～{hi}")
+
+    bs = [h.get("basis") for h in hist[-5:] if h.get("basis") is not None]
+    if t.get("basis") is not None and len(bs) >= 3:                # ⑤ 基差 vs 近 5 日均
+        avg = sum(bs) / len(bs); now = t["basis"]
+        sig = "正價差走闊,期貨偏多" if now > avg and now > 0 else "逆價差擴大,避險轉空" if now < avg and now < 0 else "價差收斂"
+        out["basis"] = {"now": now, "avg5": round(avg, 2), "signal": sig}
+        L.append(f"基差 {now:+.0f}(近 5 日均 {avg:+.0f}):{sig}")
+
+    out["lines"] = L
+    return out
+
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
 def finish_day(t, p):
     """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
     if t.get("margin") is None and p.get("margin") is not None:
         t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {p['date']} 值"; log("  融資：" + t["margin_note"])
     t["prev"] = p; t["log"] = LOG
+    try: t["insight"] = build_insight(t, p, recent_days(20, ymd(t["date"])))
+    except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
+    if (t.get("insight") or {}).get("lines"):
+        t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
     prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）
     if os.path.exists(prev_file):
         try:
@@ -361,7 +468,7 @@ def write_day(t, idx, latest):
     if tag not in idx: idx.append(tag)
 
 # ─────────────── 回補 ───────────────
-def backfill(n, start=None):
+def backfill(n, start=None, force=False):
     """往回補 n 個交易日（20 日走勢圖用）。從 start（YYYY/MM/DD）或最近交易日往前找 n+1 個有期交所資料的日子，
     每日 collect 一次；已有 {tag}.json 的日子略過（不覆蓋當日含永豐圖的正式檔）。永豐 PDF 只有當日，回補不抓；不動 latest.json。"""
     if start:
@@ -381,21 +488,21 @@ def backfill(n, start=None):
     idx = load_index(); written = []
     for i in range(len(cols) - 2, -1, -1):                     # 由舊到新，昨日摘要才接得上
         t, p = cols[i], cols[i + 1]; tag = ymd(t["date"])
-        if os.path.exists(os.path.join(DATA, f"{tag}.json")): log(f"  {tag} 已存在，略過"); continue
-        finish_day(t, p); write_day(t, idx, latest=False); written.append(tag)
+        if os.path.exists(os.path.join(DATA, f"{tag}.json")) and not force: log(f"  {tag} 已存在，略過"); continue
+        finish_day(t, p); write_day(t, idx, latest=False); save_index(idx); written.append(tag)   # 每天寫完就存 index,下一天的解讀才讀得到前面幾天
     save_index(idx)
     print(f"\n回補完成：寫入 {len(written)} 天 {written[:1]}…{written[-1:] if written else ''}；略過 {len(cols) - 1 - len(written)} 天")
 
 # ─────────────── 主流程 ───────────────
 def main():
     argv = sys.argv[1:]
-    n_back = 0                                                     # python fetch_all.py [YYYY/MM/DD] --backfill 20
+    n_back = 0                                    # python fetch_all.py [YYYY/MM/DD] --backfill 20 [--force]
     if "--backfill" in argv:
         k = argv.index("--backfill"); n_back = 20
         if k + 1 < len(argv) and argv[k + 1].isdigit(): n_back = int(argv[k + 1]); del argv[k + 1]   # 數字是 --backfill 的值，不是日期
         del argv[k]
     arg = [a for a in argv if not a.startswith("--")]
-    if n_back: return backfill(n_back, arg[0] if arg else None)
+    if n_back: return backfill(n_back, arg[0] if arg else None, "--force" in argv)   # --force：連已存在的日子也重寫(補 VIX / 解讀)
     if arg:
         today = arg[0]; df_t = taifex_fut(today)
         if df_t is None: sys.exit(f"{today} 期交所尚無資料")

@@ -55,6 +55,16 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .chgrid .t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.kpi.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.kpi.tap:hover{border-color:var(--gold)}
+.kpi.tap .l::after{content:' ▾';color:var(--gold);font-size:11px}
+.kpi.open{grid-column:1/-1;border-color:var(--gold)}
+.kpi.open .l::after{content:' ▴'}
+.kpi .sp:not(:empty){margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+.ins{display:grid;gap:6px}
+.ins div{font-size:14px;line-height:1.6}
+.ins b{color:var(--gold)}
+.btn-mini{background:transparent;border:1px solid var(--line);color:var(--gray);font-size:12px;padding:3px 10px;border-radius:8px;margin-left:auto}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
 .kpi .d{font-size:12px}
 .status{font-size:13px;color:var(--gray);padding:6px 2px}
@@ -105,9 +115,14 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div id="labels" style="margin-top:10px"></div>
   </div>
 
+  <div class="card" id="insCard" style="display:none">
+    <h2>今日解讀 <span class="mut" style="font-weight:400;font-size:12px">價量 / 籌碼,依當日資料自動判讀</span></h2>
+    <div class="ins" id="insBox"></div>
+  </div>
+
   <div class="card">
-    <h2>20 日走勢</h2>
-    <div class="chgrid" id="charts"></div>
+    <h2>20 日走勢 <button class="btn-mini" id="btnCharts" type="button">展開</button></h2>
+    <div class="chgrid" id="charts" hidden></div>
   </div>
 
   <div class="card">
@@ -198,13 +213,15 @@ function render(t){
   $('#idxChg').textContent=ix.chg==null?'—':`${ix.chg>0?'▲':'▼'}${fmt(Math.abs(ix.chg))}（${pct(cp)}）`;$('#idxChg').className=cls(ix.chg);
   $('#idxAmt').textContent=ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'';
   const i=t.inst||{};
-  const kp=(l,v,d,c)=>`<div class="kpi"><div class="l">${l}</div><div class="v ${c||''}">${v}</div><div class="d mut">${d||''}</div></div>`;
+  // key 有給就變成可點,點一下在原地展開該指標近 10 日走勢(資料用已載入的 series,不再打網路)
+  const kp=(l,v,d,c,key)=>`<div class="kpi${key?' tap':''}"${key?` data-spark="${key}"`:''}><div class="l">${l}</div><div class="v ${c||''}">${v}</div><div class="d mut">${d||''}</div><div class="sp"></div></div>`;
   $('#instGrid').innerHTML=[
-    kp('三大法人（億）',sgn(i['合計']),'',cls(i['合計'])),
-    kp('外資（億）',sgn(i['外資']),'',cls(i['外資'])),
-    kp('投信（億）',sgn(i['投信']),'',cls(i['投信'])),
-    kp('自營（億）',sgn(i['自營']),'',cls(i['自營'])),
-    kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),''),
+    kp('三大法人（億）',sgn(i['合計']),'',cls(i['合計']),'inst_all'),
+    kp('外資（億）',sgn(i['外資']),'',cls(i['外資']),'inst_fore'),
+    kp('投信（億）',sgn(i['投信']),'',cls(i['投信']),'inst_it'),
+    kp('自營（億）',sgn(i['自營']),'',cls(i['自營']),'inst_dl'),
+    kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),'','margin'),
+    kp('加權指數',fmt(ix.close),ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'',cls(ix.chg),'idx'),
   ].join('');
   const oc=$('#oiCards');oc.innerHTML='';
   for(const role of ['自營商','投信','外資']){
@@ -224,10 +241,10 @@ function render(t){
     const tag=dl>0&&ds<0?'加多減空・拆保險':dl>0&&ds>0?'加多加空・保險加厚':dl<0&&ds>0?'砍多加空・收傘':dl<0&&ds<0?'砍多減空・縮手':'小動作';
     $('#oiNote').textContent=`外資：${tag}；淨空 ${f.net>-80000?'低於':'高於'} 8 萬口基態`;}
   const g=[];
-  const rr=(name,k)=>{const a=t[k],b=p[k];if(!a)return;g.push(kp(name+'散戶多空比',pct(a.ratio_pct),b?`${pct(b.ratio_pct)} → 今；散戶淨 ${sgn(a.retail_net)}`:'',cls(a.ratio_pct)))};
+  const rr=(name,k)=>{const a=t[k],b=p[k];if(!a)return;g.push(kp(name+'散戶多空比',pct(a.ratio_pct),b?`${pct(b.ratio_pct)} → 今；散戶淨 ${sgn(a.retail_net)}`:'',cls(a.ratio_pct),k))};
   rr('小台','mtx_retail');rr('微台','tmf_retail');
-  if(t.pc)g.push(kp('全市場 Put/Call（OI）',t.pc.oi_ratio_pct+'%',p.pc?`${p.pc.oi_ratio_pct}% → 今`:'',''));
-  if(t.vix!=null)g.push(kp('台指VIX',t.vix,p.vix!=null?`${p.vix} → 今`:'',''));
+  if(t.pc)g.push(kp('全市場 Put/Call（OI）',t.pc.oi_ratio_pct+'%',p.pc?`${p.pc.oi_ratio_pct}% → 今`:'','','pc'));
+  if(t.vix!=null)g.push(kp('台指 VIX',t.vix,p.vix!=null?`${p.vix} → 今`:'','','vix'));
   const o=(t.opt||{})['外資'],op=(p.opt||{})['外資'];
   if(o){g.push(kp('外資買權淨OI',sgn(o.call),op?`${sgn(op.call)} → 今（${sgn(o.call-op.call)}）`:'',cls(o.call)));
         g.push(kp('外資賣權淨OI',sgn(o.put),op?`${sgn(op.put)} → 今（${sgn(o.put-op.put)}）`:'',cls(-o.put)));}
@@ -236,7 +253,7 @@ function render(t){
   const imgs=Object.values(t.spf||{}).flat();
   $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（Action 16:40 會再抓一次）</span>';
   $('#logBox').textContent=(t.log||[]).join('\n')||'—';
-  renderDisc(t); renderLabels(t); renderCharts();
+  renderIns(t); renderDisc(t); renderLabels(t); renderCharts();
 }
 // ── 紀律狀態
 function renderDisc(t){
@@ -318,6 +335,43 @@ function spark(title,vals,fmtV,opts={}){
   const lv=vals[vals.length-1].v;s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">今 ${fmtV(lv)}</text>`;
   return s+'</svg></div>';
 }
+// ── 今日解讀（fetch_all 算好存在當日 json 的 insight；回補的舊日子沒有就不顯示）
+function renderIns(t){
+  const ins=(t.insight||{}).lines||[];
+  $('#insCard').style.display=ins.length?'':'none';
+  $('#insBox').innerHTML=ins.map(x=>{const i=x.indexOf('：')>=0?x.indexOf('：'):x.indexOf(':');
+    return i>0?`<div><b>${x.slice(0,i)}</b>${x.slice(i)}</div>`:`<div>${x}</div>`}).join('');
+}
+
+// ── KPI 點一下展開近 10 日（沿用 spark()，資料取自已載入的 series）
+const dLbl=t=>t.date.slice(5), gv=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
+const kInt=v=>v==null?'—':Math.round(v).toLocaleString();
+const SPARKS={
+  idx:{t:'加權指數',g:t=>gv(t,'index','close'),f:kInt,o:{color:'var(--c-red)'}},
+  inst_all:{t:'三大法人（億）',g:t=>gv(t,'inst','合計'),f:kInt,o:{bars:true,zero:true}},
+  inst_fore:{t:'外資買賣超（億）',g:t=>gv(t,'inst','外資'),f:kInt,o:{bars:true,zero:true}},
+  inst_it:{t:'投信買賣超（億）',g:t=>gv(t,'inst','投信'),f:kInt,o:{bars:true,zero:true}},
+  inst_dl:{t:'自營買賣超（億）',g:t=>gv(t,'inst','自營'),f:kInt,o:{bars:true,zero:true}},
+  margin:{t:'融資餘額（億）',g:t=>t.margin,f:kInt,o:{color:'var(--c-gold)'}},
+  mtx_retail:{t:'小台散戶多空比（%）',g:t=>gv(t,'mtx_retail','ratio_pct'),f:v=>v==null?'—':v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
+  tmf_retail:{t:'微台散戶多空比（%）',g:t=>gv(t,'tmf_retail','ratio_pct'),f:v=>v==null?'—':v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
+  vix:{t:'台指 VIX',g:t=>t.vix,f:v=>v==null?'—':v.toFixed(2),o:{color:'var(--c-red)'}},
+  pc:{t:'全市場 P/C（OI，%）',g:t=>gv(t,'pc','oi_ratio_pct'),f:v=>v==null?'—':v.toFixed(0)+'%',o:{color:'var(--teal)',ref:100,refLabel:'100%'}}
+};
+function miniSpark(key){
+  const S=SPARKS[key]; if(!S)return '<span class="mut">無此指標</span>';
+  const last=series.slice(-10);
+  if(last.length<2)return '<span class="mut">資料累積 2 天後顯示</span>';
+  return spark(S.t+'　近 '+last.length+' 日',last.map(t=>({d:dLbl(t),v:S.g(t)})),S.f,S.o)||'<span class="mut">此指標近期無資料</span>';
+}
+document.addEventListener('click',e=>{
+  const k=e.target.closest('.kpi[data-spark]'); if(!k)return;
+  const box=k.querySelector('.sp'), was=!!box.innerHTML;
+  document.querySelectorAll('.kpi .sp').forEach(b=>{b.innerHTML=''});
+  document.querySelectorAll('.kpi.open').forEach(x=>x.classList.remove('open'));
+  if(!was){box.innerHTML=miniSpark(k.dataset.spark);k.classList.add('open')}
+});
+
 function renderCharts(){
   if(series.length<2){$('#charts').innerHTML='<span class="mut">資料累積 2 天後顯示</span>';return}
   const d=t=>t.date.slice(5),g=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
@@ -334,6 +388,13 @@ function renderCharts(){
     spark('全市場 P/C（OI，%）',sv(t=>g(t,'pc','oi_ratio_pct')),v=>v==null?'—':v.toFixed(0)+'%',{color:'var(--teal)',ref:100,refLabel:'100%'}),
   ].join('');
 }
+// 20 日走勢預設收起(主頁只留今日數值;要看全部再展開),狀態記在這台裝置
+(function(){
+  const box=$('#charts'),btn=$('#btnCharts');
+  const set=open=>{box.hidden=!open;btn.textContent=open?'收起':'展開';try{localStorage.setItem('twdaily_charts',open?'1':'0')}catch(e){}};
+  let open=false; try{open=localStorage.getItem('twdaily_charts')==='1'}catch(e){}
+  set(open); btn.onclick=()=>set(box.hidden);
+})();
 $('#dateSel').onchange=e=>loadDay(e.target.value);
 $('#btnReload').onclick=()=>loadIndex();
 $('#btnCopy').onclick=async()=>{
