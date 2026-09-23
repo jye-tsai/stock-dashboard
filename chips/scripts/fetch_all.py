@@ -391,7 +391,9 @@ def build_insight(t, p, hist):
         L.append(f"價量 {label}:{note}(量較前日 {(amt / pamt - 1) * 100:+.1f}%)")
 
     seq = hist + [t]
-    if len(seq) >= 6 and close:                                    # ③ 融資 vs 指數(近 5 個交易日)
+    # ③ 融資 vs 指數(近 5 個交易日)。證交所融資收盤後才出,15:40 / 16:40 兩班通常拿不到 → collect 會沿用前日值並留 margin_note;
+    #    那種情況這行不算,免得拿昨天的數字掛「5 日」標籤產生假訊號(21:30 那班補到真值後自然會回來)。
+    if len(seq) >= 6 and close and not t.get("margin_note"):
         base = seq[-6]; m0, m1, c0 = base.get("margin"), t.get("margin"), _close(base)
         if m0 and m1 and c0:
             dm, dc = (m1 - m0) / m0 * 100, (close / c0 - 1) * 100

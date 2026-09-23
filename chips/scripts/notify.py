@@ -48,7 +48,7 @@ def chips_lines():
     if t.get("pc"): L.append(f"P/C(OI) {t['pc'].get('oi_ratio_pct')}%")
     if t.get("missing"): L.append("⚠ 缺：" + ", ".join(t["missing"]))
     ins = (t.get("insight") or {}).get("lines") or []
-    if ins: L += ["── 解讀 ──"] + ins[:4]        # 價量 / 籌碼衍生解讀(fetch_all 算好存在 json,這裡只轉貼)
+    if ins: L += ["── 解讀 ──"] + ins            # 價量 / 籌碼衍生解讀(fetch_all 算好存在 json,這裡只轉貼;全部帶,訊息上限 4900 字綽綽有餘)
     return L, t.get("date")
 
 # ── 庫存段 ──
