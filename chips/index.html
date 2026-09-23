@@ -8,10 +8,11 @@
 <style>
 :root{
   --bg:#F8F4E8;--navy:#172A52;--red:#C4282E;--green:#148046;--gold:#B0842C;--gray:#696970;--ink:#23232A;--card:#fff;--line:#46588233;
+  --c-red:#D9363E;--c-green:#1E9A5A;--c-gold:#C89A3A;--teal:#0F9D8A;
   box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22}}
-:root[data-theme=dark]{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF}}
+:root[data-theme=dark]{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC",-apple-system,system-ui,sans-serif}
 header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
@@ -280,20 +281,38 @@ function renderLabels(t){
   if(o&&op&&op.put-o.put>=1500)tag(`外資賣權 −${fmt(op.put-o.put)}：拆保險`,'var(--red)');
   $('#labels').innerHTML=L.join('')||'<span class="mut">—</span>';
 }
-// ── 20 日走勢（純 SVG）
+// ── 20 日走勢（純 SVG，仿儀表板回撤圖：平滑曲線 + 線下漸層 + 尾端亮點；柱狀圖維持紅漲綠跌）
+let sparkSeq=0;
+// Catmull-Rom → cubic bezier，點少於 3 個就直線；pts=[[x,y],...]（已去掉 null）
+function smoothPath(pts){
+  if(pts.length<3)return 'M'+pts.map(p=>p.join(',')).join(' L');
+  let d=`M${pts[0][0]},${pts[0][1]}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+    d+=` C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0]},${p2[1]}`;
+  }
+  return d;
+}
 function spark(title,vals,fmtV,opts={}){
   const W=320,Hh=110,pl=44,pr=8,pt=14,pb=18;const xs=vals.map(v=>v.v).filter(v=>v!=null);
   if(xs.length<2)return '';
   let mn=Math.min(...xs),mx=Math.max(...xs);if(opts.zero){mn=Math.min(mn,0);mx=Math.max(mx,0)}if(mn===mx){mn-=1;mx+=1}
   const X=i=>pl+i*(W-pl-pr)/(vals.length-1),Y=v=>pt+(mx-v)*(Hh-pt-pb)/(mx-mn);
+  const col=opts.color||'var(--teal)',gid='spk'+(sparkSeq++);
   let s=`<div><div class="t">${title}</div><svg class="chart" viewBox="0 0 ${W} ${Hh}">`;
+  s+=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".42"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`;
+  const midY=pt+(Hh-pt-pb)/2;s+=`<line x1="${pl}" x2="${W-pr}" y1="${midY}" y2="${midY}" stroke="var(--line)" stroke-width="1"/>`;   // 淡底格線
   if(opts.zero)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--gray)" stroke-dasharray="3 3" stroke-width="1"/>`;
-  if(opts.ref!=null&&opts.ref>=mn&&opts.ref<=mx)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--gold)" stroke-dasharray="4 3" stroke-width="1"/><text x="${W-pr}" y="${Y(opts.ref)-3}" text-anchor="end" fill="var(--gold)">${opts.refLabel||''}</text>`;
+  if(opts.ref!=null&&opts.ref>=mn&&opts.ref<=mx)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--c-gold)" stroke-dasharray="4 3" stroke-width="1" opacity=".8"/>`+(opts.refLabel?`<text x="${W-pr}" y="${Y(opts.ref)-3}" text-anchor="end" fill="var(--c-gold)">${opts.refLabel}</text>`:'');
   if(opts.bars){vals.forEach((v,i)=>{if(v.v==null)return;const y0=Y(0),y1=Y(v.v);const bw=Math.max(3,(W-pl-pr)/vals.length-3);
-    s+=`<rect x="${X(i)-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)||1}" fill="${v.v>=0?'var(--red)':'var(--green)'}" opacity=".85"/>`})}
-  else{const d=vals.map((v,i)=>v.v==null?null:`${X(i).toFixed(1)},${Y(v.v).toFixed(1)}`).filter(Boolean).join(' L');
-    s+=`<path d="M${d}" fill="none" stroke="${opts.color||'var(--navy)'}" stroke-width="2"/>`;
-    const last=vals[vals.length-1];if(last.v!=null)s+=`<circle cx="${X(vals.length-1)}" cy="${Y(last.v)}" r="3.5" fill="var(--gold)"/>`}
+    s+=`<rect x="${X(i)-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)||1}" rx="1.5" fill="${v.v>=0?'var(--c-red)':'var(--c-green)'}" opacity=".9"/>`})}
+  else{
+    const pts=vals.map((v,i)=>v.v==null?null:[+X(i).toFixed(1),+Y(v.v).toFixed(1)]).filter(Boolean);
+    const d=smoothPath(pts),base=(opts.zero?Y(0):Hh-pb).toFixed(1),last=pts[pts.length-1];
+    s+=`<path d="${d} L${last[0]},${base} L${pts[0][0]},${base} Z" fill="url(#${gid})" stroke="none"/>`;                 // 線下漸層
+    s+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s+=`<circle cx="${last[0]}" cy="${last[1]}" r="6.5" fill="${col}" opacity=".22"/><circle cx="${last[0]}" cy="${last[1]}" r="3.2" fill="${col}" stroke="var(--card)" stroke-width="1.5"/>`;   // 尾端亮點
+  }
   s+=`<text x="${pl-4}" y="${pt+4}" text-anchor="end">${fmtV(mx)}</text><text x="${pl-4}" y="${Hh-pb}" text-anchor="end">${fmtV(mn)}</text>`;
   s+=`<text x="${pl}" y="${Hh-4}">${vals[0].d}</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">${vals[vals.length-1].d}</text>`;
   const lv=vals[vals.length-1].v;s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">今 ${fmtV(lv)}</text>`;
@@ -307,12 +326,12 @@ function renderCharts(){
   const idxClose=sv(t=>g(t,'index','close'));
   const lines=(disc&&disc.lines||[]).map(l=>l.level);
   $('#charts').innerHTML=[
-    spark('加權指數',idxClose,k,{color:'var(--red)',ref:lines[0],refLabel:lines[0]?'防線 '+fmt(lines[0]):''}),
-    spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--green)',ref:-80000,refLabel:'8 萬口基態'}),
+    spark('加權指數',idxClose,k,{color:'var(--c-red)',ref:lines[0],refLabel:lines[0]?'防線 '+fmt(lines[0]):''}),
+    spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--c-green)',ref:-80000,refLabel:'8 萬口基態'}),
     spark('外資現貨買賣超（億）',sv(t=>g(t,'inst','外資')),v=>v==null?'—':Math.round(v)+'',{bars:true,zero:true}),
-    spark('小台散戶多空比（%）',sv(t=>g(t,'mtx_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--gold)'}),
-    spark('微台散戶多空比（%）',sv(t=>g(t,'tmf_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--gold)'}),
-    spark('全市場 P/C（OI，%）',sv(t=>g(t,'pc','oi_ratio_pct')),v=>v==null?'—':v.toFixed(0)+'%',{color:'var(--navy)',ref:100,refLabel:'100%'}),
+    spark('小台散戶多空比（%）',sv(t=>g(t,'mtx_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
+    spark('微台散戶多空比（%）',sv(t=>g(t,'tmf_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
+    spark('全市場 P/C（OI，%）',sv(t=>g(t,'pc','oi_ratio_pct')),v=>v==null?'—':v.toFixed(0)+'%',{color:'var(--teal)',ref:100,refLabel:'100%'}),
   ].join('');
 }
 $('#dateSel').onchange=e=>loadDay(e.target.value);
