@@ -102,23 +102,29 @@
 
   // 時間加權報酬指數(TWR,起點 100):日報酬 = (Δ市值 − Δ成本) / 昨日市值,逐日連乘。
   // 加碼 / 減碼當天 Δ市值 ≈ Δ成本,指數不動 —— 對比大盤才不會被「錢進來」誤判成「贏了」
-  function twrIndex(mvArr, costArr) {
+  // 時間加權報酬指數(起點 100)。每日報酬 =(市值變化 − 資金流入 + 股息入袋)÷ 前日市值
+  //   資金流入 = Δ成本 − Δ已實現:買進日 = 買進成本;賣出日 = −(移除成本 + 已實現損益)= −賣出所得(只用 Δ成本會把該筆已實現當成當日漲跌)
+  //   股息入袋 = Δ股息收入:除息日股價掉、市值少,但現金進口袋,加回才不會把除息當成賠(realArr / divArr 可不給 = 舊行為)
+  //   某日缺 real / div 欄(舊資料)→ 該日 Δ 視為 0,不會因 null→數字跳一大筆
+  function twrIndex(mvArr, costArr, realArr, divArr) {
     var out = [100];
+    var delta = function (arr, i) { return arr && arr[i] != null && arr[i - 1] != null ? (Number(arr[i]) || 0) - (Number(arr[i - 1]) || 0) : 0; };
     for (var i = 1; i < mvArr.length; i++) {
-      var prev = mvArr[i - 1] || 0, flow = (costArr[i] || 0) - (costArr[i - 1] || 0);
-      var r = prev > 0 ? (mvArr[i] - prev - flow) / prev : 0;
+      var prev = mvArr[i - 1] || 0;
+      var flow = ((costArr && costArr[i]) || 0) - ((costArr && costArr[i - 1]) || 0) - delta(realArr, i);
+      var r = prev > 0 ? (mvArr[i] - prev - flow + delta(divArr, i)) / prev : 0;
       out.push(out[i - 1] * (1 + r));
     }
     return out;
   }
 
   // 對比線:以「第一個有大盤資料的點」為 0% 正規化;{ firstT, me, tw, tsmc|null };大盤資料不足 2 點 → null
-  // 有給 costArr 就用 TWR 指數當「我的組合」(加碼不失真);沒給退回市值正規化(舊行為)
-  function benchLines(mvArr, taiexArr, tsmcArr, costArr) {
+  // 有給 costArr 就用 TWR 指數當「我的組合」(加碼不失真;再給 realArr / divArr 則賣出日、除息日也不失真);沒給退回市值正規化(舊行為)
+  function benchLines(mvArr, taiexArr, tsmcArr, costArr, realArr, divArr) {
     var firstT = -1, count = 0;
     for (var i = 0; i < taiexArr.length; i++) if (taiexArr[i] > 0) { if (firstT < 0) firstT = i; count++; }
     if (firstT < 0 || count < 2) return null;
-    var meArr = costArr ? twrIndex(mvArr, costArr) : mvArr;
+    var meArr = costArr ? twrIndex(mvArr, costArr, realArr, divArr) : mvArr;
     var baseM = meArr[firstT] || 1, baseT = taiexArr[firstT] || 1, baseS = (tsmcArr && tsmcArr[firstT]) || 0;
     var norm = function (arr, base) { return arr.slice(firstT).map(function (v) { return v > 0 ? (v / base - 1) * 100 : null; }); };
     return { firstT: firstT, me: norm(meArr, baseM), tw: norm(taiexArr, baseT), tsmc: baseS > 0 ? norm(tsmcArr, baseS) : null };

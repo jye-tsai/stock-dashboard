@@ -47,15 +47,15 @@
   })();
 </script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script defer src="scripts/calc.js?v=20260923c"></script>
-<script defer src="charts.js?v=20260923c"></script>
-<script defer src="app.js?v=20260923c"></script>
+<script defer src="scripts/calc.js?v=20260923d"></script>
+<script defer src="charts.js?v=20260923d"></script>
+<script defer src="app.js?v=20260923d"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260923c">
+<link rel="stylesheet" href="styles.css?v=20260923d">
 </head>
 <body>
 <div id="splash">
@@ -140,7 +140,7 @@
           <div class="chart-box h170"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
-          <div class="chart-subtitle">報酬對比（時間加權報酬，加碼 / 減碼不影響；以區間起點為 0%；我的組合 vs 加權指數 vs 台積電）</div>
+          <div class="chart-subtitle">報酬對比（時間加權、含息：加碼 / 減碼 / 除息都不失真；以區間起點為 0%；加權指數與台積電為純價格，不含息）</div>
           <div class="chart-box h170"><canvas id="navbench"></canvas></div>
         </div>
         <div id="navdd-wrap" style="display:none">

@@ -65,6 +65,13 @@ ok('twrIndex 加碼日不動', near(twr[2], 110));
 ok('twrIndex 加碼後再漲 5%', near(twr[3], 115.5));
 ok('twrIndex 跌', near(twr[4], 115.5 * (2000 / 2310)));
 ok('twrIndex mv=0 不爆', near(PfCalc.twrIndex([0, 100, 110], [0, 100, 100])[2], 110));
+// 賣出日:成本 1000 的部位以 1200 賣出(已實現 +200),市值少 1200 → 當日 0%(舊算法只扣成本會顯示 −20%)
+ok('twrIndex 賣出日流出 = 賣出所得', near(PfCalc.twrIndex([2000, 800], [2000, 1000], [0, 200])[1], 100));
+// 除息日:股價掉 50、股息收入 +50 → 當日 0%;沒給 divArr 則照舊顯示 −5%
+ok('twrIndex 除息加回', near(PfCalc.twrIndex([1000, 950], [800, 800], [0, 0], [100, 150])[1], 100));
+ok('twrIndex 不給 div 照舊', near(PfCalc.twrIndex([1000, 950], [800, 800])[1], 95));
+// 舊資料某日缺 real / div(null)→ 該日 Δ 當 0,不會爆一大筆
+ok('twrIndex real/div 缺欄不跳', near(PfCalc.twrIndex([1000, 1100, 1100], [800, 800, 800], [null, 300, 300], [null, 100, 100])[2], 110));
 const B = PfCalc.benchLines(mv, [0, 200, 220, 220, 210], [50, 55, 66, 66, 60], cost);
 ok('benchLines firstT 跳過無大盤', B.firstT === 1);
 ok('benchLines 我的組合走 TWR(加碼日 0%)', near(B.me[0], 0) && near(B.me[1], 0) && near(B.me[2], 5));
