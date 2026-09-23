@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>胖虎指標回測</title>
+<meta name="theme-color" content="#172A52">
+<style>
+:root{--bg:#F8F4E8;--navy:#172A52;--gold:#B0842C;--gray:#696970;--ink:#23232A;--card:#fff;--line:#46588233;
+  --c-red:#D9363E;--c-green:#1E9A5A;--c-gold:#C89A3A;--teal:#0F9D8A;--c-blue:#3A6FD9}
+@media (prefers-color-scheme:dark){:root{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF;--c-blue:#7AA2FF}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",-apple-system,system-ui,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header img{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 12%;border:2px solid var(--gold);background:#fff}
+header h1{font-size:18px;margin:0;line-height:1.2}header .sub{font-size:12px;color:#FFD682}
+header .sp{flex:1}
+header a{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px;white-space:nowrap;flex:none}
+header>div:nth-child(2){min-width:0}
+main{max-width:980px;margin:0 auto;padding:14px 12px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;overflow:hidden}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--gold)}
+.mut{color:var(--gray)}.sm{font-size:12px}
+.up{color:var(--c-red)}.dn{color:var(--c-green)}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 6px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--gray);font-weight:600;border-top:none}
+td:first-child,th:first-child{text-align:left}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer}
+.tabs button.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+svg.ch{width:100%;height:auto;display:block}
+svg.ch text{font-size:11px;fill:var(--gray)}
+.flag{font-weight:700;border-radius:6px;padding:1px 6px;font-size:12px}
+.flag.bad{background:#FF6B6B26;color:var(--c-red)}.flag.warn{background:#F2C35B26;color:var(--c-gold)}.flag.few{color:var(--gray)}
+.grp td{background:color-mix(in srgb,var(--gold) 10%,transparent);font-weight:700;color:var(--gold);text-align:left}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
+ul{margin:0;padding-left:20px}li{margin:3px 0}
+label.chk{font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px;cursor:pointer}
+.ex{white-space:normal;text-align:left;color:var(--gray);font-size:12px;min-width:220px}
+</style>
+</head>
+<body>
+<header>
+  <img src="../../panghu-icon.webp" alt="胖虎" onerror="this.style.display='none'">
+  <div><h1>胖虎指標回測</h1><div class="sub" id="hdr">讀取中…</div></div>
+  <div class="sp"></div>
+  <a href="../" title="回籌碼站">↩ 籌碼站</a>
+</header>
+<main id="app"><div class="card mut">讀取 result.json…</div></main>
+<script>
+const $=s=>document.querySelector(s);
+const pc=(x,d=1)=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(d)+'%';
+const pc0=(x)=>x==null?'—':(x*100).toFixed(0)+'%';
+const cl=x=>x==null?'':x>0?'up':x<0?'dn':'';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COLORS={panghu_live:'var(--c-gold)',panghu_full:'var(--teal)',buy_hold:'var(--c-red)',fixed_half:'var(--gray)'};
+
+// 折線圖:series=[{name,color,v:[...],dash}];labels=[日期]
+function lineChart(series,labels,o={}){
+  const W=900,H=o.h||240,pl=48,pr=10,pt=10,pb=22;
+  const all=series.flatMap(s=>s.v).filter(v=>v!=null);if(!all.length)return '';
+  let mn=o.min!=null?o.min:Math.min(...all),mx=o.max!=null?o.max:Math.max(...all);if(mn===mx){mn-=1;mx+=1}
+  const n=labels.length,X=i=>pl+i*(W-pl-pr)/Math.max(1,n-1),Y=v=>pt+(mx-v)*(H-pt-pb)/(mx-mn);
+  let s=`<svg class="ch" viewBox="0 0 ${W} ${H}">`;
+  (o.bands||[]).forEach(b=>{s+=`<rect x="${pl}" y="${Y(b[1])}" width="${W-pl-pr}" height="${Y(b[0])-Y(b[1])}" fill="${b[2]}"/>`});
+  for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4,y=Y(v);s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-5}" y="${y+4}" text-anchor="end">${o.fmt?o.fmt(v):v.toFixed(0)}</text>`}
+  if(o.ref!=null)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" stroke="var(--gray)" stroke-dasharray="4 4"/>`;
+  series.forEach(se=>{let d='',pen=false;se.v.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true});
+    s+=`<path d="${d}" fill="none" stroke="${se.color}" stroke-width="${se.w||2}" ${se.dash?`stroke-dasharray="${se.dash}"`:''} stroke-linejoin="round"/>`});
+  const ticks=[0,Math.floor(n/2),n-1];ticks.forEach((i,j)=>{s+=`<text x="${X(i)}" y="${H-5}" text-anchor="${j===0?'start':j===2?'end':'middle'}">${labels[i]||''}</text>`});
+  return s+'</svg>'+(o.legend===false?'':`<div class="legend">${series.map(x=>`<span><i style="background:${x.color}"></i>${esc(x.name)}</span>`).join('')}</div>`);
+}
+
+function render(R,S){
+  $('#hdr').textContent=`${R.range[0]} ～ ${R.range[1]}・${R.n_days} 個交易日・設定 v${R.config_version}・產生 ${R.generated_at.replace('T',' ')}`;
+  const st=R.strategy, keys=['panghu_live','panghu_full','buy_hold','fixed_half'];
+  const L=st.all.panghu_live,B=st.all.buy_hold;
+  let h='';
+  if(S&&!S.complete)h+=`<div class="card" style="border-color:var(--c-gold)"><b>資料尚未抓完</b>:已抓 ${S.ok} / ${S.trading_days} 天。到 GitHub Actions 再跑一次 backtest,會接著抓。</div>`;
+
+  // 重點
+  h+=`<div class="card"><h2>重點</h2><div class="kpis">
+    <div class="kpi"><div class="l">胖虎指標總報酬(15:40 版)</div><div class="v ${cl(L.total)}">${pc(L.total)}</div><div class="sm mut">全程滿倉 ${pc(B.total)}</div></div>
+    <div class="kpi"><div class="l">最大回檔</div><div class="v">${pc(L.mdd)}</div><div class="sm mut">全程滿倉 ${pc(B.mdd)}</div></div>
+    <div class="kpi"><div class="l">溫度與之後 20 日報酬相關</div><div class="v">${R.ic.fwd20==null?'—':R.ic.fwd20.toFixed(2)}</div><div class="sm mut">正值 = 溫度越高之後越漲;第一年 ${R.ic.fwd20_h1??'—'}、第二年 ${R.ic.fwd20_h2??'—'}</div></div>
+    <div class="kpi"><div class="l">平均部位 / 換倉次數</div><div class="v">${pc0(L.avg_expo)}</div><div class="sm mut">換倉 ${L.changes} 次</div></div>
+  </div></div>`;
+
+  // 策略績效
+  h+=`<div class="card"><h2>策略績效</h2><div class="tabs" id="stTabs"><button data-p="all" class="on">全期間</button><button data-p="h1">第一年(樣本內)</button><button data-p="h2">第二年(樣本外)</button></div><div class="tw" id="stTbl"></div>
+    <div class="sm mut" style="margin-top:6px">切分日 ${R.split_date}。第一年拿來看要不要調,第二年只驗不調;兩段都要站得住才算數。</div></div>`;
+
+  // 淨值
+  const eq=R.series.eq;
+  h+=`<div class="card"><h2>淨值曲線(起點 1)</h2>${lineChart(keys.map(k=>({name:R.names[k],color:COLORS[k],v:eq[k],dash:k==='fixed_half'?'5 4':null,w:k.startsWith('panghu')?2.4:1.6})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}</div>`;
+
+  // 指數 + 溫度 + 建議倉位
+  const BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
+  h+=`<div class="card"><h2>加權指數與胖虎指標</h2>${lineChart([{name:'加權指數',color:'var(--c-red)',v:R.series.close}],R.series.dates,{h:180,legend:false,fmt:v=>Math.round(v).toLocaleString()})}
+    ${lineChart([{name:'胖虎指標溫度',color:'var(--c-gold)',v:R.series.temp},{name:'建議倉位 %',color:'var(--c-blue)',v:R.series.pos,w:1.4}],R.series.dates,{h:180,min:0,max:100,bands:BANDS})}</div>`;
+
+  // 溫度分組
+  h+=`<div class="card"><h2>溫度分組:之後的平均報酬</h2><div class="tw"><table><tr><th>溫度</th><th>天數</th><th>5 日報酬</th><th>5 日上漲機率</th><th>20 日報酬</th><th>20 日上漲機率</th></tr>
+    ${R.buckets.map(b=>`<tr><td>${b.lo}–${b.hi}</td><td>${b.n}</td><td class="${cl(b.fwd5)}">${pc(b.fwd5,2)}</td><td>${pc0(b.hit5)}</td><td class="${cl(b.fwd20)}">${pc(b.fwd20,2)}</td><td>${pc0(b.hit20)}</td></tr>`).join('')}
+    <tr><td class="mut">全部平均</td><td></td><td class="${cl(R.uncond[5])}">${pc(R.uncond[5],2)}</td><td></td><td class="${cl(R.uncond[20])}">${pc(R.uncond[20],2)}</td><td></td></tr></table></div>
+    <div class="sm mut" style="margin-top:6px">理想狀況:溫度越高那一列的報酬越好。某一列天數太少(個位數)就別太相信。</div></div>`;
+
+  // 各指標
+  h+=`<div class="card"><h2>各指標:分數有沒有預測力</h2><div class="tw"><table><tr><th>指標</th><th>權重</th><th>有資料天數</th><th>對 5 日相關</th><th>對 20 日相關</th><th>各分數之後 20 日平均</th></tr>
+    ${R.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.w}</td><td>${it.n}</td><td class="${cl(it.ic5)}">${it.ic5==null?'—':it.ic5.toFixed(2)}</td><td class="${cl(it.ic20)}">${it.ic20==null?'—':it.ic20.toFixed(2)}</td>
+      <td class="ex">${Object.entries(it.by_score).map(([s,v])=>`${s>0?'+':''}${s}:${pc(v.fwd20,1)}(${v.n})`).join('　')||'—'}</td></tr>`).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">相關為等級相關,正值代表分數給對方向;接近 0 代表這項沒預測力,權重可考慮調低;明顯為負代表方向可能反了。</div></div>`;
+
+  // 情境
+  const nb=R.scenarios.filter(r=>r.flag==='方向不符').length, nw=R.scenarios.filter(r=>r.flag==='中性卻有方向').length;
+  h+=`<div class="card"><h2>各情境:出現次數與之後表現</h2>
+    <div class="sm" style="margin-bottom:8px"><span class="flag bad">方向不符 ${nb}</span>　<span class="flag warn">中性卻有方向 ${nw}</span>　<span class="mut">沒出現過 ${R.untriggered.length} 種</span></div>
+    <label class="chk"><input type="checkbox" id="onlyBad"> 只看有問題的</label><div class="tw" id="scTbl"></div></div>`;
+
+  // 動作 + 未出現 + 注意
+  const actName={out:'跌破第二道',below_line2:'仍在第二道下',down:'跌破防線',below_line:'仍在防線下',fake_break:'假跌破觀察',gate:'外資未買超暫不加碼',up:'升級',weaken:'降級',top:'滿倉',bottom:'空手',steady:'連日維持',hold:'維持'};
+  h+=`<div class="card"><h2>紀律動作分布(15:40 版)</h2><div class="tw"><table><tr><th>動作</th><th>天數</th></tr>${Object.entries(R.actions).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${actName[k]||k}</td><td>${v}</td></tr>`).join('')}</table></div></div>`;
+  h+=`<div class="card"><h2>回測期間沒出現過的情境</h2><div class="sm">${R.untriggered.map(u=>`${esc(u.name)}・${esc(u.scenario)}(${u.score>0?'+':''}${u.score})`).join('、')||'全部都出現過'}</div></div>`;
+  h+=`<div class="card"><h2>注意事項</h2><ul class="sm">${R.notes.map(x=>`<li>${esc(x)}</li>`).join('')}<li>這是機械式指標回測,用來找出分數給錯的情境,不是保證未來績效,也不是投資建議。</li></ul></div>`;
+  $('#app').innerHTML=h;
+
+  const stTbl=p=>{$('#stTbl').innerHTML=`<table><tr><th>策略</th><th>總報酬</th><th>年化</th><th>最大回檔</th><th>波動</th><th>夏普</th><th>平均部位</th><th>換倉</th></tr>
+    ${keys.map(k=>{const m=st[p][k];return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[k]};margin-right:6px"></i>${R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td class="${cl(m.cagr)}">${pc(m.cagr)}</td><td>${pc(m.mdd)}</td><td>${pc0(m.vol)}</td><td>${m.sharpe??'—'}</td><td>${pc0(m.avg_expo)}</td><td>${m.changes}</td></tr>`}).join('')}</table>`};
+  stTbl('all');
+  document.querySelectorAll('#stTabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#stTabs button').forEach(x=>x.classList.toggle('on',x===b));stTbl(b.dataset.p)});
+
+  const scTbl=()=>{const only=$('#onlyBad').checked;let last='',rows='';
+    for(const r of R.scenarios){if(only&&!(r.flag==='方向不符'||r.flag==='中性卻有方向'))continue;
+      if(r.name!==last){rows+=`<tr class="grp"><td colspan="8">${esc(r.name)}</td></tr>`;last=r.name}
+      const fc=r.flag==='方向不符'?'bad':r.flag==='中性卻有方向'?'warn':'few';
+      rows+=`<tr><td>${esc(r.scenario)}</td><td>${r.score>0?'+':''}${r.score}</td><td>${r.n}</td><td class="${cl(r.fwd5)}">${pc(r.fwd5,2)}</td><td class="${cl(r.fwd20)}">${pc(r.fwd20,2)}</td><td class="${cl(r.excess20)}">${pc(r.excess20,2)}</td><td>${r.flag?`<span class="flag ${fc}">${r.flag}</span>`:''}</td><td class="ex">${esc(r.example||'')}</td></tr>`}
+    $('#scTbl').innerHTML=`<table><tr><th>情境</th><th>分數</th><th>次數</th><th>之後 5 日</th><th>之後 20 日</th><th>比平均多</th><th>判定</th><th>最近一次</th></tr>${rows||'<tr><td colspan="8" class="mut">沒有</td></tr>'}</table>`};
+  scTbl(); $('#onlyBad').onchange=scTbl;
+}
+
+(async()=>{
+  let S=null;try{S=await (await fetch('fetch_status.json?'+Date.now())).json()}catch(e){}
+  try{const R=await (await fetch('result.json?'+Date.now())).json();render(R,S)}
+  catch(e){$('#hdr').textContent='尚未產生回測結果';$('#app').innerHTML=`<div class="card">還沒有回測結果。到 GitHub → Actions → <b>backtest</b> → Run workflow(預設抓兩年,約 40～80 分鐘;抓不完會存進度,再跑一次接著抓)。${S?`<div class="sm mut" style="margin-top:6px">目前已抓 ${S.ok} / ${S.trading_days} 天</div>`:''}</div>`}
+})();
+</script>
+</body>
+</html>
