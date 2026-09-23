@@ -63,20 +63,40 @@ function tpeDate(epochSec) {
   return new Date(epochSec * 1000 + 8 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-// Yahoo chart 回傳的日 K 棒中,日期(台北)早於 today 的最後一根 close;沒有 → 0
+// Yahoo chart 回傳的日 K 棒中,日期(台北)早於 today 的最後一根非空 close → { date, close };沒有 → null
+// (Yahoo 對台股 ETF 常有某天 close = null,所以要回日期,讓呼叫端跟自家 history 比誰新)
 function prevCloseFromBars(r, today) {
   const ts = r && r.timestamp, cl = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
-  if (!ts || !cl) return 0;
-  let pc = 0;
-  for (let i = 0; i < ts.length; i++) { const d = tpeDate(ts[i]); if (d && d < today && cl[i] > 0) pc = cl[i]; }
-  return pc;
+  if (!ts || !cl) return null;
+  let best = null;
+  for (let i = 0; i < ts.length; i++) { const d = tpeDate(ts[i]); if (d && d < today && cl[i] > 0) best = { date: d, close: Math.round(cl[i] * 100) / 100 }; }
+  return best;
+}
+
+// 昨收:自家 history(今天之前最後一天有該檔價 = 當日 14:00 結算存的收盤)與 Yahoo 日 K 比日期,取較新者;同日以 Yahoo 為準
+// 兩邊都沒有 → meta.previousClose(台股盤中常是 null)→ 0。不用 chartPreviousClose(那是整段 range 之前的收盤)。
+function pickPrevClose(histPc, barPc, metaPc) {
+  const cands = [histPc, barPc].filter(x => x && x.date && x.close > 0);
+  if (!cands.length) return metaPc > 0 ? metaPc : 0;
+  cands.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a === barPc ? 1 : -1));
+  return cands[cands.length - 1].close;
+}
+
+// 由 history 整理各檔「今天之前最後一天的收盤」→ { code: { date, close } }
+function histPrevClose(history, codes, today) {
+  const out = {};
+  (history || []).forEach(h => {
+    if (!h || !h.date || h.date >= today || !h.prices) return;
+    codes.forEach(c => { const p = h.prices[c]; if (p > 0 && (!out[c] || h.date > out[c].date)) out[c] = { date: h.date, close: p }; });
+  });
+  return out;
 }
 
 // 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價)
 // - 各檔並行查;後綴先用上次記住的(symHint:上市 .TW / 上櫃 .TWO),沒有才依序試
 // - 只接受 regularMarketTime 落在今日(台北)的價:平日休市 Yahoo 仍回上一交易日收盤,不能當即時價
 // 回傳 { live: {code: price}, sym: {code: suffix}, exDiv: {code: {date, amount}} }
-async function fromYahoo(codes, prev, today, symHint = {}) {
+async function fromYahoo(codes, prev, today, symHint = {}, histPc = {}) {
   const live = {}, sym = {}, exDiv = {};
   const one = async c => {
     const sufs = symHint[c] ? [symHint[c], ...['.TW', '.TWO'].filter(s => s !== symHint[c])] : ['.TW', '.TWO'];
@@ -92,9 +112,8 @@ async function fromYahoo(codes, prev, today, symHint = {}) {
         // 今日除息:events.dividends 的 date 是台北今天 → 記 exDiv,前端算今日損益會把昨收扣掉股息(除息價差不算虧損)
         const divs = j?.chart?.result?.[0]?.events?.dividends || {};
         for (const k of Object.keys(divs)) { const dv = divs[k]; if (tpeDate(dv.date) === today && dv.amount > 0) exDiv[c] = { date: today, amount: dv.amount }; }
-        // 昨收 → 前端算今日漲跌%。用日 K 棒裡「日期 < 今天的最後一根 close」;台股盤中 meta.previousClose 常是 null,
-        // 而 chartPreviousClose 是「整段 range 之前」的收盤(range=5d 就變成五天前),曾把今日損益算成一週累計,故不用。
-        const pc = prevCloseFromBars(j.chart.result[0], today) || m.previousClose;
+        // 昨收 → 前端算今日漲跌%(見 pickPrevClose;曾因用 chartPreviousClose 把今日損益算成一週累計)
+        const pc = pickPrevClose(histPc[c], prevCloseFromBars(j.chart.result[0], today), m.previousClose);
         if (prev && pc > 0) prev[c] = pc;
         return;
       } catch (e) { console.log(`${c}${suf}: ${e.message}`); }
@@ -192,7 +211,7 @@ async function main() {
   const symHint = {};
   holdings.forEach(h => { if (h.code && h.yahooSym) symHint[h.code] = h.yahooSym; });
   try {
-    const y = await fromYahoo(codes, prevClose, today, symHint);
+    const y = await fromYahoo(codes, prevClose, today, symHint, histPrevClose(data.history, codes, today));
     Object.assign(live, y.live); Object.assign(yahooSym, y.sym); Object.assign(exDivs, y.exDiv || {});
     if (Object.keys(exDivs).length) console.log('今日除息:', Object.entries(exDivs).map(([c, d]) => `${c} ${d.amount}`).join('、'));
     console.log(`Yahoo 即時: 取得 ${Object.keys(y.live).length}/${codes.length}`);

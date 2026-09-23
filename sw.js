@@ -2,8 +2,8 @@
 // 改了任何靜態檔(styles.css / app.js / charts.js / scripts/calc.js / 圖示)記得把 CACHE 版號 +1,activate 會把舊快取整包清掉。
 // index.html 走網路優先;.js / .css 用 ?v= 版本 query 當快取鍵,index.html 換了 v 就一定抓新檔,不會出現「新 app.js 配舊 calc.js」。
 // 靜態資源走 stale-while-revalidate:先回快取、背景抓新版寫回;就算忘了改版號,F5 兩次也一定看到新圖。
-const ASSET_VER = '20260923b';                 // 與 index.html 的 ?v= 一致;改 .js / .css 時兩邊一起換
-const CACHE = 'panghu-v17';
+const ASSET_VER = '20260923c';                 // 與 index.html 的 ?v= 一致;改 .js / .css 時兩邊一起換
+const CACHE = 'panghu-v18';
 const SHELL = [
   './',
   './index.html',
@@ -48,9 +48,12 @@ self.addEventListener('fetch', e => {
   const isDoc = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
 
   // 網頁與資料:網路優先(確保看到最新),離線時退回最後一次快取
+  // 本站網頁改用 cache:'no-cache'(帶 ETag 問 server,沒變回 304):GitHub Pages 送 max-age=600,
+  // 不這樣做上傳後 10 分鐘內開 App 仍是舊 index.html。data.json 由 app.js 自己帶 no-store / reload,不動。
   if (isData || isDoc) {
+    const netReq = isDoc && url.origin === self.location.origin ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : req;
     e.respondWith(
-      fetch(req).then(res => {
+      fetch(netReq).then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;

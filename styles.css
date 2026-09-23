@@ -338,6 +338,7 @@
     letter-spacing: .02em;
   }
   .tab-btn:hover { color: var(--text); border-color: var(--border); }
+  .tab-link { margin-left: auto; text-decoration: none; }   /* 桌機頁籤列右側的籌碼站連結(<a>);手機由底部導覽接手 */
   .tab-btn.active {
     color: #fff;
     background: var(--accent);
