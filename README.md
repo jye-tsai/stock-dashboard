@@ -190,7 +190,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 1. **GitHub Pages**:repo → Settings → Pages,來源設 `main` 分支根目錄。
 2. **GitHub Token**(fine-grained PAT,只給此 repo):`Contents: Read and write`(存檔)+ `Actions: Read and write`(觸發 workflow_dispatch)。用於儀表板「⚙️ 設定 → GitHub 同步」與 Cloudflare 的 `GH_TOKEN`。
 3. **GitHub Action 權限**:repo → Settings → Actions → Workflow permissions → **Read and write**。
-4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/15 1-5 * * *`、`0 6 * * *`(收盤價)+ `40 7 * * 1-5`、`40 8 * * 1-5`(籌碼站)。
+4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/15 1-5 * * *`、`0 6 * * *`(收盤價)+ `40 7 * * 2-6`、`40 8 * * 2-6`(籌碼站)。**Cloudflare 的星期欄是 1=日 … 7=六**(GitHub 是 0=日),週一~五要寫 `2-6`,寫 `1-5` 會變成週日到週四。
 5. **PWA 安裝**:手機開 Pages 網址 → 加入主畫面(需 https)。
 
 ---
