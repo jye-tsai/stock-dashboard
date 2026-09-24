@@ -56,7 +56,7 @@ def chips_lines():
     pg = t.get("panghu") or {}
     if pg.get("version") == 4 and pg.get("aspects"):     # 胖虎指標 v4:四面向現況描述;有極端事件才附歷史紀錄
         L += ["── 胖虎指標(現況描述) ──"] + [f"{a['name']}:{a['short']}" for a in pg["aspects"]]
-        SH = {"gap60": "乖離", "vol_ratio": "量能", "foreign20_pct": "外資", "fut_chg20": "期貨20日", "retail": "散戶", "pc": "P/C", "twd20": "台幣"}
+        SH = {"gap60": "乖離", "vol_ratio": "量能", "foreign20_pct": "外資", "fut_chg20": "期貨20日", "retail": "散戶", "pc": "P/C", "twd20": "台幣", "rv20": "波動"}
         if pg.get("position"): L.append("歷史位置:" + "・".join(f"{SH.get(x['k'], x['name'])} P{x['p']}" for x in pg["position"]))
         for e in pg.get("events") or []:
             L.append(f"⚠ {e['name']}:{e['text']}" + (f"(近 10 日第 {e['day']} 次)" if e.get("day", 1) > 1 else ""))

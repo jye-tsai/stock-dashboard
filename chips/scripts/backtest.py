@@ -316,21 +316,81 @@ def run_describe(days, cfg4):
         seq.append(t)
     return seq
 
+WINDOWED = {"rv20": 735}                                     # 只跟近 N 個交易日比的指標(波動水位會隨時代變)
+
 def build_dist(dseq, dates):
-    """位置百分位用:每個指標取歷史上所有有值的日子,存 101 個分位點(第 0~100 百分位);少於 250 天(約一年)不收"""
-    vals = {k: [] for k, _, _, _ in fa.POS_SPEC}; first = {}
+    """位置百分位用:每個指標取歷史上所有有值的日子(WINDOWED 只取最近 N 天),存 101 個分位點(第 0~100 百分位)與平均;少於 250 天不收"""
+    vals = {k: [] for k, _, _, _ in fa.POS_SPEC}
     for s, d in zip(dseq, dates):
         for k, v in fa.position_values(s, (s.get("panghu") or {}).get("data") or {}).items():
             if v is None or k not in vals: continue
-            vals[k].append(v); first.setdefault(k, d)
+            vals[k].append((d, v))
     out = {}
-    for k, xs in vals.items():
-        if len(xs) < 250: continue
-        xs = sorted(xs); n = len(xs)
-        out[k] = {"n": n, "from": first[k], "to": dates[-1], "years": round(n / 245, 1),
+    for k, dv in vals.items():
+        if k in WINDOWED: dv = dv[-WINDOWED[k]:]
+        if len(dv) < 250: continue
+        xs = sorted(v for _, v in dv); n = len(xs)
+        out[k] = {"n": n, "from": dv[0][0], "to": dates[-1], "years": round(n / 245, 1), "mean": round(sum(xs) / n, 4),
                   "q": [round(xs[int(round(i / 100 * (n - 1)))], 4) for i in range(101)]}
     return {"generated_at": tpe_now().isoformat(timespec="seconds"), "range": [dates[0], dates[-1]], "metrics": out,
-            "note": "q = 第 0~100 百分位的值(由小到大)。外資台指期、散戶多空比只有近 3 年(期交所只開放近 3 年)。"}
+            "note": "q = 第 0~100 百分位的值(由小到大)。外資台指期、散戶多空比只有近 3 年(期交所只開放近 3 年);實際波動只跟近 3 年比。"}
+
+RISK_BANDS = [(0, 20, "波動低"), (20, 40, "波動偏低"), (40, 60, "波動中等"), (60, 80, "波動偏高"), (80, 101, "波動高")]
+
+def risk_summary(close, dates, cfg4):
+    """波動 / 風險回測:今天的實際波動能不能預測接下來 n 日的波動、最深跌幅、漲跌。
+    分組只用「當天以前」近 W 天的波動分布(滾動,不偷看未來);獨立段落 = 同組相隔 n 天以上才算新的一段。"""
+    K = cfg4.get("risk") or {}; n = K.get("days", 20); W = K.get("window_days", 735); w = K.get("today_weight", 0.3)
+    N = len(close)
+    rv = [fa.realized_vol(close[max(0, i - n):i + 1], n) for i in range(N)]
+    ma60 = [sum(close[i - 59:i + 1]) / 60 if i >= 59 else None for i in range(N)]
+    rows = []
+    for i in range(N - n):
+        if rv[i] is None: continue
+        past = [x for x in rv[max(0, i - W):i] if x is not None]
+        if len(past) < W * 0.95: continue
+        frv = fa.realized_vol(close[i:i + n + 1], n)
+        rows.append({"i": i, "d": dates[i], "rv": rv[i], "frv": frv, "p": sum(1 for x in past if x <= rv[i]) / len(past) * 100,
+                     "lt": sum(past) / len(past), "dd": min(close[i + 1:i + n + 1]) / close[i] - 1, "ret": close[i + n] / close[i] - 1,
+                     "above": ma60[i] is not None and close[i] >= ma60[i]})
+    if len(rows) < 250: return None
+    med = lambda xs: sorted(xs)[len(xs) // 2] if xs else None
+    def episodes(g):
+        ep, last = [], -10 ** 9
+        for x in g:
+            if x["i"] - last > n: ep.append(x)
+            last = x["i"]
+        return ep
+    half = len(rows) // 2; ind = rows[::n]
+    corr_ = {k: r4(spearman([x["rv"] for x in s], [x["frv"] for x in s])) for k, s in (("all", rows), ("h1", rows[:half]), ("h2", rows[half:]), ("indep", ind))}
+    corr_dd = r4(spearman([x["rv"] for x in ind], [x["dd"] for x in ind]))
+    ferr = [{"w": ww, "err": r4(med([abs(x["frv"] - (ww * x["rv"] + (1 - ww) * x["lt"])) for x in rows]))} for ww in (0, 0.3, 0.5, 0.7, 1.0)]
+    sd = lambda x: (w * x["rv"] + (1 - w) * x["lt"]) * math.sqrt(n / 245) / 100
+    z = sorted(abs(x["ret"]) / sd(x) for x in rows); k68 = z[int(0.68 * (len(z) - 1))]
+    groups = []
+    for lo, hi, lab in RISK_BANDS:
+        g = [x for x in rows if lo <= x["p"] < hi]
+        if not g: continue
+        dds = sorted(x["dd"] for x in g); ep = episodes(g)
+        groups.append({"label": lab, "lo": lo, "hi": hi, "n": len(g), "rv_med": round(med([x["rv"] for x in g]), 1),
+                       "frv_med": round(med([x["frv"] for x in g]), 1), "dd_med": round(med(dds) * 100, 1), "dd_w10": round(dds[len(dds) // 10] * 100, 1),
+                       "p5": round(sum(1 for v in dds if v <= -0.05) / len(g) * 100), "p8": round(sum(1 for v in dds if v <= -0.08) / len(g) * 100),
+                       "ret_med": round(med([x["ret"] for x in g]) * 100, 1), "up": round(sum(1 for x in g if x["ret"] > 0) / len(g) * 100),
+                       "range_med": round(med([sd(x) * k68 for x in g]) * 100, 1),
+                       "n_ep": len(ep), "ep8": sum(1 for x in ep if x["dd"] <= -0.08)})
+    cells = []
+    for ab, an in ((True, "季線之上"), (False, "季線之下")):
+        for lo, hi, bn in ((0, 80, "波動非高"), (80, 101, "波動高")):
+            g = [x for x in rows if x["above"] == ab and lo <= x["p"] < hi]
+            if not g: continue
+            ep = episodes(g)
+            cells.append({"name": f"{an}・{bn}", "n": len(g), "p8": round(sum(1 for x in g if x["dd"] <= -0.08) / len(g) * 100),
+                          "n_ep": len(ep), "ep8": sum(1 for x in ep if x["dd"] <= -0.08)})
+    cover1 = sum(1 for x in rows if abs(x["ret"]) <= sd(x)) / len(rows)
+    return {"days": n, "window_days": W, "today_weight": w, "range": [rows[0]["d"], rows[-1]["d"]], "n": len(rows),
+            "corr": corr_, "corr_dd_indep": corr_dd, "forecast_err": ferr, "k68": round(k68, 3), "cover_1sd_normal": r4(cover1),
+            "groups": groups, "trend_cells": cells,
+            "note": "分組只用當天以前近 3 年的波動分布(滾動、不偷看未來)。獨立段落 = 同一組相隔 20 個交易日以上才算新的一段,只取每段第一天,避免連續天數重複計算。"}
 
 def events_summary(dseq, close, dates, cfg4):
     N = len(close)
@@ -620,6 +680,8 @@ def cmd_eval():
         evj = events_summary(dseq, close, dates, cfg4)
         jsave(os.path.join(BT, "events.json"), evj)
         dist = build_dist(dseq, dates)                                   # 位置百分位的歷史分布 → fetch_all 每天盤後對照
+        rk = risk_summary(close, dates, cfg4)                            # 波動 / 風險回測(盤後「風險」面向讀 dist.risk)
+        if rk: dist["risk"] = rk; res["risk"] = rk
         jsave(os.path.join(BT, "dist.json"), dist)
         nm = {k: n for k, _, n, _ in fa.POS_SPEC}; un = {k: fm[fm.index("}") + 1:].strip() for k, _, _, fm in fa.POS_SPEC}
         res["position_dist"] = {k: {"name": nm.get(k, k), "unit": un.get(k, ""), "n": v["n"], "years": v["years"], "from": v["from"],

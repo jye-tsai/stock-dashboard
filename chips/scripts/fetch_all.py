@@ -714,7 +714,7 @@ def build_panghu(t, p, hist, cfg):
     return out
 
 # ─────────────── 胖虎指標 v4(描述型) ───────────────
-# 只描述盤後現況的四個面向:趨勢、籌碼、情緒、匯率;不合成分數、不預測漲跌、不給倉位。
+# 只描述盤後現況的五個面向:趨勢、籌碼、情緒、匯率、風險;不合成分數、不預測漲跌、不給倉位。
 # 10 年回測顯示用這些資料預測之後 20~60 日漲跌,沒有明顯贏過單看 60 日均線或永遠偏多,所以改成誠實描述。
 # 極端事件(超跌、深逆價差、爆量長黑、P/C 極低)只標出,並附上歷史每一次「獨立事件」的後續(backtest 產生的 events.json)。
 EVENTS_PATH = os.path.join(DATA, "..", "backtest", "events.json")
@@ -783,6 +783,14 @@ def event_history_text(h):
     b = h.get("in_bear") or {}
     if b.get("n"): s += f";其中發生在空頭排列時 {b['n']} 次:{b['up20']} 漲 {b['down20']} 跌"
     return s
+
+def realized_vol(closes, n=20):
+    """近 n 日年化實際波動(%):對數日報酬的標準差 × √245;收盤不足 n+1 天回 None。盤後與回測共用"""
+    xs = [c for c in closes[-(n + 1):] if c]
+    if len(xs) < n + 1: return None
+    r = [math.log(xs[i] / xs[i - 1]) for i in range(1, len(xs))]
+    m = sum(r) / len(r)
+    return math.sqrt(sum((x - m) ** 2 for x in r) / len(r)) * math.sqrt(245) * 100
 
 def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
     """t 當日、p 前一日、hist 之前的日子(由舊到新,至少 20 天);closes / amts 為 t(含)之前的加權收盤與成交金額(至少 120 天);
@@ -908,6 +916,24 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
         _a = sum(amts[-21:-1]) / 20
         if _a: data["vol_ratio"] = round(amt / _a * 100, 1)
 
+    # ── 風險:近 20 日實際波動 → 震幅描述(不代表方向);要有回測產生的波動分組(dist.risk)才寫這個面向
+    Kr = cfg.get("risk") or {}; nd = Kr.get("days", 20)
+    rv = realized_vol(closes, nd) if closes else None
+    if rv is not None:
+        rv = round(rv, 2); data["rv20"] = rv                              # 跟位置百分位用同一個值,兩邊的百分位才會一致
+        RK = (dist or {}).get("risk") or {}; dq = ((dist or {}).get("metrics") or {}).get("rv20") or {}
+        if RK.get("groups") and len(dq.get("q") or []) == 101:
+            pr = pctile(rv, dq["q"]); g = next((x for x in RK["groups"] if pr < x["hi"]), RK["groups"][-1])
+            w = Kr.get("today_weight", 0.3); blend = w * rv + (1 - w) * (dq.get("mean") or rv)
+            rng = blend * math.sqrt(nd / 245) * (RK.get("k68") or 1.0)          # 用歷史實際分布校準:約 2/3 的 20 日漲跌落在 ±rng 內
+            data["risk_range"] = round(rng, 2)
+            lines = [f"近 {nd} 日實際波動 {rv:.1f}%(年化),近 3 年第 {round(pr)} 百分位",
+                     f"照目前估算,接下來 20 日常見漲跌約 ±{rng:.1f}%(歷史上約 2/3 的時間落在這個範圍內)",
+                     f"歷史上這種波動環境:20 日內最深跌中位數 {g['dd_med']:+.1f}%、最差 1 成 {g['dd_w10']:+.1f}%,"
+                     f"跌超過 8% 的機率 {g['p8']:.0f}%(獨立 {g['n_ep']} 段中 {g['ep8']} 段)",
+                     "波動只描述震幅,不代表方向;高波動時大反彈也比較多"]
+            asp("risk", "風險", g["label"], "hot" if g["lo"] >= 80 else "neutral", lines, f"{g['label']}(20 日常見 ±{rng:.1f}%)")
+
     # ── 極端事件(只標出,附歷史獨立事件後續;同一波連續出現標「第 N 天」)
     E = cfg["events"]; fired = []
     if 20 in gap and gap[20] <= E["oversold"]["pct"]: fired.append(("oversold", f"收盤低於 20 日均 {abs(gap[20]):.1f}%"))
@@ -978,6 +1004,7 @@ POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
     ("retail", "sentiment", "散戶多空比", "{:+.1f}%"),
     ("pc", "sentiment", "P/C(OI)", "{:.1f}%"),
     ("twd20", "fx", "美元兌台幣 20 日", "{:+.2f}%"),
+    ("rv20", "risk", "近 20 日實際波動", "{:.1f}%"),                 # 只跟近 3 年比(波動水位會隨時代變)
 ]
 
 def position_values(t, data):
@@ -985,7 +1012,7 @@ def position_values(t, data):
     rs = [x["ratio_pct"] for x in (t.get("mtx_retail"), t.get("tmf_retail")) if x and x.get("ratio_pct") is not None]
     return {"gap60": data.get("gap60"), "vol_ratio": data.get("vol_ratio"), "foreign20_pct": data.get("foreign20_pct"),
             "fut_chg20": data.get("fut_chg20"), "retail": round(sum(rs) / len(rs), 2) if rs else None,
-            "pc": (t.get("pc") or {}).get("oi_ratio_pct"), "twd20": data.get("twd20")}
+            "pc": (t.get("pc") or {}).get("oi_ratio_pct"), "twd20": data.get("twd20"), "rv20": data.get("rv20")}
 
 def pctile(v, q):
     """q = 101 個分位點(第 0~100 百分位,由小到大)→ v 的百分位;同值一大串時取中間"""

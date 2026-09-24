@@ -38,11 +38,11 @@ L += ["", "## 二、週末狀態（校驗用前值）", "",
       "", "## 三、胖虎指標（每日盤後現況描述，不預測、不給倉位）", ""]
 pgs = [(t["date"][5:], t.get("panghu") or {}) for t in rows]
 if any(pg.get("version") == 4 for _, pg in pgs):
-    L += ["| 日期 | 趨勢 | 籌碼 | 情緒 | 匯率 | 極端事件 |", "|---|---|---|---|---|---|"]
+    L += ["| 日期 | 趨勢 | 籌碼 | 情緒 | 匯率 | 風險 | 極端事件 |", "|---|---|---|---|---|---|---|"]
     for dte, pg in pgs:
         a = {x["k"]: x["label"] for x in pg.get("aspects") or []}
         ev = "、".join(e["name"] for e in pg.get("events") or []) or "—"
-        L.append(f"| {dte} | {a.get('trend', '—')} | {a.get('chips', '—')} | {a.get('sentiment', '—')} | {a.get('fx', '—')} | {ev} |")
+        L.append(f"| {dte} | {a.get('trend', '—')} | {a.get('chips', '—')} | {a.get('sentiment', '—')} | {a.get('fx', '—')} | {a.get('risk', '—')} | {ev} |")
     last_pg = pgs[-1][1]
     for x in last_pg.get("aspects") or []: L.append(f"- 週末{x['name']}:{';'.join(x['lines'])}")
 else:

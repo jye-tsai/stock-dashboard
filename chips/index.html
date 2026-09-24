@@ -332,7 +332,7 @@ function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常
   const POS=pg.position||[];   // 歷史位置百分位:只描述今天在歷史中多極端,不加總、不給結論
   // 偏低 / 偏高各代表什麼(白話);顏色只分「正常 / 偏離」,不用紅綠,避免讀成看多看空
   const WORD={gap60:['跌離均線','漲離均線'],vol_ratio:['量縮','量增'],foreign20_pct:['外資賣得多','外資買得多'],fut_chg20:['期貨往空方','期貨往多方'],
-    fut_net:['淨空偏多','淨空偏少'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
+    fut_net:['淨空偏多','淨空偏少'],rv20:['震幅小','震幅大'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
   const odd=POS.filter(x=>x.p<=20||x.p>=80);
   const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${a.name}</div><div class="v t-${a.tone}">${a.label}</div></div>`).join('')}</div>`;
   const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
