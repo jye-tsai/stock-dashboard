@@ -59,7 +59,7 @@ const pc=(x,d=1)=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(d)+'%';
 const pc0=(x)=>x==null?'—':(x*100).toFixed(0)+'%';
 const cl=x=>x==null?'':x>0?'up':x<0?'dn':'';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const COLORS={panghu_live:'var(--c-gold)',panghu_full:'var(--teal)',buy_hold:'var(--c-red)',fixed_half:'var(--gray)'};
+const COLORS={panghu_live:'var(--c-gold)',panghu_full:'var(--teal)',buy_hold:'var(--c-red)',fixed_half:'var(--gray)',panghu_v3:'var(--c-blue)'};
 
 // 折線圖:series=[{name,color,v:[...],dash}];labels=[日期]
 function lineChart(series,labels,o={}){
@@ -79,10 +79,30 @@ function lineChart(series,labels,o={}){
 
 function render(R,S){
   $('#hdr').textContent=`${R.range[0]} ～ ${R.range[1]}・${R.n_days} 個交易日・設定 v${R.config_version}・產生 ${R.generated_at.replace('T',' ')}`;
-  const st=R.strategy, keys=['panghu_live','panghu_full','buy_hold','fixed_half'];
+  const st=R.strategy, keys=['panghu_live','panghu_full','buy_hold','fixed_half'].concat(st.all.panghu_v3?['panghu_v3']:[]);
   const L=st.all.panghu_live,B=st.all.buy_hold;
   let h='';
   if(S&&!S.complete)h+=`<div class="card" style="border-color:var(--c-gold)"><b>資料尚未抓完</b>:已抓 ${S.ok} / ${S.trading_days} 天。到 GitHub Actions 再跑一次 backtest,會接著抓。</div>`;
+
+  // 判斷準確度(主要看這張)
+  const J=R.judgment;
+  if(J){const nm=J.names,f2=x=>x==null?'—':x.toFixed(2),lift=x=>x==null?'—':'×'+x.toFixed(2);
+    const order=['v3','v2','ma60','always_bull'].filter(k=>J.direction[k]);
+    const dirRow=k=>{const v=J.direction[k];return `<tr><td>${esc(nm[k])}</td><td><b>${f2(v.balanced)}</b></td><td>${pc0(v.cov_bull)}</td><td>${pc0(v.prec_bull)}<div class="sm mut">基準 ${pc0(v.base_up)}・${lift(v.lift_bull)}</div></td><td>${pc0(v.cov_bear)}</td><td>${pc0(v.prec_bear)}<div class="sm mut">基準 ${pc0(v.base_down)}・${lift(v.lift_bear)}</div></td></tr>`};
+    const regRow=k=>{const v=J.regime[k];if(!v)return '';return `<tr><td>${esc(nm[k])}</td><td><b>${f2(v.balanced)}</b></td><td>${pc0(v.prec_bull)}<div class="sm mut">基準 ${pc0(v.base_up)}</div></td><td>${pc0(v.prec_bear)}<div class="sm mut">基準 ${pc0(v.base_down)}</div></td></tr>`};
+    const stb=J.stability||{};
+    h+=`<div class="card" style="border-color:var(--c-gold)"><h2>判斷準確度(主要看這張)</h2>
+      <div class="sm" style="margin-bottom:6px">方向:判偏多 / 偏空之後 20 日真的漲 / 跌超過 2% 嗎?平衡準確率 = 漲、平、跌三類各自猜中比例的平均,「永遠偏多」固定約 0.33,要贏過笨方法才算有判斷力。</div>
+      <div class="tw"><table><tr><th>方法</th><th>平衡準確率</th><th>判偏多占</th><th>偏多命中</th><th>判偏空占</th><th>偏空命中</th></tr>${order.map(dirRow).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">環境:判多 / 空之後 60 日真的漲 / 跌超過 5% 嗎?</div>
+      <div class="tw"><table><tr><th>方法</th><th>平衡準確率</th><th>判多命中</th><th>判空命中</th></tr>${['v3','v2','ma60','always_bull'].map(regRow).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">穩定度與誤報:翻空後 40 天反而更高、翻多後 40 天反而更低,算誤報。</div>
+      <div class="tw"><table><tr><th>方法</th><th>判讀每年變幾次</th><th>翻空次數 / 誤報</th><th>翻多次數 / 誤報</th></tr>${['v3','v2','ma60'].filter(k=>stb[k]).map(k=>{const v=stb[k];return `<tr><td>${esc(nm[k])}</td><td>${v.call_changes_per_year}${v.regime_changes_per_year!=null?`<div class="sm mut">環境 ${v.regime_changes_per_year}</div>`:''}</td><td>${v.to_bear.n} / ${v.to_bear.false}(${pc0(v.to_bear.false_rate)})</td><td>${v.to_bull.n} / ${v.to_bull.false}(${pc0(v.to_bull.false_rate)})</td></tr>`}).join('')}</table></div>
+      ${(J.turns||[]).length?`<div class="sm" style="margin:10px 0 6px">真下跌的轉折:從前高算第幾天判空、谷底後第幾天判多</div><div class="tw"><table><tr><th>事件</th>${['v3','v2','ma60'].filter(k=>J.turns[0][k]).map(k=>`<th>${esc(nm[k])}</th>`).join('')}</tr>
+        ${J.turns.map(t=>`<tr><td>${t.peak} → ${t.trough}<div class="sm dn">${pc(t.depth)}</div></td>${['v3','v2','ma60'].filter(k=>t[k]).map(k=>{const g=t[k];return `<td>判空 ${g.bear_days==null?'沒判':'第 '+g.bear_days+' 天'}${g.bear_dd!=null?`<div class="sm mut">當時 ${pc(g.bear_dd)}</div>`:''}判多 ${g.bull_days==null?'沒判':'谷底後 '+g.bull_days+' 天'}${g.bull_gain!=null?`<div class="sm mut">已漲 ${pc(g.bull_gain)}</div>`:''}</td>`}).join('')}</tr>`).join('')}</table></div>`:''}
+      ${(J.states||[]).length?`<div class="sm" style="margin:10px 0 6px">v3 各狀態之後 20 日的表現(狀態有用 = 多頭類之後漲得多、空頭類之後跌得多)</div><div class="tw"><table><tr><th>狀態</th><th>天數</th><th>之後 20 日平均</th><th>漲超過 2%</th><th>跌超過 2%</th></tr>
+        ${J.states.map(x=>`<tr><td>${esc(x.state)}</td><td>${x.n}</td><td class="${cl(x.fwd20)}">${pc(x.fwd20,2)}</td><td>${pc0(x.up20)}</td><td>${pc0(x.down20)}</td></tr>`).join('')}</table></div>`:''}
+      <div class="sm mut" style="margin-top:6px">${esc(J.notes||'')}</div></div>`;}
 
   // 重點
   h+=`<div class="card"><h2>重點</h2><div class="kpis">
@@ -93,7 +113,7 @@ function render(R,S){
   </div></div>`;
 
   // 三個目標(對應:轉多抓得到、洗盤敢進場、真下跌跑得快)
-  const G=R.goals||{}, gk=['panghu_live'].concat(Object.keys(R.groups||{})), gn=k=>k==='panghu_live'?'全部 13 項':R.names[k];
+  const G=R.goals||{}, gk=['panghu_live'].concat(G.panghu_v3?['panghu_v3']:[]).concat(Object.keys(R.groups||{})), gn=k=>k==='panghu_live'?'v2 全部 13 項':R.names[k];
   const days=x=>x==null?'—':Math.round(x)+' 天';
   const grow=(label,f,hint)=>`<tr><td>${label}<div class="sm mut">${hint}</div></td>${gk.map(k=>`<td>${f(G[k]||{})}</td>`).join('')}</tr>`;
   const g0=G.panghu_live||{};

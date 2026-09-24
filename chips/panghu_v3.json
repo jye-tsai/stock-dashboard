@@ -1,0 +1,34 @@
+{
+  "_說明": "胖虎指標 v3(實驗組,目前只在回測使用,不影響每天 15:40 的正式判斷)。兩層:環境層(慢)判多頭 / 盤整 / 空頭並給倉位區間;溫度層(快)沿用 v2 的情境評分,只保留有預測力的項目,取 3 日平均,在區間內調整。恐慌情境在多頭與盤整裡判為洗盤,空頭裡不接刀。門檻用對稱整數,只依資料尺度設定,不拿之後報酬去調。",
+  "version": 3,
+  "temp_weights": {
+    "trend": 0, "volume": 0, "pv": 0, "basis": 0,
+    "foreign_spot": 2, "fut_long": 1, "fut_short": 1, "retail": 1, "pc": 1.5, "vix": 1.5, "margin": 1, "usdtwd": 1, "dxy": 0.5
+  },
+  "temp_smooth_days": 3,
+  "regime": {
+    "_說明": "四項各給 -1/0/+1,加總 ≥ +2 多頭、≤ -2 空頭、其餘盤整;新狀態要連續 confirm_days 天才確認。",
+    "ma_days": 60, "slope_lag": 20, "slope_pct": 1.0,
+    "long_ma_days": 120, "vs_long_pct": 3.0,
+    "foreign_days": 20, "foreign_pct": 1.0,
+    "fx_days": 20, "fx_pct": 1.0,
+    "bull_at": 2, "bear_at": -2, "confirm_days": 3
+  },
+  "capitulation": {
+    "_說明": "任一情境出現,或當日溫度 ≤ temp_max,算「恐慌」。多頭與盤整判為洗盤,空頭只標記、不加碼。",
+    "scenarios": { "trend": ["oversold"], "volume": ["surge_down"], "pc": ["very_low"], "retail": ["catch_knife"], "vix": ["spike", "panic_abs"] },
+    "temp_max": 20
+  },
+  "position": {
+    "_說明": "各環境的倉位區間;溫度 30→區間下緣、70→區間上緣,取整到 step。恐慌時多頭拉到區間上緣、盤整 +panic_boost。換級後至少持有 min_hold 天(環境改變不受限)。",
+    "ranges": { "多頭": [70, 100], "盤整": [40, 80], "空頭": [0, 40] },
+    "temp_lo": 30, "temp_hi": 70, "step": 10, "panic_boost": 20, "min_hold": 5
+  },
+  "states": {
+    "多頭": { "panic": "多頭洗盤・恐慌", "low": "多頭洗盤", "mid": "多頭延續" },
+    "盤整": { "panic": "盤整・恐慌", "low": "盤整偏空", "mid": "盤整", "high": "盤整偏多" },
+    "空頭": { "panic": "空頭・恐慌(觀察止跌)", "mid": "空頭延續", "high": "空頭反彈" },
+    "turn_bull": "轉多確認", "turn_bear": "轉空確認",
+    "low_temp": 45, "high_temp": 60
+  }
+}

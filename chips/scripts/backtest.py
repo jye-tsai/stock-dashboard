@@ -33,6 +33,10 @@ spec = importlib.util.spec_from_file_location("fa", os.path.join(HERE, "fetch_al
 fa = importlib.util.module_from_spec(spec)
 _argv = sys.argv; sys.argv = ["fetch_all"]; spec.loader.exec_module(fa); sys.argv = _argv
 
+_spec3 = importlib.util.spec_from_file_location("panghu_v3", os.path.join(HERE, "panghu_v3.py"))
+v3 = importlib.util.module_from_spec(_spec3); _spec3.loader.exec_module(v3)
+V3_CFG_PATH = os.path.join(ROOT, "panghu_v3.json")
+
 def tpe_now(): return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=8)).replace(tzinfo=None)   # 台北時間(不帶時區字尾,免得誤讀成 UTC)
 def jload(p, d=None):
     try: return json.load(open(p, encoding="utf-8"))
@@ -190,6 +194,45 @@ def run_seq(days, cfg, mode):
         seq.append(t)
     return seq
 
+def run_seq_v3(days, cfg3, base_cfg):
+    """v3 實驗組:hist 給之前 150 天(120 日均線 + 斜率回看);一律模擬 15:40(當日融資未公布)"""
+    seq = []
+    for t0 in days:
+        t = json.loads(json.dumps(t0)); t["margin_note"] = "回測模擬 15:40:當日融資未公布"
+        t["panghu3"] = v3.build(t, seq[-1] if seq else {}, seq[-150:], cfg3, base_cfg, fa)
+        t["panghu"] = {"temp": t["panghu3"]["temp_raw"], "items": t["panghu3"]["items"]}      # 給 build_panghu 的前一日參考用
+        seq.append(t)
+    return seq
+
+def call_of(pct):                 # 倉位 → 方向判讀:≥70 偏多、≤30 偏空、其餘中性(v2 / v3 同一把尺)
+    if pct is None: return None
+    return "偏多" if pct >= 70 else "偏空" if pct <= 30 else "中性"
+
+def truth_of(r, th):              # 事後真相:之後報酬 > th 漲、< -th 跌、其餘平
+    if r is None: return None
+    return "up" if r > th else "down" if r < -th else "flat"
+
+def judge(calls, truth):
+    """calls: 偏多/中性/偏空;truth: up/flat/down。回傳命中率、覆蓋率、提升倍數、平衡準確率"""
+    pairs = [(c, t) for c, t in zip(calls, truth) if c and t]
+    n = len(pairs)
+    if not n: return None
+    base = {k: sum(1 for _, t in pairs if t == k) / n for k in ("up", "flat", "down")}
+    def prec(c, t):
+        xs = [tt for cc, tt in pairs if cc == c]; return (sum(1 for x in xs if x == t) / len(xs)) if xs else None
+    mp = {"偏多": "up", "中性": "flat", "偏空": "down"}
+    rec = []
+    for t in ("up", "flat", "down"):
+        xs = [cc for cc, tt in pairs if tt == t]
+        if xs: rec.append(sum(1 for c in xs if mp[c] == t) / len(xs))
+    pu, pd = prec("偏多", "up"), prec("偏空", "down")
+    return {"n": n, "base_up": r4(base["up"]), "base_down": r4(base["down"]),
+            "cov_bull": r4(sum(1 for c, _ in pairs if c == "偏多") / n), "cov_bear": r4(sum(1 for c, _ in pairs if c == "偏空") / n),
+            "prec_bull": r4(pu), "prec_bear": r4(pd),
+            "lift_bull": r4(pu / base["up"]) if (pu is not None and base["up"]) else None,
+            "lift_bear": r4(pd / base["down"]) if (pd is not None and base["down"]) else None,
+            "balanced": r4(mean(rec))}
+
 def pos_of(seq): return [((s.get("panghu") or {}).get("suggest_pct") or 0) / 100 for s in seq]
 
 def find_episodes(close, dd_min=0.08, bear=0.15):
@@ -272,6 +315,11 @@ def cmd_eval():
     live = run_seq(days, cfg, "live"); full = run_seq(days, cfg, "full")
     strat_pos = {"panghu_live": pos_of(live), "panghu_full": pos_of(full), "buy_hold": [1.0] * N, "fixed_half": [0.5] * N}
     names = {"panghu_live": "胖虎指標(15:40 版)", "panghu_full": "胖虎指標(含融資)", "buy_hold": "全程滿倉", "fixed_half": "固定五成"}
+    cfg3 = jload(V3_CFG_PATH)
+    seq3 = run_seq_v3(days, cfg3, cfg) if cfg3 else None
+    if seq3:
+        strat_pos["panghu_v3"] = [((s_.get("panghu3") or {}).get("pos") if (s_.get("panghu3") or {}).get("pos") is not None else 50) / 100 for s_ in seq3]
+        names["panghu_v3"] = "胖虎指標 v3(實驗)"
     grp_seq = {"all": live}
     for g, spec in GROUPS.items():
         if spec["keep"] is None: continue
@@ -398,6 +446,67 @@ def cmd_eval():
         row["fragile"] = bool((dt_ and max(dt_) > 0.08) or (dm_ and max(dm_) > 0.04))
         sens.append(row)
 
+    # ── 判斷準確度(方向 20 日 ±2%、環境 60 日 ±5%;都跟笨方法比)
+    F60 = [(close[i + 60] / close[i] - 1) if i + 60 < N else None for i in range(N)]
+    T20 = [truth_of(x, 0.02) for x in F[20]]; T60 = [truth_of(x, 0.05) for x in F60]
+    ma60 = [(_ma := (sum(close[i - 59:i + 1]) / 60)) if i >= 59 else None for i in range(N)]
+    base_trend = [None if ma60[i] is None else ("偏多" if close[i] >= ma60[i] * 1.02 else "偏空" if close[i] <= ma60[i] * 0.98 else "中性") for i in range(N)]
+    methods = {"v2": [call_of(round(x * 100)) for x in strat_pos["panghu_live"]], "always_bull": ["偏多"] * N, "ma60": base_trend}
+    mnames = {"v2": "胖虎 v2", "always_bull": "永遠偏多(笨方法)", "ma60": "60 日均線 ±2%(笨方法)"}
+    if seq3:
+        methods["v3"] = [call_of((x.get("panghu3") or {}).get("pos")) for x in seq3]; mnames["v3"] = "胖虎 v3(實驗)"
+        reg_call = {"多頭": "偏多", "盤整": "中性", "空頭": "偏空"}
+        methods_reg = {"v3": [reg_call.get((x.get("panghu3") or {}).get("regime")) for x in seq3]}
+    else: methods_reg = {}
+    v2temp = [(x.get("panghu") or {}).get("temp") for x in live]
+    methods_reg.update({"v2": [None if t is None else ("偏多" if t >= 60 else "偏空" if t <= 40 else "中性") for t in v2temp],
+                        "always_bull": ["偏多"] * N, "ma60": base_trend})
+    direction = {k: judge(v, T20) for k, v in methods.items()}
+    regime_acc = {k: judge(v, T60) for k, v in methods_reg.items()}
+    # 各狀態之後的表現(v3)
+    states = []
+    if seq3:
+        by = {}
+        for i, x in enumerate(seq3):
+            st_ = (x.get("panghu3") or {}).get("state")
+            if not st_ or F[20][i] is None: continue
+            key = st_.split("・", 1)[-1] if st_.startswith(("轉多確認", "轉空確認", "轉入盤整")) else st_
+            by.setdefault(key, []).append(F[20][i])
+        for k, xs in sorted(by.items(), key=lambda kv: -len(kv[1])):
+            states.append({"state": k, "n": len(xs), "fwd20": r4(mean(xs)), "up20": r4(mean([1 if x > 0.02 else 0 for x in xs])),
+                           "down20": r4(mean([1 if x < -0.02 else 0 for x in xs]))})
+    # 轉折:每次真下跌,多久判空、谷底後多久判多
+    def first(rng, cond): return next((i for i in rng if cond(i)), None)
+    turns = []
+    for r in ep_rows:
+        if r["kind"] != "真下跌": continue
+        pk, tr = dates.index(r["peak"]), dates.index(r["trough"])
+        row = {"peak": r["peak"], "trough": r["trough"], "depth": r["depth"]}
+        detect = {"v2": (lambda i: methods["v2"][i] == "偏空", lambda i: methods["v2"][i] == "偏多"),
+                  "ma60": (lambda i: base_trend[i] == "偏空", lambda i: base_trend[i] == "偏多")}
+        if seq3: detect["v3"] = (lambda i: (seq3[i].get("panghu3") or {}).get("regime") == "空頭", lambda i: (seq3[i].get("panghu3") or {}).get("regime") == "多頭")
+        for k, (isbear, isbull) in detect.items():
+            b = first(range(pk + 1, tr + 1), isbear); u = first(range(tr, N), isbull)
+            row[k] = {"bear_days": (b - pk) if b is not None else None, "bear_dd": r4(close[b] / close[pk] - 1) if b is not None else None,
+                      "bull_days": (u - tr) if u is not None else None, "bull_gain": r4(close[u] / close[tr] - 1) if u is not None else None}
+        turns.append(row)
+    # 誤報與穩定度
+    years_n = N / 250
+    def flips(seq_calls, want):
+        idx = [i for i in range(1, N) if seq_calls[i] == want and seq_calls[i - 1] != want and seq_calls[i - 1] is not None]
+        bad = [i for i in idx if i + 40 < N and ((close[i + 40] > close[i]) if want in ("空頭", "偏空") else (close[i + 40] < close[i]))]
+        return {"n": len(idx), "false": len(bad), "false_rate": r4(len(bad) / len(idx)) if idx else None}
+    stability = {}
+    def changes(xs): return sum(1 for i in range(1, N) if xs[i] is not None and xs[i - 1] is not None and xs[i] != xs[i - 1])
+    stability["v2"] = {"call_changes_per_year": round(changes(methods["v2"]) / years_n, 1), "to_bear": flips(methods["v2"], "偏空"), "to_bull": flips(methods["v2"], "偏多")}
+    stability["ma60"] = {"call_changes_per_year": round(changes(base_trend) / years_n, 1), "to_bear": flips(base_trend, "偏空"), "to_bull": flips(base_trend, "偏多")}
+    if seq3:
+        regs = [(x.get("panghu3") or {}).get("regime") for x in seq3]
+        stability["v3"] = {"call_changes_per_year": round(changes(methods["v3"]) / years_n, 1), "regime_changes_per_year": round(changes(regs) / years_n, 1),
+                           "to_bear": flips(regs, "空頭"), "to_bull": flips(regs, "多頭")}
+    judgment = {"names": mnames, "direction": direction, "regime": regime_acc, "states": states, "turns": turns, "stability": stability,
+                "notes": "方向:之後 20 日漲超過 2% 算漲、跌超過 2% 算跌;環境:之後 60 日 ±5%。平衡準確率 = 漲 / 平 / 跌三類各自命中率的平均,「永遠偏多」固定約 0.33。誤報 = 翻空後 40 天反而更高、翻多後 40 天反而更低。"}
+
     acts = {}
     for s in live:
         a = ((s.get("panghu") or {}).get("discipline") or {}).get("act")
@@ -413,8 +522,10 @@ def cmd_eval():
         "buckets": buckets, "ic": ic, "items": items, "scenarios": scenarios, "untriggered": untriggered,
         "sensitivity": {"base": {"total": base["total"], "mdd": base["mdd"], "calmar": base["calmar"], "ic20": ic["fwd20"],
                                  "bear_avoided": bg["bear_avoided"], "wash_re_days": bg["wash_re_days"]}, "rows": sens},
-        "actions": acts,
+        "actions": acts, "judgment": judgment,
         "series": {"dates": dates, "close": close, "temp": temps, "pos": [round(p * 100) for p in strat_pos["panghu_live"]],
+                   "v3": {"temp": [(x.get("panghu3") or {}).get("temp") for x in seq3], "pos": [(x.get("panghu3") or {}).get("pos") for x in seq3],
+                          "regime": [(x.get("panghu3") or {}).get("regime") for x in seq3]} if seq3 else None,
                    "eq": {k: [round(x, 4) for x in v] for k, v in curves.items()}},
         "notes": [
             "15:40 版模擬盤後發 LINE 的時點:當日融資未公布,融資不計分;含融資版是 21:30 補齊後的結果。",
