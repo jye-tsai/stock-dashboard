@@ -1,563 +1,265 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>胖虎指標回測</title>
 <meta name="theme-color" content="#172A52">
-<title>胖虎盤後籌碼站</title>
 <style>
-:root{
-  --bg:#F8F4E8;--navy:#172A52;--red:#C4282E;--green:#148046;--gold:#B0842C;--gray:#696970;--ink:#23232A;--card:#fff;--line:#46588233;
-  --c-red:#D9363E;--c-green:#1E9A5A;--c-gold:#C89A3A;--teal:#0F9D8A;
-  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF}}
-:root[data-theme=dark]{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF}
+:root{--bg:#F8F4E8;--navy:#172A52;--gold:#B0842C;--gray:#696970;--ink:#23232A;--card:#fff;--line:#46588233;
+  --c-red:#D9363E;--c-green:#1E9A5A;--c-gold:#C89A3A;--teal:#0F9D8A;--c-blue:#3A6FD9}
+@media (prefers-color-scheme:dark){:root{--bg:#12182a;--card:#1c2440;--ink:#eee;--gray:#a8adbd;--line:#ffffff22;--c-red:#FF6B6B;--c-green:#3ECF8E;--c-gold:#F2C35B;--teal:#2DD4BF;--c-blue:#7AA2FF}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Noto Sans TC",-apple-system,system-ui,sans-serif}
-header{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
-header .logo{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 12%;border:2px solid var(--gold);box-shadow:0 0 0 3px #ffd68233,0 4px 14px #0006;background:#fff;flex:0 0 auto}   /* 與主站 img.mascot 同款 */
-header h1{font-size:18px;margin:0;line-height:1.2}
-header .sub{font-size:12px;color:#FFD682}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",-apple-system,system-ui,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+header img{width:44px;height:44px;border-radius:50%;object-fit:cover;object-position:50% 12%;border:2px solid var(--gold);background:#fff}
+header h1{font-size:18px;margin:0;line-height:1.2}header .sub{font-size:12px;color:#FFD682}
 header .sp{flex:1}
-button{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:14px}
-.btn-gold{background:var(--gold);color:#fff}.btn-red{background:var(--red);color:#fff}.btn-navy{background:var(--navy);color:#fff}
-.btn-ghost{background:transparent;color:#fff;border:1px solid #ffffff55}
-main{max-width:920px;margin:0 auto;padding:14px 12px 60px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
-.card h2{margin:0 0 8px;font-size:15px;color:var(--gold);display:flex;align-items:center;gap:8px}
-.big{font:700 34px/1.1 "DejaVu Sans Mono",ui-monospace,monospace}
-.up{color:var(--red)}.dn{color:var(--green)}.mut{color:var(--gray)}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
-th:first-child,td:first-child{text-align:left}
-th{color:var(--gray);font-weight:600;font-size:12px}
-.tbl-wrap{overflow-x:auto}
-.oi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
-.oi .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.oi .hd b{font-size:15px}
-.oi .badge{font:700 14px ui-monospace,monospace;padding:2px 8px;border-radius:6px;background:var(--card);border:1px solid var(--line)}
-.oi .ln{display:grid;grid-template-columns:44px 1fr auto;gap:6px;align-items:baseline;font-variant-numeric:tabular-nums;padding:3px 0}
-.oi .ln .k{color:var(--gray);font-size:12px}
-.oi .ln .v{font-family:ui-monospace,monospace;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.oi .ln .v b{font-size:15px}
-.oi .ln .d{font:700 13px ui-monospace,monospace;white-space:nowrap}
-.disc{background:var(--navy);color:#fff;border-radius:14px;padding:12px 16px;margin-bottom:12px}
-.disc h2{color:#FFD682;margin:0 0 6px;font-size:15px}
-.disc .pos{font-weight:700;font-size:16px}
-.disc .ln{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #ffffff22;font-size:14px}
-.disc .ok{color:#7be0a5;font-weight:700}.disc .bad{color:#ff8a8a;font-weight:700}.disc .wait{color:#FFD682;font-weight:700}
-.disc .sm{font-size:12px;color:#c8cfe0}
-.disc .pend{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;background:#e5484d;color:#fff;font-size:11.5px;font-weight:700}
-.disc .pbar{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap}
-.disc .pbar i{flex:1 1 70px;min-width:70px;max-width:150px;height:6px;border-radius:3px;background:#ffffff22;position:relative;overflow:hidden}
-.disc .pbar i b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#9fb0d6}
-.disc .pbar i u{position:absolute;top:0;bottom:0;width:1px;background:#ffffff88}
-.disc .prng{font-size:11.5px;color:#9fb0d6;margin-top:-3px}
-.disc .pbar.hl i b{background:#FFD682}.disc .pbar.hl .pp{color:#FFD682;font-weight:700}
-.disc .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:4px 0 10px}
-.disc .tile{background:#ffffff12;border-radius:10px;padding:7px 10px;min-width:0}
-.disc .tile .n{font-size:11.5px;color:#9fb0d6}.disc .tile .v{font-size:14px;font-weight:700;line-height:1.35}
-.disc .oddh{font-size:12px;color:#9fb0d6}
-.disc .odd{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
-.disc .chip{background:#FFD68222;border:1px solid #FFD68288;color:#FFD682;border-radius:8px;padding:1px 8px;font-size:12.5px}
-.disc .rhd,.disc .prow{display:grid;grid-template-columns:minmax(0,10.5em) minmax(0,1fr) minmax(0,9.5em);grid-template-areas:'nm trk rg';gap:4px 10px;align-items:center}
-.disc .rhd{font-size:11px;color:#9fb0d6}.disc .rhd .sc{grid-area:trk;display:flex;justify-content:space-between}.disc .rhd .rr{grid-area:rg;text-align:right}
-.disc .prow{padding:5px 0;border-top:1px solid #ffffff1a}
-.disc .prow .nm{grid-area:nm;font-size:12.5px;line-height:1.35}.disc .prow .nm b{display:block;font-weight:600;color:#e8ecf5}
-.disc .prow .rg{grid-area:rg;font-size:11.5px;color:#9fb0d6;text-align:right}
-.disc .trk{grid-area:trk;position:relative;height:14px}
-.disc .trk .l{position:absolute;left:0;right:0;top:6px;height:2px;background:#ffffff26;border-radius:1px}
-.disc .trk .bd{position:absolute;left:20%;width:60%;top:3px;height:8px;background:#9fb0d633;border-radius:3px}
-.disc .trk .dt{position:absolute;top:1px;width:12px;height:12px;border-radius:50%;margin-left:-6px;background:#c8cfe0}
-.disc .prow.hl .dt{background:#FFD682}.disc .prow.hl .nm{color:#FFD682}
-.disc details.dm{margin-top:8px;border-top:1px solid #ffffff22;padding-top:6px}
-.disc details.dm>summary{cursor:pointer;font-size:12.5px;color:#9fb0d6;padding:4px 0}
-@media (max-width:520px){.disc .prow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'nm rg' 'trk trk'}.disc .rhd{display:none}}
-.disc .pnote{margin-top:8px;padding-top:7px;border-top:1px solid #ffffff22;font-size:12px;line-height:1.55}
-.disc .asp{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;padding:7px 0;border-top:1px solid #ffffff22}
-.disc .asp .an{font-weight:700;color:#FFD682;font-size:14px}
-.disc .asp .al{font-weight:700;font-size:15px}
-.disc .asp .ad{grid-column:2;font-size:12.5px;color:#c8cfe0;line-height:1.55}
-.disc .t-bull,.disc .t-buy,.disc .t-inflow{color:#ff9b9b}.disc .t-bear,.disc .t-sell,.disc .t-outflow{color:#7be0a5}
-.disc .t-bull_lean{color:#ffc4c4}.disc .t-bear_lean{color:#b5efcc}.disc .t-hot{color:#FFD682}.disc .t-cold{color:#9fc3ff}
-.disc .evbox{margin-top:8px;padding:8px 10px;border-radius:10px;background:#ffffff14;border:1px solid #FFD68266;font-size:13px}
-.disc .evbox b{color:#FFD682}
-.evt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
-.evt th,.evt td{padding:4px 5px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
-.evt th{color:var(--gray);font-weight:600;border-top:none}.evt td:first-child,.evt th:first-child{text-align:left}
-.evsum{display:grid;gap:6px}
-.evsum details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
-.evsum summary{cursor:pointer;font-weight:700}
-.evsum .on{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,transparent)}
-.lbl{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border-radius:14px;font-size:12px;font-weight:700;color:#fff}
-.chart{width:100%;height:auto;display:block;margin-top:6px}
-.chart text{font-size:11px;fill:var(--gray)}
-.chgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.chgrid .t{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+header a{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radius:10px;padding:8px 12px;font-weight:700;font-size:14px;white-space:nowrap;flex:none}
+header>div:nth-child(2){min-width:0}
+main{max-width:980px;margin:0 auto;padding:14px 12px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;overflow:hidden}
+.v2old>summary{cursor:pointer;font-weight:700;padding:12px 16px;border:1px dashed var(--line);border-radius:14px;margin-bottom:12px;color:var(--gray);list-style-position:inside}
+.v2old[open]>summary{margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--gold)}
+.mut{color:var(--gray)}.sm{font-size:12px}
+.up{color:var(--c-red)}.dn{color:var(--c-green)}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 6px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--gray);font-weight:600;border-top:none}
+td:first-child,th:first-child{text-align:left}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer}
+.tabs button.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-top:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+svg.ch{width:100%;height:auto;display:block}
+svg.ch text{font-size:11px;fill:var(--gray)}
+.flag{font-weight:700;border-radius:6px;padding:1px 6px;font-size:12px}
+.flag.ok{background:#3ECF8E26;color:var(--teal)}.flag.bad{background:#FF6B6B26;color:var(--c-red)}.flag.warn{background:#F2C35B26;color:var(--c-gold)}.flag.few{color:var(--gray)}
+.grp td{background:color-mix(in srgb,var(--gold) 10%,transparent);font-weight:700;color:var(--gold);text-align:left}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
-.kpi.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
-.kpi.tap:hover{border-color:var(--gold)}
-.kpi.tap .l::after{content:' ▾';color:var(--gold);font-size:11px}
-.kpi.open{grid-column:1/-1;border-color:var(--gold)}
-.kpi.open .l::after{content:' ▴'}
-.kpi .sp:not(:empty){margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
-.ins{display:grid;gap:6px}
-.ins div{font-size:14px;line-height:1.6}
-.ins b{color:var(--gold)}
-.phhead{display:flex;gap:14px;align-items:center;margin-bottom:8px}
-.phtemp{font:700 42px/1 ui-monospace,monospace;color:var(--gold);min-width:76px;text-align:center}
-.phhead>div:last-child{flex:1;min-width:0}
-.phlabel{font-weight:700;margin-bottom:8px}
-.phtrack{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,#3ECF8E55 0 20%,#3ECF8E2e 20% 40%,#8888881f 40% 60%,#FF6B6B2e 60% 80%,#FF6B6B55 80% 100%)}
-.phmark{position:absolute;top:-4px;width:20px;height:20px;border-radius:50%;background:var(--gold);border:2px solid var(--card);transform:translateX(-50%);box-shadow:0 2px 8px #0006}
-.phscale{display:flex;justify-content:space-between;font-size:11px;color:var(--gray);margin-top:5px}
-.phitems{display:grid;gap:2px;margin-top:8px}
-.phi{display:grid;grid-template-columns:34px 128px 1fr;gap:8px;align-items:baseline;font-size:13px;padding:5px 0;border-top:1px solid var(--line)}
-.phs{font:700 14px ui-monospace,monospace;text-align:center;border-radius:6px;padding:1px 0}
-.phs.up{background:#FF6B6B22}.phs.dn{background:#3ECF8E22}
-.phn{font-weight:700;white-space:nowrap}
-@media(max-width:600px){.phi{grid-template-columns:34px 1fr}.pht{grid-column:2}}
-.btn-mini{background:transparent;border:1px solid var(--line);color:var(--gray);font-size:12px;padding:3px 10px;border-radius:8px;margin-left:auto}
-.locked{display:none !important}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
-.kpi .d{font-size:12px}
-.status{font-size:13px;color:var(--gray);padding:6px 2px}
-pre{background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;font-size:13px}
-.imgs img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin-top:8px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-select,input{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px}
-dialog{border:0;border-radius:14px;padding:18px;max-width:420px;width:92vw;background:var(--card);color:var(--ink)}
-dialog label{display:block;font-size:13px;color:var(--gray);margin-top:10px}
-dialog input{width:100%}
-.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700;color:#fff}
-footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
+ul{margin:0;padding-left:20px}li{margin:3px 0}
+label.chk{font-size:13px;display:inline-flex;gap:6px;align-items:center;margin-bottom:8px;cursor:pointer}
+.ex{white-space:normal;text-align:left;color:var(--gray);font-size:12px;min-width:220px}
 </style>
 </head>
 <body>
 <header>
-  <img class="logo" src="../panghu-icon.webp" alt="胖虎" onerror="this.style.display='none'">
-  <div><h1>胖虎盤後籌碼站</h1><div class="sub" id="hdrDate">讀取中…</div></div>
+  <img src="../../panghu-icon.webp" alt="胖虎" onerror="this.style.display='none'">
+  <div><h1>胖虎指標回測</h1><div class="sub" id="hdr">讀取中…</div></div>
   <div class="sp"></div>
-  <a class="btn-ghost" href="../" title="回胖虎的小財庫" aria-label="回儀表板" style="text-decoration:none;display:inline-block;flex:none;white-space:nowrap;padding:9px 14px;border-radius:10px;font-size:14px;margin-right:8px">🏠</a>
-  <button class="btn-ghost" id="btnSettings" title="設定 GitHub 觸發">⚙️</button>
+  <a href="../" title="回籌碼站">↩ 籌碼站</a>
 </header>
-
-<main>
-  <div class="row" style="margin-bottom:12px">
-    <select id="dateSel"></select>
-    <button class="btn-gold auth-only" id="btnCopy">📋 複製給 Claude</button>
-    <button class="btn-red auth-only" id="btnRun">▶ 立即抓取</button>
-    <a class="btn-ghost lock-hint" href="../" style="text-decoration:none;color:var(--gray);border-color:var(--line);padding:9px 14px;border-radius:10px;font-weight:700;font-size:14px" title="到儀表板按「🔒 解鎖」輸入密碼，再回來這頁">🔒 到儀表板解鎖</a>
-    <button class="btn-navy" id="btnReload">🔄 重新載入</button>
-    <span class="status" id="status"></span>
-  </div>
-
-  <div class="disc" id="disc" style="display:none">
-    <h2 style="display:flex;align-items:center;gap:8px">胖虎指標・市場狀態 <a href="backtest/" style="margin-left:auto;color:#FFD682;font-size:12px;text-decoration:none;border:1px solid #FFD68266;border-radius:8px;padding:2px 8px" title="10 年回測報告">📊 回測</a></h2>
-    <div class="sm" id="discCap"></div>
-    <div id="discLines"></div>
-    <div id="discPos"></div>
-  </div>
-
-  <div class="card" id="phCard" style="display:none">
-    <h2>極端事件紀錄 <span class="mut" style="font-weight:400;font-size:12px">10 年回測,同一波只算一次;只列歷史後續,不是買賣訊號</span></h2>
-    <div class="evsum" id="evBox"></div>
-  </div>
-
-  <div class="card">
-    <h2>加權指數 <span class="tag" id="dayTag" style="background:var(--navy)"></span></h2>
-    <div class="row" style="align-items:baseline;gap:16px">
-      <div class="big" id="idxClose">—</div>
-      <div id="idxChg" style="font-weight:700;font-size:18px">—</div>
-      <div class="mut" id="idxAmt"></div>
-    </div>
-    <div class="grid" style="margin-top:10px" id="instGrid"></div>
-    <div id="labels" style="margin-top:10px"></div>
-  </div>
-
-  <div class="card" id="insCard" style="display:none">
-    <h2>今日解讀 <span class="mut" style="font-weight:400;font-size:12px">價量 / 籌碼,依當日資料自動判讀</span></h2>
-    <div class="ins" id="insBox"></div>
-  </div>
-
-  <div class="card">
-    <h2>20 日走勢 <button class="btn-mini" id="btnCharts" type="button">展開</button></h2>
-    <div class="chgrid" id="charts" hidden></div>
-  </div>
-
-  <div class="card">
-    <h2>臺股期貨 未平倉（前一交易日 → 今日）</h2>
-    <div id="oiCards"></div>
-    <div class="status" id="oiNote"></div>
-  </div>
-
-  <div class="card">
-    <h2>散戶與情緒（前 → 今）</h2>
-    <div class="grid" id="sentGrid"></div>
-  </div>
-
-  <div class="card auth-only">
-    <h2>給 Claude 的數據表</h2>
-    <pre id="claudeText">—</pre>
-  </div>
-
-  <div class="card imgs">
-    <h2>永豐快訊（對照）</h2>
-    <div id="spfImgs" class="mut">尚無</div>
-  </div>
-
-  <div class="card" id="weeklyCard" style="display:none"><h2>週報草稿（交接文件用）</h2><div id="weeklyList"></div></div>
-
-  <div class="card auth-only"><h2>抓取日誌</h2><pre id="logBox" class="mut">—</pre></div>
-</main>
-<footer>資料：期交所・證交所・永豐期貨｜多空比＝散戶淨多單／全市場OI（自算，與永豐一致）｜量與融資為證交所口徑（含盤後零股／ETF）｜跌綠漲紅</footer>
-
-<dialog id="dlg">
-  <h3 style="margin:0 0 6px">⚙️ GitHub 觸發設定</h3>
-  <div class="mut" style="font-size:13px">用 Fine-grained PAT（只勾此 repo 的 Actions 讀寫）。只存在這台裝置的 localStorage。儀表板若已設定 GitHub 同步，這裡留空會自動借用同一把 token。</div>
-  <label>帳號 (owner)</label><input id="cfgOwner" placeholder="jye-tsai">
-  <label>Repo</label><input id="cfgRepo" placeholder="stock-dashboard">
-  <label>Workflow 檔名</label><input id="cfgWf" value="chips.yml">
-  <label>Personal Access Token</label><input id="cfgTok" type="password" placeholder="github_pat_…">
-  <label>頁面主題</label>
-  <select id="cfgTheme"><option value="">跟隨系統</option><option value="light">淺色</option><option value="dark">深色</option></select>
-  <div class="row" style="margin-top:14px;justify-content:flex-end">
-    <button class="btn-ghost" style="color:var(--ink);border-color:var(--line)" id="cfgClear">清除</button>
-    <button class="btn-navy" id="cfgSave">儲存</button>
-  </div>
-</dialog>
-
+<main id="app"><div class="card mut">讀取 result.json…</div></main>
 <script>
 const $=s=>document.querySelector(s);
-const fmt=n=>n==null?'—':Number(n).toLocaleString('en-US');
-const sgn=n=>n==null?'—':(n>0?'+':'')+Number(n).toLocaleString('en-US');
-const cls=n=>n>0?'up':n<0?'dn':'mut';
-const pct=(n,d=2)=>n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
-let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e){}
-// 沒設 token 就借儀表板的 GitHub 設定（同一個 origin、同一把 PAT，存在 localStorage 的 pf-gh）；有自己設的以自己的為準
-if(!cfg.token){try{const g=JSON.parse(localStorage.getItem('pf-gh')||'null');if(g&&g.token){cfg={...cfg,owner:g.owner,repo:g.repo,token:g.token,wf:cfg.wf||'chips.yml',shared:true}}}catch(e){}}
-if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
+const pc=(x,d=1)=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(d)+'%';
+const pc0=(x)=>x==null?'—':(x*100).toFixed(0)+'%';
+const cl=x=>x==null?'':x>0?'up':x<0?'dn':'';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const COLORS={panghu_live:'var(--c-gold)',panghu_full:'var(--teal)',buy_hold:'var(--c-red)',fixed_half:'var(--gray)',panghu_v3:'var(--c-blue)'};
 
-let current=null,series=[];
-async function loadSeries(idx){
-  const tags=idx.slice(0,20).reverse();
-  const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
-  series=rs.filter(Boolean);
-}
-async function loadWeekly(){
-  try{const wi=await (await fetch('data/weekly_index.json?'+Date.now())).json();
-    if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${f}" target="_blank">${f.replace('weekly_','').replace('.md','')} 週報草稿</a></div>`).join('')}
-  }catch(e){}
-}
-async function loadIndex(){
-  try{
-    const idx=await (await fetch('data/index.json?'+Date.now())).json();
-    $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
-    await loadSeries(idx); await loadEvents(); loadWeekly();
-    if(idx.length)await loadDay(idx[0]);
-    else $('#status').textContent='尚無資料，請先跑一次 Action';
-  }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
-}
-async function loadDay(tag){
-  const t=await (await fetch(`data/${tag}.json?`+Date.now())).json(); current=t; render(t);
-  $('#status').textContent='已載入 '+t.date;
-}
-function render(t){
-  const p=t.prev||{};
-  $('#hdrDate').textContent=`${t.date}（前一交易日 ${p.date||'—'}）・產生 ${t.generated_at||''}`;
-  $('#dayTag').textContent=t.date;
-  const ix=t.index||{},pix=p.index||{};
-  $('#idxClose').textContent=fmt(ix.close); $('#idxClose').className='big '+cls(ix.chg);
-  const cp=pix.close?ix.chg/pix.close*100:null;
-  $('#idxChg').textContent=ix.chg==null?'—':`${ix.chg>0?'▲':'▼'}${fmt(Math.abs(ix.chg))}（${pct(cp)}）`;$('#idxChg').className=cls(ix.chg);
-  $('#idxAmt').textContent=ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'';
-  const i=t.inst||{};
-  // key 有給就變成可點,點一下在原地展開該指標近 10 日走勢(資料用已載入的 series,不再打網路)
-  const kp=(l,v,d,c,key)=>`<div class="kpi${key?' tap':''}"${key?` data-spark="${key}"`:''}><div class="l">${l}</div><div class="v ${c||''}">${v}</div><div class="d mut">${d||''}</div><div class="sp"></div></div>`;
-  $('#instGrid').innerHTML=[
-    kp('三大法人（億）',sgn(i['合計']),'',cls(i['合計']),'inst_all'),
-    kp('外資（億）',sgn(i['外資']),'',cls(i['外資']),'inst_fore'),
-    kp('投信（億）',sgn(i['投信']),'',cls(i['投信']),'inst_it'),
-    kp('自營（億）',sgn(i['自營']),'',cls(i['自營']),'inst_dl'),
-    kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),'','margin'),
-    kp('加權指數',fmt(ix.close),ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'',cls(ix.chg),'idx'),
-  ].join('');
-  const oc=$('#oiCards');oc.innerHTML='';
-  for(const role of ['自營商','投信','外資']){
-    const a=(t.txf||{})[role],b=(p.txf||{})[role];if(!a)continue;
-    const ln=(k,x,y,inv)=>{const d=y!=null?x-y:null;const c=d==null?'mut':cls(inv?-d:d);
-      return `<div class="ln"><span class="k">${k}</span><span class="v">${y!=null?fmt(y)+' → ':''}<b>${fmt(x)}</b></span><span class="d ${c}">${d==null?'':'('+sgn(d)+')'}</span></div>`};
-    const dn=b?a.net-b.net:null;
-    oc.insertAdjacentHTML('beforeend',`<div class="oi">
-      <div class="hd"><b>${role}</b><span class="badge ${cls(dn)}">淨 ${sgn(dn)}</span></div>
-      ${ln('多方',a.long,b&&b.long,false)}
-      ${ln('空方',a.short,b&&b.short,true)}
-      ${ln('淨額',a.net,b&&b.net,false)}
-    </div>`);
-  }
-  const f=(t.txf||{})['外資'],fp=(p.txf||{})['外資'];
-  if(f&&fp){const dl=f.long-fp.long,ds=f.short-fp.short;
-    const tag=dl>0&&ds<0?'加多減空・拆保險':dl>0&&ds>0?'加多加空・保險加厚':dl<0&&ds>0?'砍多加空・收傘':dl<0&&ds<0?'砍多減空・縮手':'小動作';
-    $('#oiNote').textContent=`外資：${tag}；淨空 ${f.net>-80000?'低於':'高於'} 8 萬口基態`;}
-  const g=[];
-  const rr=(name,k)=>{const a=t[k],b=p[k];if(!a)return;g.push(kp(name+'散戶多空比',pct(a.ratio_pct),b?`${pct(b.ratio_pct)} → 今；散戶淨 ${sgn(a.retail_net)}`:'',cls(a.ratio_pct),k))};
-  rr('小台','mtx_retail');rr('微台','tmf_retail');
-  if(t.pc)g.push(kp('全市場 Put/Call（OI）',t.pc.oi_ratio_pct+'%',p.pc?`${p.pc.oi_ratio_pct}% → 今`:'','','pc'));
-  if(t.vix!=null)g.push(kp('台指 VIX',t.vix,p.vix!=null?`${p.vix} → 今`:'','','vix'));
-  const o=(t.opt||{})['外資'],op=(p.opt||{})['外資'];
-  if(o){g.push(kp('外資買權淨OI',sgn(o.call),op?`${sgn(op.call)} → 今（${sgn(o.call-op.call)}）`:'',cls(o.call)));
-        g.push(kp('外資賣權淨OI',sgn(o.put),op?`${sgn(op.put)} → 今（${sgn(o.put-op.put)}）`:'',cls(-o.put)));}
-  $('#sentGrid').innerHTML=g.join('')||'<span class="mut">—</span>';
-  $('#claudeText').textContent=t.claude_text||'—';
-  const imgs=Object.values(t.spf||{}).flat();
-  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（永豐收盤後才放；排程 15:40 抓第一次、16:40 再補一次）</span>';
-  $('#logBox').textContent=(t.log||[]).join('\n')||'—';
-  renderIns(t); renderPanghu(t); renderDisc(t); renderLabels(t); renderCharts();
-}
-// ── 紀律狀態
-function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常的項目 → 同一把尺(歷史位置)→ 明細收起;不預測、不給倉位
-  const pg=t.panghu||{};
-  if(pg.version!==4||!(pg.aspects||[]).length){
-    if(pg.temp!=null){$('#disc').style.display='';$('#discCap').textContent='這天是舊版(v2 評分)資料,重新回補後會換成 v4 現況描述';$('#discLines').innerHTML='';$('#discPos').innerHTML=''}
-    else $('#disc').style.display='none';
-    return}
-  $('#disc').style.display='';
-  // 盤後資料沒齊:主要資料缺 → 紅字標籤 + 紅色備註;只缺融資(15:40 常態,21:30 才公布)→ 灰色小字
-  const MISS={inst:'外資現貨',margin:'融資餘額',opt:'選擇權',pc:'P/C',index:'加權指數',mtx_retail:'小台散戶',tmf_retail:'微台散戶','txf.外資':'外資台指期'};
-  const miss=t.missing||[], core=miss.filter(k=>k!=='margin');
-  $('#discCap').innerHTML=`${t.date} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${pg.note||''}`;
-  const base=(EVJ&&EVJ.trend_states)||{};
-  const POS=pg.position||[];   // 歷史位置百分位:只描述今天在歷史中多極端,不加總、不給結論
-  // 偏低 / 偏高各代表什麼(白話);顏色只分「正常 / 偏離」,不用紅綠,避免讀成看多看空
-  const WORD={gap60:['跌離均線','漲離均線'],vol_ratio:['量縮','量增'],foreign20_pct:['外資賣得多','外資買得多'],fut_chg20:['期貨往空方','期貨往多方'],
-    fut_net:['淨空偏多','淨空偏少'],rv20:['震幅小','震幅大'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
-  const odd=POS.filter(x=>x.p<=20||x.p>=80);
-  const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${a.name}</div><div class="v t-${a.tone}">${a.label}</div></div>`).join('')}</div>`;
-  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
-  const ruler=POS.length?`<div class="rhd"><span></span><span class="sc"><span>低</span><span>正常區間</span><span>高</span></span><span class="rr">正常範圍</span></div>`
-    +POS.map(x=>`<div class="prow${x.p<=20||x.p>=80?' hl':''}"><div class="nm"><b>${x.name}</b>${x.text}・P${x.p}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</div><div class="trk"><div class="l"></div><div class="bd"></div><div class="dt" style="left:${Math.min(98,Math.max(2,x.p))}%"></div></div><div class="rg">${x.range||''}</div></div>`).join(''):'';
-  const detail=pg.aspects.map(a=>{
-    const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
-    const pr=POS.filter(x=>x.aspect===a.k).map(x=>`<div class="ad" style="color:#9fb0d6">${x.name} ${x.text}:第 ${x.p} 百分位・${x.band};${x.range_text||''}</div>`).join('');
-    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${pr}${b}</div>`}).join('')
-    +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${pg.position_note}</div>`:'');
-  $('#discLines').innerHTML=tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
-  const ev=pg.events||[];
-  $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'')
-    +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${miss.map(k=>MISS[k]||k).join('、')}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`
-      :miss.includes('margin')?`<div class="pnote sm">※ 融資餘額待 21:30 更新(目前沿用前一交易日)</div>`:'');
-}
-// ── 自動判讀標籤
-function renderLabels(t){
-  const p=t.prev||{},L=[];
-  const tag=(s,c)=>L.push(`<span class="lbl" style="background:${c}">${s}</span>`);
-  const ix=t.index||{},pix=p.index||{};const cp=pix.close?ix.chg/pix.close*100:0;
-  const f=(t.txf||{})['外資'],fp=(p.txf||{})['外資'];
-  if(f&&fp){const dl=f.long-fp.long,ds=f.short-fp.short;
-    tag('外資期貨：'+(dl>0&&ds<0?'加多減空・拆保險':dl>0&&ds>0?'加多加空・保險加厚':dl<0&&ds>0?'砍多加空・收傘':dl<0&&ds<0?'砍多減空・縮手':'小動作'),'var(--navy)');
-    tag(f.net>-80000?'淨空低於 8 萬口基態':'淨空高於 8 萬口基態',f.net>-80000?'var(--red)':'var(--green)')}
-  for(const [k,nm] of [['mtx_retail','小台'],['tmf_retail','微台']]){
-    const a=t[k],b=p[k];if(!a)continue;
-    if(Math.abs(a.ratio_pct)<2)tag(`${nm}歸零讀數 ${pct(a.ratio_pct)}（洗盤完成）`,'var(--gold)');
-    if(b){const d=a.ratio_pct-b.ratio_pct;
-      if(cp>=1&&d<=-5)tag(`${nm}大漲日翻空（軋空燃料）`,'var(--red)');
-      if(cp<=-1&&d>=5)tag(`${nm}大跌日接刀`,'var(--green)');
-      if(cp>=0.5&&d>=5)tag(`${nm}追多 +${d.toFixed(1)} 點`,'var(--green)');}
-  }
-  if(t.basis!=null)tag(`期指${t.basis>=0?'正':'逆'}價差 ${sgn(Math.round(t.basis))}`+(t.basis>=250?'（偏熱）':t.basis<0?'（期貨端縮手）':''),t.basis>=250?'var(--red)':t.basis<0?'var(--green)':'var(--gray)');
-  if(ix.amount_yi&&pix.amount_yi){const dv=ix.amount_yi/pix.amount_yi-1;if(dv>0.2&&Math.abs(cp)<0.3)tag('量增價平：量價背離','var(--green)');if(dv<-0.2&&cp>0.8)tag('量縮上漲：追價力弱','var(--gold)')}
-  const o=(t.opt||{})['外資'],op=(p.opt||{})['外資'];
-  if(o&&op&&o.put-op.put>=2000)tag(`外資賣權 +${fmt(o.put-op.put)}：買保險`,'var(--green)');
-  if(o&&op&&op.put-o.put>=1500)tag(`外資賣權 −${fmt(op.put-o.put)}：拆保險`,'var(--red)');
-  $('#labels').innerHTML=L.join('')||'<span class="mut">—</span>';
-}
-// ── 20 日走勢（純 SVG，仿儀表板回撤圖：平滑曲線 + 線下漸層 + 尾端亮點；柱狀圖維持紅漲綠跌）
-let sparkSeq=0;
-// Catmull-Rom → cubic bezier，點少於 3 個就直線；pts=[[x,y],...]（已去掉 null）
-function smoothPath(pts){
-  if(pts.length<3)return 'M'+pts.map(p=>p.join(',')).join(' L');
-  let d=`M${pts[0][0]},${pts[0][1]}`;
-  for(let i=0;i<pts.length-1;i++){
-    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
-    d+=` C${(p1[0]+(p2[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2[1]-p0[1])/6).toFixed(1)} ${(p2[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2[0]},${p2[1]}`;
-  }
-  return d;
-}
-function spark(title,vals,fmtV,opts={}){
-  const W=320,Hh=110,pl=44,pr=8,pt=14,pb=18;const xs=vals.map(v=>v.v).filter(v=>v!=null);
-  if(xs.length<2)return '';
-  let mn=Math.min(...xs),mx=Math.max(...xs);if(opts.zero){mn=Math.min(mn,0);mx=Math.max(mx,0)}if(mn===mx){mn-=1;mx+=1}
-  if(opts.fixed){mn=opts.fixed[0];mx=opts.fixed[1]}   // 固定刻度(胖虎指標 0~100)
-  const X=i=>pl+i*(W-pl-pr)/(vals.length-1),Y=v=>pt+(mx-v)*(Hh-pt-pb)/(mx-mn);
-  const col=opts.color||'var(--teal)',gid='spk'+(sparkSeq++);
-  let s=`<div><div class="t">${title}</div><svg class="chart" viewBox="0 0 ${W} ${Hh}">`;
-  s+=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".42"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`;
-  if(opts.bands)opts.bands.forEach(b=>{s+=`<rect x="${pl}" y="${Y(b[1]).toFixed(1)}" width="${W-pl-pr}" height="${(Y(b[0])-Y(b[1])).toFixed(1)}" fill="${b[2]}"/>`});   // 倉位級距色帶
-  const midY=pt+(Hh-pt-pb)/2;s+=`<line x1="${pl}" x2="${W-pr}" y1="${midY}" y2="${midY}" stroke="var(--line)" stroke-width="1"/>`;   // 淡底格線
-  if(opts.zero)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--gray)" stroke-dasharray="3 3" stroke-width="1"/>`;
-  if(opts.ref!=null&&opts.ref>=mn&&opts.ref<=mx)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--c-gold)" stroke-dasharray="4 3" stroke-width="1" opacity=".8"/>`+(opts.refLabel?`<text x="${W-pr}" y="${Y(opts.ref)-3}" text-anchor="end" fill="var(--c-gold)">${opts.refLabel}</text>`:'');
-  if(opts.bars){vals.forEach((v,i)=>{if(v.v==null)return;const y0=Y(0),y1=Y(v.v);const bw=Math.max(3,(W-pl-pr)/vals.length-3);
-    s+=`<rect x="${X(i)-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)||1}" rx="1.5" fill="${v.v>=0?'var(--c-red)':'var(--c-green)'}" opacity=".9"/>`})}
-  else{
-    const pts=vals.map((v,i)=>v.v==null?null:[+X(i).toFixed(1),+Y(v.v).toFixed(1)]).filter(Boolean);
-    const d=smoothPath(pts),base=(opts.zero?Y(0):Hh-pb).toFixed(1),last=pts[pts.length-1];
-    s+=`<path d="${d} L${last[0]},${base} L${pts[0][0]},${base} Z" fill="url(#${gid})" stroke="none"/>`;                 // 線下漸層
-    s+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
-    s+=`<circle cx="${last[0]}" cy="${last[1]}" r="6.5" fill="${col}" opacity=".22"/><circle cx="${last[0]}" cy="${last[1]}" r="3.2" fill="${col}" stroke="var(--card)" stroke-width="1.5"/>`;   // 尾端亮點
-  }
-  s+=`<text x="${pl-4}" y="${pt+4}" text-anchor="end">${fmtV(mx)}</text><text x="${pl-4}" y="${Hh-pb}" text-anchor="end">${fmtV(mn)}</text>`;
-  s+=`<text x="${pl}" y="${Hh-4}">${vals[0].d}</text><text x="${W-pr}" y="${Hh-4}" text-anchor="end">${vals[vals.length-1].d}</text>`;
-  // 當日資料還沒公布(如三大法人 16:00 後才出)就退到最後一個有值的點,標「最新」而不是「今 —」
-  const li=vals.map(v=>v.v).reduce((a,v,i)=>v==null?a:i,-1);
-  if(li>=0)s+=`<text x="${W/2}" y="${Hh-4}" text-anchor="middle" font-weight="700" fill="var(--ink)">${li===vals.length-1?'今':'最新 '+vals[li].d} ${fmtV(vals[li].v)}</text>`;
-  return s+'</svg></div>';
-}
-// ── 今日解讀（fetch_all 算好存在當日 json 的 insight；回補的舊日子沒有就不顯示）
-function renderIns(t){
-  const ins=(t.insight||{}).lines||[];
-  $('#insCard').style.display=ins.length?'':'none';
-  $('#insBox').innerHTML=ins.map(x=>{const i=x.indexOf('：')>=0?x.indexOf('：'):x.indexOf(':');
-    return i>0?`<div><b>${x.slice(0,i)}</b>${x.slice(i)}</div>`:`<div>${x}</div>`}).join('');
+// 折線圖:series=[{name,color,v:[...],dash}];labels=[日期]
+function lineChart(series,labels,o={}){
+  const W=900,H=o.h||240,pl=48,pr=10,pt=10,pb=22;
+  const all=series.flatMap(s=>s.v).filter(v=>v!=null);if(!all.length)return '';
+  let mn=o.min!=null?o.min:Math.min(...all),mx=o.max!=null?o.max:Math.max(...all);if(mn===mx){mn-=1;mx+=1}
+  const n=labels.length,X=i=>pl+i*(W-pl-pr)/Math.max(1,n-1),Y=v=>pt+(mx-v)*(H-pt-pb)/(mx-mn);
+  let s=`<svg class="ch" viewBox="0 0 ${W} ${H}">`;
+  (o.bands||[]).forEach(b=>{s+=`<rect x="${pl}" y="${Y(b[1])}" width="${W-pl-pr}" height="${Y(b[0])-Y(b[1])}" fill="${b[2]}"/>`});
+  for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4,y=Y(v);s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-5}" y="${y+4}" text-anchor="end">${o.fmt?o.fmt(v):v.toFixed(0)}</text>`}
+  if(o.ref!=null)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" stroke="var(--gray)" stroke-dasharray="4 4"/>`;
+  series.forEach(se=>{let d='',pen=false;se.v.forEach((v,i)=>{if(v==null){pen=false;return}d+=(pen?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);pen=true});
+    s+=`<path d="${d}" fill="none" stroke="${se.color}" stroke-width="${se.w||2}" ${se.dash?`stroke-dasharray="${se.dash}"`:''} stroke-linejoin="round"/>`});
+  const ticks=[0,Math.floor(n/2),n-1];ticks.forEach((i,j)=>{s+=`<text x="${X(i)}" y="${H-5}" text-anchor="${j===0?'start':j===2?'end':'middle'}">${labels[i]||''}</text>`});
+  return s+'</svg>'+(o.legend===false?'':`<div class="legend">${series.map(x=>`<span><i style="background:${x.color}"></i>${esc(x.name)}</span>`).join('')}</div>`);
 }
 
-// ── KPI 點一下展開近 10 日（沿用 spark()，資料取自已載入的 series）
-const dLbl=t=>t.date.slice(5), gv=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
-const kInt=v=>v==null?'—':Math.round(v).toLocaleString();
-// 胖虎指標圖的倉位級距色帶(要在 SPARKS 之前宣告,SPARKS 會引用)
-const PH_BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
-const SPARKS={
-  panghu:{t:'收盤對 60 日均線（%）',g:t=>gv(t,'panghu','data','gap60'),f:v=>v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
-  idx:{t:'加權指數',g:t=>gv(t,'index','close'),f:kInt,o:{color:'var(--c-red)'}},
-  inst_all:{t:'三大法人（億）',g:t=>gv(t,'inst','合計'),f:kInt,o:{bars:true,zero:true}},
-  inst_fore:{t:'外資買賣超（億）',g:t=>gv(t,'inst','外資'),f:kInt,o:{bars:true,zero:true}},
-  inst_it:{t:'投信買賣超（億）',g:t=>gv(t,'inst','投信'),f:kInt,o:{bars:true,zero:true}},
-  inst_dl:{t:'自營買賣超（億）',g:t=>gv(t,'inst','自營'),f:kInt,o:{bars:true,zero:true}},
-  margin:{t:'融資餘額（億）',g:t=>t.margin,f:kInt,o:{color:'var(--c-gold)'}},
-  mtx_retail:{t:'小台散戶多空比（%）',g:t=>gv(t,'mtx_retail','ratio_pct'),f:v=>v==null?'—':v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
-  tmf_retail:{t:'微台散戶多空比（%）',g:t=>gv(t,'tmf_retail','ratio_pct'),f:v=>v==null?'—':v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
-  vix:{t:'台指 VIX',g:t=>t.vix,f:v=>v==null?'—':v.toFixed(2),o:{color:'var(--c-red)'}},
-  pc:{t:'全市場 P/C（OI，%）',g:t=>gv(t,'pc','oi_ratio_pct'),f:v=>v==null?'—':v.toFixed(0)+'%',o:{color:'var(--teal)',ref:100,refLabel:'100%'}}
-};
-function miniSpark(key){
-  const S=SPARKS[key]; if(!S)return '<span class="mut">無此指標</span>';
-  const last=series.slice(-20);   // 跟下面「20 日走勢」同區間,展開後看到的長度一致
-  if(last.length<2)return '<span class="mut">資料累積 2 天後顯示</span>';
-  return spark(S.t+'　近 '+last.length+' 日',last.map(t=>({d:dLbl(t),v:S.g(t)})),S.f,S.o)||'<span class="mut">此指標近期無資料</span>';
-}
-document.addEventListener('click',e=>{
-  const k=e.target.closest('.kpi[data-spark]'); if(!k)return;
-  const box=k.querySelector('.sp'), was=!!box.innerHTML;
-  document.querySelectorAll('.kpi .sp').forEach(b=>{b.innerHTML=''});
-  document.querySelectorAll('.kpi.open').forEach(x=>x.classList.remove('open'));
-  if(!was){box.innerHTML=miniSpark(k.dataset.spark);k.classList.add('open')}
-});
+function render(R,S){
+  $('#hdr').textContent=`${R.range[0]} ～ ${R.range[1]}・${R.n_days} 個交易日・現行胖虎指標 v${R.current_version??4}(v${R.config_version} 為停用的對照組)・產生 ${R.generated_at.replace('T',' ')}`;
+  const st=R.strategy, keys=['panghu_live','panghu_full','buy_hold','fixed_half'].concat(st.all.panghu_v3?['panghu_v3']:[]);
+  const L=st.all.panghu_live,B=st.all.buy_hold;
+  let h='';
+  if(S&&!S.complete)h+=`<div class="card" style="border-color:var(--c-gold)"><b>資料尚未抓完</b>:已抓 ${S.ok} / ${S.trading_days} 天。到 GitHub Actions 再跑一次 backtest,會接著抓。</div>`;
 
-// ── 極端事件紀錄(讀 backtest/events.json;當天有觸發的那一種自動展開)
-var EVJ=null;   // var:避免在宣告前被 renderDisc 讀到時的暫時性死區
-async function loadEvents(){try{EVJ=await (await fetch('backtest/events.json?'+Date.now())).json()}catch(e){EVJ=null}}
-function renderPanghu(t){
-  const card=$('#phCard');
-  if(!EVJ||!EVJ.events){card.style.display='none';return}
-  card.style.display='';
-  const today=new Set(((t.panghu||{}).events||[]).map(e=>e.k));
-  const p1=x=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(1)+'%';
-  $('#evBox').innerHTML=Object.entries(EVJ.events).map(([k,v])=>{
-    const b=v.in_bear||{};
-    const rows=(v.list||[]).slice().reverse().map(x=>`<tr><td>${x.date}<div class="mut" style="font-size:11px">${x.trend||''}</div></td><td>${Math.round(x.close).toLocaleString()}</td><td class="${cls(x.fwd5)}">${p1(x.fwd5)}</td><td class="${cls(x.fwd20)}">${p1(x.fwd20)}</td><td class="${cls(x.fwd60)}">${p1(x.fwd60)}</td><td class="dn">${p1(x.dd20)}</td></tr>`).join('');
-    return `<details${today.has(k)?' open class="on"':''}><summary>${today.has(k)?'⚠ 今天出現・':''}${v.name}:${v.n} 次,之後 20 日 ${v.up20} 漲 ${v.down20} 跌,中位數 ${p1(v.median20)},最深再跌 ${p1(v.worst_dd20)}${b.n?`;空頭排列中 ${b.n} 次 ${b.up20} 漲 ${b.down20} 跌`:''}</summary>
-      <div style="overflow-x:auto;margin-top:6px"><table class="evt"><tr><th>日期</th><th>收盤</th><th>5 日</th><th>20 日</th><th>60 日</th><th>20 日內再跌</th></tr>${rows}</table></div></details>`}).join('')
-    +`<div class="mut" style="font-size:12px">${EVJ.note||''}(資料 ${EVJ.range[0]} ～ ${EVJ.range[1]})</div>`;
+  // 判斷準確度(主要看這張)
+  const J=R.judgment;
+  if(J){const nm=J.names,f2=x=>x==null?'—':x.toFixed(2),lift=x=>x==null?'—':'×'+x.toFixed(2);
+    const order=['v3','v2','ma60','always_bull'].filter(k=>J.direction[k]);
+    const dirRow=k=>{const v=J.direction[k];return `<tr><td>${esc(nm[k])}</td><td><b>${f2(v.balanced)}</b></td><td>${pc0(v.cov_bull)}</td><td>${pc0(v.prec_bull)}<div class="sm mut">基準 ${pc0(v.base_up)}・${lift(v.lift_bull)}</div></td><td>${pc0(v.cov_bear)}</td><td>${pc0(v.prec_bear)}<div class="sm mut">基準 ${pc0(v.base_down)}・${lift(v.lift_bear)}</div></td></tr>`};
+    const regRow=k=>{const v=J.regime[k];if(!v)return '';return `<tr><td>${esc(nm[k])}</td><td><b>${f2(v.balanced)}</b></td><td>${pc0(v.prec_bull)}<div class="sm mut">基準 ${pc0(v.base_up)}</div></td><td>${pc0(v.prec_bear)}<div class="sm mut">基準 ${pc0(v.base_down)}</div></td></tr>`};
+    const stb=J.stability||{};
+    h+=`<div class="card" style="border-color:var(--c-gold)"><h2>判斷準確度(主要看這張)</h2>
+      <div class="sm" style="margin-bottom:6px">方向:判偏多 / 偏空之後 20 日真的漲 / 跌超過 2% 嗎?平衡準確率 = 漲、平、跌三類各自猜中比例的平均,「永遠偏多」固定約 0.33,要贏過笨方法才算有判斷力。</div>
+      <div class="tw"><table><tr><th>方法</th><th>平衡準確率</th><th>判偏多占</th><th>偏多命中</th><th>判偏空占</th><th>偏空命中</th></tr>${order.map(dirRow).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">環境:判多 / 空之後 60 日真的漲 / 跌超過 5% 嗎?</div>
+      <div class="tw"><table><tr><th>方法</th><th>平衡準確率</th><th>判多命中</th><th>判空命中</th></tr>${['v3','v2','ma60','always_bull'].map(regRow).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">穩定度與誤報:翻空後 40 天反而更高、翻多後 40 天反而更低,算誤報。</div>
+      <div class="tw"><table><tr><th>方法</th><th>判讀每年變幾次</th><th>翻空次數 / 誤報</th><th>翻多次數 / 誤報</th></tr>${['v3','v2','ma60'].filter(k=>stb[k]).map(k=>{const v=stb[k];return `<tr><td>${esc(nm[k])}</td><td>${v.call_changes_per_year}${v.regime_changes_per_year!=null?`<div class="sm mut">環境 ${v.regime_changes_per_year}</div>`:''}</td><td>${v.to_bear.n} / ${v.to_bear.false}(${pc0(v.to_bear.false_rate)})</td><td>${v.to_bull.n} / ${v.to_bull.false}(${pc0(v.to_bull.false_rate)})</td></tr>`}).join('')}</table></div>
+      ${(J.turns||[]).length?`<div class="sm" style="margin:10px 0 6px">真下跌的轉折:從前高算第幾天判空、谷底後第幾天判多</div><div class="tw"><table><tr><th>事件</th>${['v3','v2','ma60'].filter(k=>J.turns[0][k]).map(k=>`<th>${esc(nm[k])}</th>`).join('')}</tr>
+        ${J.turns.map(t=>`<tr><td>${t.peak} → ${t.trough}<div class="sm dn">${pc(t.depth)}</div></td>${['v3','v2','ma60'].filter(k=>t[k]).map(k=>{const g=t[k];return `<td>判空 ${g.bear_days==null?'沒判':'第 '+g.bear_days+' 天'}${g.bear_dd!=null?`<div class="sm mut">當時 ${pc(g.bear_dd)}</div>`:''}判多 ${g.bull_days==null?'沒判':'谷底後 '+g.bull_days+' 天'}${g.bull_gain!=null?`<div class="sm mut">已漲 ${pc(g.bull_gain)}</div>`:''}</td>`}).join('')}</tr>`).join('')}</table></div>`:''}
+      ${(J.states||[]).length?`<div class="sm" style="margin:10px 0 6px">v3 各狀態之後 20 日的表現(狀態有用 = 多頭類之後漲得多、空頭類之後跌得多)</div><div class="tw"><table><tr><th>狀態</th><th>天數</th><th>之後 20 日平均</th><th>漲超過 2%</th><th>跌超過 2%</th></tr>
+        ${J.states.map(x=>`<tr><td>${esc(x.state)}</td><td>${x.n}</td><td class="${cl(x.fwd20)}">${pc(x.fwd20,2)}</td><td>${pc0(x.up20)}</td><td>${pc0(x.down20)}</td></tr>`).join('')}</table></div>`:''}
+      <div class="sm mut" style="margin-top:6px">${esc(J.notes||'')}</div></div>`;}
+
+  // 現行 v4:極端事件 + 趨勢狀態 + 位置百分位分布
+  const ES=R.events_summary||{},TS=R.trend_states||{},PD=R.position_dist||{};
+  if(Object.keys(ES).length||Object.keys(TS).length){
+    const f1=x=>x==null?'—':(+x).toLocaleString(undefined,{maximumFractionDigits:2});
+    h+=`<div class="card"><h2>現行 v4:極端事件與趨勢狀態(10 年)</h2>
+      <div class="sm" style="margin-bottom:6px">v4 只描述現況,不預測、不給倉位。極端事件同一波(相隔 10 個交易日內)只算一次。</div>
+      <div class="tw"><table><tr><th>極端事件</th><th>獨立次數</th><th>之後 20 日</th><th>20 日中位數</th><th>20 日內最深再跌</th><th>空頭排列中</th></tr>
+      ${Object.values(ES).map(v=>{const b=v.in_bear||{};return `<tr><td>${esc(v.name)}<div class="sm mut">${v.n_days} 天</div></td><td>${v.n}</td><td>${v.up20} 漲 ${v.down20} 跌</td><td class="${cl(v.median20)}">${pc(v.median20)}</td><td class="dn">${pc(v.worst_dd20)}</td><td>${b.n?`${b.n} 次:${b.up20} 漲 ${b.down20} 跌`:'—'}</td></tr>`}).join('')}</table></div>
+      <div class="tw" style="margin-top:10px"><table><tr><th>趨勢狀態</th><th>天數(段數)</th><th>之後 20 日中位數</th><th>之後 20 日上漲機率</th></tr>
+      ${Object.entries(TS).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.days}(${v.runs})</td><td class="${cl(v.median20)}">${pc(v.median20)}</td><td>${pc0(v.up20)}</td></tr>`).join('')}</table></div>
+      ${Object.keys(PD).length?`<div class="sm" style="margin:10px 0 6px">位置百分位的歷史分布(每天盤後拿今天的值來對,算出第幾百分位)</div>
+      <div class="tw"><table><tr><th>指標</th><th>資料</th><th>極低 ≤ 第 5</th><th>偏低 ≤ 第 20</th><th>中位數</th><th>偏高 ≥ 第 80</th><th>極高 ≥ 第 95</th></tr>
+      ${Object.values(PD).map(v=>{const u=x=>x==null?'—':f1(x)+(v.unit==='口'?' 口':v.unit||'');return `<tr><td>${esc(v.name)}</td><td>${v.years} 年<div class="sm mut">${v.n} 天</div></td><td>${u(v.p5)}</td><td>${u(v.p20)}</td><td><b>${u(v.p50)}</b></td><td>${u(v.p80)}</td><td>${u(v.p95)}</td></tr>`}).join('')}</table></div>`:''}
+      <div class="sm mut" style="margin-top:6px">趨勢狀態之後的表現差異不大(空頭排列之後 20 日平均反而是漲的),所以 v4 不拿它預測,只當作背景。</div></div>`;
+  }
+
+  // 波動 / 風險回測
+  const RK=R.risk;
+  if(RK&&RK.groups){
+    const f2=x=>x==null?'—':(+x).toFixed(2);
+    h+=`<div class="card"><h2>波動 / 風險回測(風險面向的依據)</h2>
+      <div class="sm" style="margin-bottom:6px">近 ${RK.days} 日實際波動 = 加權指數日報酬的標準差(年化)。分組只跟當天以前近 3 年比,不偷看未來。期間 ${RK.range[0]} ～ ${RK.range[1]}・${RK.n} 天。</div>
+      <div class="tw"><table><tr><th>問題</th><th>結果</th><th>結論</th></tr>
+        <tr><td>今天的波動能預測接下來 ${RK.days} 日的波動嗎</td><td>相關 全期 ${f2(RK.corr.all)}・前半 ${f2(RK.corr.h1)}・後半 ${f2(RK.corr.h2)}・獨立樣本 ${f2(RK.corr.indep)}</td><td><span class="flag ok">可以,且穩定</span></td></tr>
+        <tr><td>能預測接下來跌多深嗎</td><td>獨立樣本相關 ${f2(RK.corr_dd_indep)}</td><td><span class="flag warn">一般情況不能;只看得出最壞情況變壞</span></td></tr>
+        <tr><td>用常態分布估區間準嗎</td><td>±1 個標準差實際只涵蓋 ${pc0(RK.cover_1sd_normal)}(常態約 68%)</td><td><span class="flag warn">尾巴比較肥,改用歷史實際分布校準(× ${RK.k68})</span></td></tr></table></div>
+      <div class="sm" style="margin:10px 0 6px">預測接下來 ${RK.days} 日波動:今天的波動跟近 3 年平均怎麼配最準(誤差中位數,越小越好)</div>
+      <div class="tw"><table><tr>${RK.forecast_err.map(x=>`<th>今天 ${Math.round(x.w*100)}%</th>`).join('')}</tr><tr>${RK.forecast_err.map(x=>`<td>${f2(x.err)}${x.w===RK.today_weight?' ✓':''}</td>`).join('')}</tr></table></div>
+      <div class="sm" style="margin:10px 0 6px">各波動組之後 ${RK.days} 日(盤後「風險」面向引用這張)</div>
+      <div class="tw"><table><tr><th>波動組</th><th>天數</th><th>當時波動</th><th>之後波動</th><th>常見漲跌</th><th>最深跌中位數</th><th>最深跌最差 1 成</th><th>跌超過 8%</th><th>20 日報酬中位數</th><th>上漲機率</th></tr>
+      ${RK.groups.map(g=>`<tr><td>${esc(g.label)}</td><td>${g.n}</td><td>${g.rv_med}%</td><td>${g.frv_med}%</td><td>±${g.range_med}%</td><td class="dn">${g.dd_med}%</td><td class="dn">${g.dd_w10}%</td><td>${g.p8}%<div class="sm mut">獨立 ${g.n_ep} 段中 ${g.ep8} 段</div></td><td class="${cl(g.ret_med)}">${g.ret_med>0?'+':''}${g.ret_med}%</td><td>${g.up}%</td></tr>`).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">沒採用的發現:趨勢 × 波動。逐日看「季線之下・波動非高」好像最危險,改成獨立段落就消失了(連續天數重複計算造成的)</div>
+      <div class="tw"><table><tr><th>組合</th><th>逐日:跌超過 8%</th><th>獨立段落:跌超過 8%</th></tr>
+      ${RK.trend_cells.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.p8}%<div class="sm mut">${c.n} 天</div></td><td>${c.ep8} / ${c.n_ep} 段</td></tr>`).join('')}</table></div>
+      <div class="sm mut" style="margin-top:6px">波動只描述震幅、不代表方向:高波動組之後大反彈也比較多。${esc(RK.note||'')}</div></div>`;
+  }
+
+  // ── 以下是舊版 v2 評分的完整回測(已停用),收起來當對照紀錄
+  h+=`<details class="v2old"><summary>舊版 v2 評分(已停用)完整回測:點開看為什麼不用分數</summary>`;
+
+  // 重點
+  h+=`<div class="card"><h2>重點</h2><div class="kpis">
+    <div class="kpi"><div class="l">v2 評分總報酬(15:40)</div><div class="v ${cl(L.total)}">${pc(L.total)}</div><div class="sm mut">全程滿倉 ${pc(B.total)}</div></div>
+    <div class="kpi"><div class="l">最大回檔</div><div class="v">${pc(L.mdd)}</div><div class="sm mut">全程滿倉 ${pc(B.mdd)}</div></div>
+    <div class="kpi"><div class="l">溫度與之後 20 日報酬相關</div><div class="v">${R.ic.fwd20==null?'—':R.ic.fwd20.toFixed(2)}</div><div class="sm mut">正值 = 溫度越高之後越漲;第一年 ${R.ic.fwd20_h1??'—'}、第二年 ${R.ic.fwd20_h2??'—'}</div></div>
+    <div class="kpi"><div class="l">平均部位 / 換倉次數</div><div class="v">${pc0(L.avg_expo)}</div><div class="sm mut">換倉 ${L.changes} 次</div></div>
+  </div></div>`;
+
+  // 三個目標(對應:轉多抓得到、洗盤敢進場、真下跌跑得快)
+  const G=R.goals||{}, gk=['panghu_live'].concat(G.panghu_v3?['panghu_v3']:[]).concat(Object.keys(R.groups||{})), gn=k=>k==='panghu_live'?'v2 全部 13 項':R.names[k];
+  const days=x=>x==null?'—':Math.round(x)+' 天';
+  const grow=(label,f,hint)=>`<tr><td>${label}<div class="sm mut">${hint}</div></td>${gk.map(k=>`<td>${f(G[k]||{})}</td>`).join('')}</tr>`;
+  const g0=G.panghu_live||{};
+  h+=`<div class="card"><h2>三個目標</h2><div class="tw"><table><tr><th>目標</th>${gk.map(k=>`<th>${esc(gn(k))}</th>`).join('')}</tr>
+    ${grow('① 真下跌少跌幾成',g=>pc0(g.bear_avoided),`跌 15% 以上共 ${g0.bear_n??0} 次;全程滿倉 = 0%`)}
+    ${grow('　真下跌在跌到多少時減半',g=>pc(g.bear_cut_at),'越接近 0 代表跑得越快')}
+    ${grow('② 洗盤谷底還留幾成部位',g=>pc0(g.wash_expo_trough),`跌 8%~15% 又創新高共 ${g0.wash_n??0} 次;越高代表越敢留`)}
+    ${grow('　洗盤後幾天回到七成',g=>days(g.wash_re_days)+(g.wash_never_back?`(${g.wash_never_back} 次沒回來)`:''),'越短越好')}
+    ${grow('③ 大底後 60 天吃到幾成漲幅',g=>pc0(g.rally_cap),'真下跌谷底起算;全程滿倉 = 100%')}
+  </table></div><div class="sm mut" style="margin-top:6px">洗盤 / 真下跌是事後依跌幅分類,用來打分數;指標本身只能用當下資料判斷,這正是它難的地方。</div></div>`;
+
+  // 策略績效
+  h+=`<div class="card"><h2>策略績效</h2><div class="tabs" id="stTabs"><button data-p="all" class="on">全期間</button><button data-p="h1">第一年(樣本內)</button><button data-p="h2">第二年(樣本外)</button></div><div class="tw" id="stTbl"></div>
+    <div class="sm mut" style="margin-top:6px">切分日 ${R.split_date}。第一年拿來看要不要調,第二年只驗不調;兩段都要站得住才算數。</div></div>`;
+
+  // 分段:近 3 年完整版 vs 更早精簡版
+  const SG=R.segments||{};
+  if(SG.full||SG.lite){
+    const segRow=(key,label)=>{const x=SG[key];if(!x)return '';const m=x.strategy.panghu_live,b=x.strategy.buy_hold,f=x.strategy.fixed_half,g=(x.goals||{}).panghu_live||{};
+      return `<tr><td>${label}<div class="sm mut">${x.range[0]} ～ ${x.range[1]}・${x.n} 天</div></td><td class="${cl(m.total)}">${pc(m.total)}</td><td>${pc(m.mdd)}</td><td class="${cl(b.total)}">${pc(b.total)}</td><td>${pc(b.mdd)}</td><td class="${cl(f.total)}">${pc(f.total)}</td><td>${x.ic20==null?'—':x.ic20.toFixed(2)}</td><td>${x.n_episodes}</td><td>${pc0(g.bear_avoided)}</td><td>${pc0(g.wash_expo_trough)}</td><td>${pc0(g.rally_cap)}</td></tr>`};
+    h+=`<div class="card"><h2>分段:近 3 年完整版 vs 更早精簡版</h2><div class="tw"><table><tr><th>區段</th><th>胖虎報酬</th><th>胖虎回檔</th><th>滿倉報酬</th><th>滿倉回檔</th><th>固定五成</th><th>溫度與 20 日相關</th><th>回檔事件</th><th>真下跌少跌</th><th>洗盤谷底部位</th><th>大底後參與</th></tr>
+      ${segRow('lite','更早精簡版(缺期貨籌碼)')}${segRow('full','近 3 年完整 13 項')}</table></div>
+      <div class="sm mut" style="margin-top:6px">期交所期貨三大法人只開放近 3 年,更早的日子外資期貨多空與散戶多空比不計分。兩段口徑不同,分開看;精簡版主要用來驗「環境判斷」在 2018、2020、2022 等不同行情裡站不站得住。</div></div>`;
+  }
+
+  // 淨值
+  const eq=R.series.eq;
+  h+=`<div class="card"><h2>淨值曲線(起點 1)</h2>${lineChart(keys.map(k=>({name:R.names[k],color:COLORS[k],v:eq[k],dash:k==='fixed_half'?'5 4':null,w:k.startsWith('panghu')?2.4:1.6})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}</div>`;
+
+  // 組合比較:全部 / 只看籌碼 / 只看價格趨勢
+  const ck=['panghu_live'].concat(Object.keys(R.groups||{})).concat(['buy_hold']);
+  const CC={panghu_live:'var(--c-gold)',grp_chips:'var(--c-blue)',grp_price:'var(--teal)',buy_hold:'var(--c-red)'};
+  h+=`<div class="card"><h2>組合比較:全部 vs 只看籌碼 vs 只看價格趨勢</h2>
+    ${lineChart(ck.map(k=>({name:k==='panghu_live'?'全部 13 項':R.names[k],color:CC[k]||'var(--gray)',v:eq[k],w:k==='panghu_live'?2.4:1.6,dash:k==='buy_hold'?'5 4':null})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}
+    <div class="tw"><table><tr><th>組合</th><th>總報酬</th><th>最大回檔</th><th>報酬÷回檔</th><th>上漲參與</th><th>下跌承受</th><th>換倉</th><th>溫度與 20 日相關</th></tr>
+    ${ck.map(k=>{const m=st.all[k];const ick=k==='panghu_live'?'grp_all':k;return `<tr><td>${k==='panghu_live'?'全部 13 項':R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td>${pc(m.mdd)}</td><td>${m.calmar??'—'}</td><td>${pc0(m.up_cap)}</td><td>${pc0(m.down_cap)}</td><td>${m.changes}</td><td>${R.ic[ick]==null?'—':R.ic[ick].toFixed(2)}</td></tr>`}).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">只看籌碼 = 外資現貨、外資期貨多空、散戶多空比、P/C、融資;只看價格趨勢 = 趨勢、量能、價量。其他項目權重歸零,溫度用剩下的項目標準化。</div></div>`;
+
+  // 指數 + 溫度 + 建議倉位
+  const BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
+  h+=`<div class="card"><h2>加權指數與胖虎指標</h2>${lineChart([{name:'加權指數',color:'var(--c-red)',v:R.series.close}],R.series.dates,{h:180,legend:false,fmt:v=>Math.round(v).toLocaleString()})}
+    ${lineChart([{name:'胖虎指標溫度',color:'var(--c-gold)',v:R.series.temp},{name:'建議倉位 %',color:'var(--c-blue)',v:R.series.pos,w:1.4}],R.series.dates,{h:180,min:0,max:100,bands:BANDS})}</div>`;
+
+  // 溫度分組
+  h+=`<div class="card"><h2>溫度分組:之後的平均報酬</h2><div class="tw"><table><tr><th>溫度</th><th>天數</th><th>5 日報酬</th><th>5 日上漲機率</th><th>20 日報酬</th><th>20 日上漲機率</th></tr>
+    ${R.buckets.map(b=>`<tr><td>${b.lo}–${b.hi}</td><td>${b.n}</td><td class="${cl(b.fwd5)}">${pc(b.fwd5,2)}</td><td>${pc0(b.hit5)}</td><td class="${cl(b.fwd20)}">${pc(b.fwd20,2)}</td><td>${pc0(b.hit20)}</td></tr>`).join('')}
+    <tr><td class="mut">全部平均</td><td></td><td class="${cl(R.uncond[5])}">${pc(R.uncond[5],2)}</td><td></td><td class="${cl(R.uncond[20])}">${pc(R.uncond[20],2)}</td><td></td></tr></table></div>
+    <div class="sm mut" style="margin-top:6px">理想狀況:溫度越高那一列的報酬越好。某一列天數太少(個位數)就別太相信。</div></div>`;
+
+  // 回檔事件
+  const EP=R.episodes||[];
+  h+=`<div class="card"><h2>回檔事件(跌 8% 以上)</h2>${EP.length?`<div class="tw"><table><tr><th>類型</th><th>前高</th><th>谷底</th><th>站回</th><th>跌幅</th><th>前高部位</th><th>谷底部位</th><th>少跌</th><th>減半時跌幅</th><th>回到七成</th><th>60 天參與</th></tr>
+    ${EP.map(e=>{const g=e.panghu_live||{};return `<tr><td><span class="flag ${e.kind==='真下跌'?'bad':'warn'}">${e.kind}</span></td><td>${e.peak}</td><td>${e.trough}<div class="sm mut">${e.days_down} 天</div></td><td>${e.recover||'尚未'}${e.days_back!=null?`<div class="sm mut">${e.days_back} 天</div>`:''}</td>
+      <td class="dn">${pc(e.depth)}</td><td>${pc0(g.expo_peak)}</td><td>${pc0(g.expo_trough)}</td><td>${pc0(g.avoided)}</td><td>${g.cut_at_dd==null?'沒減半':pc(g.cut_at_dd)}</td>
+      <td>${g.re_days==null?'沒回來':g.re_days+' 天'}${g.re_missed?`<div class="sm mut">已漲 ${pc(g.re_missed)}</div>`:''}</td><td>${e.kind==='真下跌'?pc0(g.rally_cap):'—'}</td></tr>`}).join('')}</table></div>`:'<div class="mut">回測期間沒有跌超過 8% 的回檔</div>'}
+    <div class="sm mut" style="margin-top:6px">部位與少跌以「胖虎指標(15:40 版)」計。洗盤要看谷底部位高、回到七成快;真下跌要看減半時跌幅小、少跌多。</div></div>`;
+
+  // 各指標
+  h+=`<div class="card"><h2>各指標:分數有沒有預測力</h2><div class="tw"><table><tr><th>指標</th><th>權重</th><th>有資料天數</th><th>對 5 日相關</th><th>對 20 日相關</th><th>各分數之後 20 日平均</th></tr>
+    ${R.items.map(it=>`<tr><td>${esc(it.name)}</td><td>${it.w}</td><td>${it.n}</td><td class="${cl(it.ic5)}">${it.ic5==null?'—':it.ic5.toFixed(2)}</td><td class="${cl(it.ic20)}">${it.ic20==null?'—':it.ic20.toFixed(2)}</td>
+      <td class="ex">${Object.entries(it.by_score).map(([s,v])=>`${s>0?'+':''}${s}:${pc(v.fwd20,1)}(${v.n})`).join('　')||'—'}</td></tr>`).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">相關為等級相關,正值代表分數給對方向;接近 0 代表這項沒預測力,權重可考慮調低;明顯為負代表方向可能反了。</div></div>`;
+
+  // 情境
+  const nb=R.scenarios.filter(r=>r.flag==='方向不符').length, nw=R.scenarios.filter(r=>r.flag==='中性卻有方向').length;
+  h+=`<div class="card"><h2>各情境:出現次數與之後表現</h2>
+    <div class="sm" style="margin-bottom:8px"><span class="flag bad">方向不符 ${nb}</span>　<span class="flag warn">中性卻有方向 ${nw}</span>　<span class="mut">沒出現過 ${R.untriggered.length} 種</span></div>
+    <label class="chk"><input type="checkbox" id="onlyBad"> 只看有問題的</label><div class="tw" id="scTbl"></div></div>`;
+
+  // 參數敏感度
+  const SS=R.sensitivity||{rows:[]},SB=SS.base||{};
+  const cellS=x=>x&&!x.error?`<b>${typeof x.value==='number'?+x.value.toFixed(3):x.value}</b><div class="sm">${pc(x.total)}・回檔 ${pc(x.mdd)}</div><div class="sm mut">少跌 ${pc0(x.bear_avoided)}・回補 ${days(x.wash_re_days)}</div>`:'<span class="mut">—</span>';
+  h+=`<div class="card"><h2>參數敏感度(×0.8 / ×1.2)</h2><div class="sm" style="margin-bottom:6px">目前設定:總報酬 ${pc(SB.total)}・最大回檔 ${pc(SB.mdd)}・真下跌少跌 ${pc0(SB.bear_avoided)}・洗盤回補 ${days(SB.wash_re_days)}</div>
+    <div class="tw"><table><tr><th>參數</th><th>目前</th><th>×0.8</th><th>×1.2</th><th>判定</th></tr>
+    ${SS.rows.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.base==null?'—':+(+r.base).toFixed(3)}</td><td>${cellS(r.lo)}</td><td>${cellS(r.hi)}</td><td>${r.fragile?'<span class="flag bad">敏感</span>':'<span class="mut">穩</span>'}</td></tr>`).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">動兩成結果就大翻的數字,多半是剛好擬合這段行情;這種參數寧可取整數、取直觀的值,不要追最佳。</div></div>`;
+
+  // 動作 + 未出現 + 注意
+  const actName={out:'跌破第二道',below_line2:'仍在第二道下',down:'跌破防線',below_line:'仍在防線下',fake_break:'假跌破觀察',gate:'外資未買超暫不加碼',up:'升級',weaken:'降級',top:'滿倉',bottom:'空手',steady:'連日維持',hold:'維持'};
+  h+=`<div class="card"><h2>紀律動作分布(15:40 版)</h2><div class="tw"><table><tr><th>動作</th><th>天數</th></tr>${Object.entries(R.actions).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${actName[k]||k}</td><td>${v}</td></tr>`).join('')}</table></div></div>`;
+  h+=`<div class="card"><h2>回測期間沒出現過的情境</h2><div class="sm">${R.untriggered.map(u=>`${esc(u.name)}・${esc(u.scenario)}(${u.score>0?'+':''}${u.score})`).join('、')||'全部都出現過'}</div></div>`;
+  h+=`</details>`;
+  h+=`<div class="card"><h2>注意事項</h2><ul class="sm">${R.notes.map(x=>`<li>${esc(x)}</li>`).join('')}<li>這是機械式指標回測,用來找出分數給錯的情境,不是保證未來績效,也不是投資建議。</li></ul></div>`;
+  $('#app').innerHTML=h;
+
+  const stTbl=p=>{$('#stTbl').innerHTML=`<table><tr><th>策略</th><th>總報酬</th><th>年化</th><th>最大回檔</th><th>報酬÷回檔</th><th>上漲參與</th><th>下跌承受</th><th>夏普</th><th>平均部位</th><th>換倉</th></tr>
+    ${keys.map(k=>{const m=st[p][k];return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[k]};margin-right:6px"></i>${R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td class="${cl(m.cagr)}">${pc(m.cagr)}</td><td>${pc(m.mdd)}</td><td>${m.calmar??'—'}</td><td>${pc0(m.up_cap)}</td><td>${pc0(m.down_cap)}</td><td>${m.sharpe??'—'}</td><td>${pc0(m.avg_expo)}</td><td>${m.changes}</td></tr>`}).join('')}</table>`};
+  stTbl('all');
+  document.querySelectorAll('#stTabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#stTabs button').forEach(x=>x.classList.toggle('on',x===b));stTbl(b.dataset.p)});
+
+  const scTbl=()=>{const only=$('#onlyBad').checked;let last='',rows='';
+    for(const r of R.scenarios){if(only&&!(r.flag==='方向不符'||r.flag==='中性卻有方向'))continue;
+      if(r.name!==last){rows+=`<tr class="grp"><td colspan="8">${esc(r.name)}</td></tr>`;last=r.name}
+      const fc=r.flag==='方向不符'?'bad':r.flag==='中性卻有方向'?'warn':'few';
+      rows+=`<tr><td>${esc(r.scenario)}</td><td>${r.score>0?'+':''}${r.score}</td><td>${r.n_events??'—'}<div class="sm mut">${r.n} 天</div></td><td class="${cl(r.fwd5)}">${pc(r.fwd5,2)}</td><td class="${cl(r.ev_fwd20??r.fwd20)}">${pc(r.ev_fwd20??r.fwd20,2)}<div class="sm mut">逐日 ${pc(r.fwd20,1)}</div></td><td class="${cl(r.excess20)}">${pc(r.excess20,2)}</td><td>${r.flag?`<span class="flag ${fc}">${r.flag}</span>`:''}</td><td class="ex">${esc(r.example||'')}</td></tr>`}
+    $('#scTbl').innerHTML=`<table><tr><th>情境</th><th>分數</th><th>獨立事件</th><th>之後 5 日</th><th>之後 20 日(獨立)</th><th>比平均多</th><th>判定</th><th>最近一次</th></tr>${rows||'<tr><td colspan="8" class="mut">沒有</td></tr>'}</table>`};
+  scTbl(); $('#onlyBad').onchange=scTbl;
 }
 
-function renderCharts(){
-  if(series.length<2){$('#charts').innerHTML='<span class="mut">資料累積 2 天後顯示</span>';return}
-  const d=t=>t.date.slice(5),g=(t,...k)=>{let o=t;for(const x of k){o=o&&o[x]}return o==null?null:o};
-  const sv=(f)=>series.map(t=>({d:d(t),v:f(t)}));
-  const k=v=>v==null?'—':Math.round(v).toLocaleString();
-  const idxClose=sv(t=>g(t,'index','close'));
-  const dl=(((current||{}).panghu||{}).data||{}).ma60, lines=dl?[dl]:[];   // 加權圖的參考線 = 60 日均線(胖虎指標 v4)
-  $('#charts').innerHTML=[
-    spark('收盤對 60 日均線（%）',sv(t=>g(t,'panghu','data','gap60')),v=>v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
-    spark('加權指數',idxClose,k,{color:'var(--c-red)',ref:lines[0],refLabel:lines[0]?'60 日均 '+fmt(lines[0]):''}),
-    spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--c-green)',ref:-80000,refLabel:'8 萬口基態'}),
-    spark('外資現貨買賣超（億）',sv(t=>g(t,'inst','外資')),v=>v==null?'—':Math.round(v)+'',{bars:true,zero:true}),
-    spark('小台散戶多空比（%）',sv(t=>g(t,'mtx_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
-    spark('微台散戶多空比（%）',sv(t=>g(t,'tmf_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
-    spark('全市場 P/C（OI，%）',sv(t=>g(t,'pc','oi_ratio_pct')),v=>v==null?'—':v.toFixed(0)+'%',{color:'var(--teal)',ref:100,refLabel:'100%'}),
-  ].join('');
-}
-// 20 日走勢預設收起(主頁只留今日數值;要看全部再展開),狀態記在這台裝置
-(function(){
-  const box=$('#charts'),btn=$('#btnCharts');
-  const set=open=>{box.hidden=!open;btn.textContent=open?'收起':'展開';try{localStorage.setItem('twdaily_charts',open?'1':'0')}catch(e){}};
-  let open=true; try{const v=localStorage.getItem('twdaily_charts');if(v!=null)open=v==='1'}catch(e){}   // 預設展開;自己收起過才記住
-  set(open); btn.onclick=()=>set(box.hidden);
+(async()=>{
+  let S=null;try{S=await (await fetch('fetch_status.json?'+Date.now())).json()}catch(e){}
+  try{const R=await (await fetch('result.json?'+Date.now())).json();render(R,S)}
+  catch(e){$('#hdr').textContent='尚未產生回測結果';$('#app').innerHTML=`<div class="card">還沒有回測結果。到 GitHub → Actions → <b>backtest</b> → Run workflow(預設抓兩年,約 40～80 分鐘;抓不完會存進度,再跑一次接著抓)。${S?`<div class="sm mut" style="margin-top:6px">目前已抓 ${S.ok} / ${S.trading_days} 天</div>`:''}</div>`}
 })();
-// ── 解鎖狀態：沿用儀表板（同網域、同分頁）在 sessionStorage 寫的 pf-edit-unlocked-until（30 分鐘）
-// 這頁只讀不驗密碼，密碼邏輯只留在儀表板一份；沒解鎖就把「複製給 Claude / 立即抓取 / 數據表 / 抓取日誌」藏起來。
-function isUnlocked(){try{return Date.now()<Number(sessionStorage.getItem('pf-edit-unlocked-until')||0)}catch(e){return false}}
-function applyAuth(){
-  const ok=isUnlocked();
-  document.querySelectorAll('.auth-only').forEach(el=>el.classList.toggle('locked',!ok));
-  document.querySelectorAll('.lock-hint').forEach(el=>el.classList.toggle('locked',ok));
-}
-applyAuth();
-setInterval(applyAuth,30000);                       // 解鎖會過期，定時收回
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)applyAuth()});
-$('#dateSel').onchange=e=>loadDay(e.target.value);
-$('#btnReload').onclick=()=>loadIndex();
-$('#btnCopy').onclick=async()=>{
-  if(!current)return;
-  const base=location.href.replace(/index\.html$/,'').replace(/\/$/,'')+'/data/';
-  const imgs=Object.values(current.spf||{}).flat().map(fn=>base+fn);
-  let txt=current.claude_text;
-  if(current.prev_summary)txt+='\n── 昨日摘要 ──\n'+current.prev_summary;
-  if(imgs.length)txt+='\n永豐圖：\n'+imgs.join('\n');
-  try{await navigator.clipboard.writeText(txt);$('#status').textContent='已複製，貼到 Claude 即可'}
-  catch(e){$('#status').textContent='複製失敗，請手動選取下方文字'}
-};
-$('#btnRun').onclick=async()=>{
-  if(!cfg.owner||!cfg.repo||!cfg.token){$('#dlg').showModal();return}
-  $('#status').textContent='觸發中…';
-  const r=await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/dispatches`,{
-    method:'POST',headers:{Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'},
-    body:JSON.stringify({ref:'main',inputs:{date:'',source:'manual'}})});   // source=manual：不 LINE 通知
-  if(r.status!==204){$('#status').textContent='觸發失敗 HTTP '+r.status+'（檢查 workflow 檔名／token 權限）';return}
-  $('#status').textContent='已觸發，等待 Action…';
-  pollRun();
-};
-async function pollRun(){
-  const hdr={Authorization:'Bearer '+cfg.token,Accept:'application/vnd.github+json'};
-  for(let i=0;i<40;i++){
-    await new Promise(r=>setTimeout(r,12000));
-    try{
-      const j=await (await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/actions/workflows/${cfg.wf||'chips.yml'}/runs?per_page=1`,{headers:hdr})).json();
-      const run=(j.workflow_runs||[])[0];if(!run)continue;
-      if(run.status!=='completed'){$('#status').textContent=`Action ${run.status}…（${Math.round(i*12/60)} 分）`;continue}
-      $('#status').textContent=run.conclusion==='success'?'完成，Pages 部署後自動更新…':'Action 失敗：'+run.conclusion;
-      await new Promise(r=>setTimeout(r,60000)); await loadIndex(); return;
-    }catch(e){}
-  }
-  $('#status').textContent='等待超時，請手動重新載入';
-}
-// 下拉重新整理（手機）
-let ty0=null;
-document.addEventListener('touchstart',e=>{ty0=window.scrollY===0?e.touches[0].clientY:null},{passive:true});
-document.addEventListener('touchend',e=>{if(ty0!=null&&e.changedTouches[0].clientY-ty0>90){$('#status').textContent='重新載入…';loadIndex()}ty0=null},{passive:true});
-// 桌面：在頁頂往上滾滾輪也可重新載入
-let wheelAcc=0,wheelT=0;
-window.addEventListener('wheel',e=>{if(window.scrollY>0)return;const now=Date.now();if(now-wheelT>800)wheelAcc=0;wheelT=now;wheelAcc+=e.deltaY;
-  if(wheelAcc<-400){wheelAcc=0;$('#status').textContent='重新載入…';loadIndex()}},{passive:true});
-// 每 10 分鐘自動更新一次
-setInterval(loadIndex,600000);
-$('#btnSettings').onclick=()=>{$('#cfgOwner').value=cfg.owner||'';$('#cfgRepo').value=cfg.repo||'';$('#cfgWf').value=cfg.wf||'chips.yml';$('#cfgTok').value=cfg.token||'';$('#cfgTheme').value=cfg.theme||'';$('#dlg').showModal()};
-$('#cfgSave').onclick=()=>{cfg={owner:$('#cfgOwner').value.trim(),repo:$('#cfgRepo').value.trim(),wf:$('#cfgWf').value.trim(),token:$('#cfgTok').value.trim(),theme:$('#cfgTheme').value};
-  try{localStorage.setItem('twdaily_cfg',JSON.stringify(cfg))}catch(e){}
-  document.documentElement.dataset.theme=cfg.theme||'';if(!cfg.theme)delete document.documentElement.dataset.theme;$('#dlg').close()};
-$('#cfgClear').onclick=()=>{cfg={};try{localStorage.removeItem('twdaily_cfg')}catch(e){}$('#dlg').close()};
-loadIndex();
 </script>
 </body>
 </html>
