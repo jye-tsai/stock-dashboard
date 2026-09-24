@@ -843,6 +843,12 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
         combo = Cc["fut_combo"][ck]; base = Cc["baseline_net"]; net = fu["net"]
         lines.append(f"外資台指期 多單 {dl:+,} 口、空單 {ds_:+,} 口({combo});淨{'空' if net < 0 else '多'} {abs(net):,} 口,"
                      f"{'低於' if net > base else '高於'} {abs(base) // 10000} 萬口基態")
+        data["fut_net"] = net
+        fo = ((hist[-20] if len(hist) >= 20 else {}).get("txf") or {}).get("外資")      # 20 個交易日前(hist 不含今天)
+        if ok_oi(fo):
+            c20 = net - fo["net"]; data["fut_chg20"] = c20
+            nw = lambda x: f"淨{'空' if x < 0 else '多'} {abs(x):,}"
+            lines.append(f"近 20 日 {nw(fo['net'])} → {abs(net):,} 口,{c20:+,} 口({'往多方:回補空單 / 加多' if c20 > 0 else '往空方:加空 / 砍多' if c20 < 0 else '持平'})")
     n = Cc["margin_days"]
     if t.get("margin_note"): lines.append("今日融資尚未公布(21:30 那班補)")
     elif close and len(seq) > n:
@@ -924,6 +930,23 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
     summary = "|".join(f"{a['name']} {a['label']}" for a in aspects)
     return {"version": 4, "aspects": aspects, "events": events, "summary": summary, "data": data, "note": cfg.get("note", "")}
 
+def recent_fut_nets(date, n):
+    """date 之前最近 n 個交易日的外資台指期淨未平倉 {日期: 口}:回測原始資料(每週六更新)+ 每日存檔(較新,蓋過)"""
+    got = {}
+    y, m = int(date[:4]), int(date[5:7])
+    for _ in range(4):                                             # 往回 4 個月的回測原始資料
+        try:
+            for d, x in json.load(open(os.path.join(DATA, "..", "backtest", "raw", f"{y}{m:02d}.json"), encoding="utf-8")).items():
+                fu = (x.get("txf") or {}).get("外資") or {}
+                if d < date and (fu.get("long") or 0) + (fu.get("short") or 0) > 0: got[d] = fu["net"]
+        except Exception: pass
+        m -= 1
+        if m == 0: y, m = y - 1, 12
+    for x in recent_days(n, ymd(date)):
+        fu = (x.get("txf") or {}).get("外資") or {}
+        if (fu.get("long") or 0) + (fu.get("short") or 0) > 0: got[x["date"]] = fu["net"]
+    return dict(sorted(got.items())[-n:])
+
 def describe_live(t, p, hist, cfg):
     """每天盤後用:加權收盤從證交所月表往回抓 130 天、匯率用 Yahoo 日線;極端事件附 events.json 的歷史"""
     closes, amts, ds = index_history(t["date"], 130)
@@ -932,6 +955,13 @@ def describe_live(t, p, hist, cfg):
         closes.append(ix["close"]); amts.append(ix.get("amount_yi") or 0)
     dist = load_dist()
     pg = build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history(), dist)
+    try:
+        h60 = sorted(recent_fut_nets(t["date"], 60).values())
+        ca = next((a for a in pg.get("aspects") or [] if a["k"] == "chips"), None)
+        if ca and len(h60) >= 40 and (pg.get("data") or {}).get("fut_net") is not None:
+            m = h60[len(h60) // 2]; pg["data"]["fut_net_med60"] = m
+            ca["lines"].append(f"水位對照:近 {len(h60)} 日淨部位中位數 淨{'空' if m < 0 else '多'} {abs(m):,} 口(外資 3 年來多單大砍、空單大增,只看水位會失真)")
+    except Exception as e: log(f"  外資期貨 60 日對照失敗:{e.__class__.__name__}: {e}")
     try: attach_position(pg, t, dist)
     except Exception as e: log(f"  位置百分位計算失敗:{e.__class__.__name__}: {e}")
     return pg
@@ -944,7 +974,7 @@ POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
     ("gap60", "trend", "收盤對 60 日均", "{:+.1f}%"),
     ("vol_ratio", "trend", "成交對 20 日均量", "{:.0f}%"),
     ("foreign20_pct", "chips", "外資現貨 20 日佔成交", "{:+.1f}%"),
-    ("fut_net", "chips", "外資台指期淨未平倉", "{:+,.0f} 口"),
+    ("fut_chg20", "chips", "外資台指期 20 日增減", "{:+,.0f} 口"),   # 看增減不看水位:外資 3 年來多單大砍、空單大增,水位已經結構性漂移
     ("retail", "sentiment", "散戶多空比", "{:+.1f}%"),
     ("pc", "sentiment", "P/C(OI)", "{:.1f}%"),
     ("twd20", "fx", "美元兌台幣 20 日", "{:+.2f}%"),
@@ -952,11 +982,9 @@ POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
 
 def position_values(t, data):
     """位置百分位用的原始值;t 當日、data = build_describe 的 data"""
-    f = (t.get("txf") or {}).get("外資") or {}
-    ok_oi = ((f.get("long") or 0) + (f.get("short") or 0)) > 0          # 未平倉全 0 = 期交所還沒算好
     rs = [x["ratio_pct"] for x in (t.get("mtx_retail"), t.get("tmf_retail")) if x and x.get("ratio_pct") is not None]
     return {"gap60": data.get("gap60"), "vol_ratio": data.get("vol_ratio"), "foreign20_pct": data.get("foreign20_pct"),
-            "fut_net": f.get("net") if ok_oi else None, "retail": round(sum(rs) / len(rs), 2) if rs else None,
+            "fut_chg20": data.get("fut_chg20"), "retail": round(sum(rs) / len(rs), 2) if rs else None,
             "pc": (t.get("pc") or {}).get("oi_ratio_pct"), "twd20": data.get("twd20")}
 
 def pctile(v, q):
@@ -993,6 +1021,7 @@ def attach_position(pg, t, dist):
         q20, q50, q80 = d["q"][20], d["q"][50], d["q"][80]
         out.append({"k": k, "aspect": ak, "name": name, "value": v, "text": fm.format(v), "p": p, "band": pct_band(p),
                     "years": d.get("years"), "n": d.get("n"), "q20": q20, "q50": q50, "q80": q80,
+                    "range": f"{nf.format(q20)} ~ {nf.format(q80)}{unit}",
                     "range_text": f"正常 {nf.format(q20)} ~ {nf.format(q80)}{unit}・中位數 {nf.format(q50)}{unit}"})
     if out:
         pg["position"] = out

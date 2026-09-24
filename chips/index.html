@@ -55,6 +55,25 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .disc .pbar i u{position:absolute;top:0;bottom:0;width:1px;background:#ffffff88}
 .disc .prng{font-size:11.5px;color:#9fb0d6;margin-top:-3px}
 .disc .pbar.hl i b{background:#FFD682}.disc .pbar.hl .pp{color:#FFD682;font-weight:700}
+.disc .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:4px 0 10px}
+.disc .tile{background:#ffffff12;border-radius:10px;padding:7px 10px;min-width:0}
+.disc .tile .n{font-size:11.5px;color:#9fb0d6}.disc .tile .v{font-size:14px;font-weight:700;line-height:1.35}
+.disc .oddh{font-size:12px;color:#9fb0d6}
+.disc .odd{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.disc .chip{background:#FFD68222;border:1px solid #FFD68288;color:#FFD682;border-radius:8px;padding:1px 8px;font-size:12.5px}
+.disc .rhd,.disc .prow{display:grid;grid-template-columns:minmax(0,10.5em) minmax(0,1fr) minmax(0,9.5em);grid-template-areas:'nm trk rg';gap:4px 10px;align-items:center}
+.disc .rhd{font-size:11px;color:#9fb0d6}.disc .rhd .sc{grid-area:trk;display:flex;justify-content:space-between}.disc .rhd .rr{grid-area:rg;text-align:right}
+.disc .prow{padding:5px 0;border-top:1px solid #ffffff1a}
+.disc .prow .nm{grid-area:nm;font-size:12.5px;line-height:1.35}.disc .prow .nm b{display:block;font-weight:600;color:#e8ecf5}
+.disc .prow .rg{grid-area:rg;font-size:11.5px;color:#9fb0d6;text-align:right}
+.disc .trk{grid-area:trk;position:relative;height:14px}
+.disc .trk .l{position:absolute;left:0;right:0;top:6px;height:2px;background:#ffffff26;border-radius:1px}
+.disc .trk .bd{position:absolute;left:20%;width:60%;top:3px;height:8px;background:#9fb0d633;border-radius:3px}
+.disc .trk .dt{position:absolute;top:1px;width:12px;height:12px;border-radius:50%;margin-left:-6px;background:#c8cfe0}
+.disc .prow.hl .dt{background:#FFD682}.disc .prow.hl .nm{color:#FFD682}
+.disc details.dm{margin-top:8px;border-top:1px solid #ffffff22;padding-top:6px}
+.disc details.dm>summary{cursor:pointer;font-size:12.5px;color:#9fb0d6;padding:4px 0}
+@media (max-width:520px){.disc .prow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'nm rg' 'trk trk'}.disc .rhd{display:none}}
 .disc .pnote{margin-top:8px;padding-top:7px;border-top:1px solid #ffffff22;font-size:12px;line-height:1.55}
 .disc .asp{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;padding:7px 0;border-top:1px solid #ffffff22}
 .disc .asp .an{font-weight:700;color:#FFD682;font-size:14px}
@@ -298,7 +317,7 @@ function render(t){
   renderIns(t); renderPanghu(t); renderDisc(t); renderLabels(t); renderCharts();
 }
 // ── 紀律狀態
-function renderDisc(t){   // 胖虎指標 v4:四面向現況描述 + 當日極端事件;不預測、不給倉位
+function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常的項目 → 同一把尺(歷史位置)→ 明細收起;不預測、不給倉位
   const pg=t.panghu||{};
   if(pg.version!==4||!(pg.aspects||[]).length){
     if(pg.temp!=null){$('#disc').style.display='';$('#discCap').textContent='這天是舊版(v2 評分)資料,重新回補後會換成 v4 現況描述';$('#discLines').innerHTML='';$('#discPos').innerHTML=''}
@@ -310,12 +329,21 @@ function renderDisc(t){   // 胖虎指標 v4:四面向現況描述 + 當日極�
   const miss=t.missing||[], core=miss.filter(k=>k!=='margin');
   $('#discCap').innerHTML=`${t.date} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${pg.note||''}`;
   const base=(EVJ&&EVJ.trend_states)||{};
-  const POS=pg.position||[];   // 10 年位置百分位:只描述今天在歷史中多極端,不加總、不給結論
-  const pbar=x=>`<div class="ad pbar${x.p>=80||x.p<=20?' hl':''}"><span>${x.name} ${x.text}</span><i><b style="width:${Math.max(2,x.p)}%"></b><u style="left:20%"></u><u style="left:80%"></u></i><span class="pp">第 ${x.p} 百分位・${x.band}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</span></div>${x.range_text?`<div class="ad prng">${x.range_text}</div>`:''}`;
-  $('#discLines').innerHTML=pg.aspects.map(a=>{
+  const POS=pg.position||[];   // 歷史位置百分位:只描述今天在歷史中多極端,不加總、不給結論
+  // 偏低 / 偏高各代表什麼(白話);顏色只分「正常 / 偏離」,不用紅綠,避免讀成看多看空
+  const WORD={gap60:['跌離均線','漲離均線'],vol_ratio:['量縮','量增'],foreign20_pct:['外資賣得多','外資買得多'],fut_chg20:['期貨往空方','期貨往多方'],
+    fut_net:['淨空偏多','淨空偏少'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
+  const odd=POS.filter(x=>x.p<=20||x.p>=80);
+  const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${a.name}</div><div class="v t-${a.tone}">${a.label}</div></div>`).join('')}</div>`;
+  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
+  const ruler=POS.length?`<div class="rhd"><span></span><span class="sc"><span>低</span><span>正常區間</span><span>高</span></span><span class="rr">正常範圍</span></div>`
+    +POS.map(x=>`<div class="prow${x.p<=20||x.p>=80?' hl':''}"><div class="nm"><b>${x.name}</b>${x.text}・P${x.p}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</div><div class="trk"><div class="l"></div><div class="bd"></div><div class="dt" style="left:${Math.min(98,Math.max(2,x.p))}%"></div></div><div class="rg">${x.range||''}</div></div>`).join(''):'';
+  const detail=pg.aspects.map(a=>{
     const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
-    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${POS.filter(x=>x.aspect===a.k).map(pbar).join('')}${b}</div>`}).join('')
+    const pr=POS.filter(x=>x.aspect===a.k).map(x=>`<div class="ad" style="color:#9fb0d6">${x.name} ${x.text}:第 ${x.p} 百分位・${x.band};${x.range_text||''}</div>`).join('');
+    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${pr}${b}</div>`}).join('')
     +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${pg.position_note}</div>`:'');
+  $('#discLines').innerHTML=tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
   const ev=pg.events||[];
   $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'')
     +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${miss.map(k=>MISS[k]||k).join('、')}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`
