@@ -29,6 +29,10 @@ jobs:
  
       - name: Fetch prices and write data.json
         run: node scripts/update-prices.mjs
+        env:
+          # 停損 / 目標價盤中提醒用(沒設就只寫 log)
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
  
       - name: Commit if changed
         run: |
