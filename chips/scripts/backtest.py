@@ -130,28 +130,104 @@ def spearman(a, b): return corr(rank(a), rank(b)) if len(a) >= 5 else None
 def mean(xs): return sum(xs) / len(xs) if xs else None
 def r4(x): return None if x is None else round(x, 4)
 
-def metrics(rets, expo):
+def metrics(rets, expo, idx_rets):
     eq = 1.0; peak = 1.0; mdd = 0.0; curve = []
     for r in rets:
         eq *= (1 + r); peak = max(peak, eq); mdd = min(mdd, eq / peak - 1); curve.append(eq)
     n = len(rets)
     mu = mean(rets) or 0; sd = math.sqrt(sum((r - mu) ** 2 for r in rets) / n) if n else 0
     changes = sum(1 for i in range(1, len(expo)) if abs(expo[i] - expo[i - 1]) > 1e-9)
-    return {"total": r4(eq - 1), "cagr": r4(eq ** (250 / n) - 1) if n else None, "mdd": r4(mdd),
+    cagr = (eq ** (250 / n) - 1) if n else None
+    up = [(s, x) for s, x in zip(rets, idx_rets) if x > 0]; dn = [(s, x) for s, x in zip(rets, idx_rets) if x < 0]
+    upc = sum(s for s, _ in up) / sum(x for _, x in up) if up else None          # 上漲參與度:大盤漲的日子吃到幾成
+    dnc = sum(s for s, _ in dn) / sum(x for _, x in dn) if dn else None          # 下跌承受度:大盤跌的日子挨了幾成
+    return {"total": r4(eq - 1), "cagr": r4(cagr), "mdd": r4(mdd), "calmar": round(cagr / abs(mdd), 2) if (cagr is not None and mdd < 0) else None,
             "vol": r4(sd * math.sqrt(250)), "sharpe": round(mu / sd * math.sqrt(250), 2) if sd else None,
-            "changes": changes, "avg_expo": r4(mean(expo)), "days": n}, curve
+            "up_cap": r4(upc), "down_cap": r4(dnc), "changes": changes, "avg_expo": r4(mean(expo)), "days": n}, curve
 
 def simulate(close, pos, lag=1, cost=COST_PER_TURN):
-    """pos[i] = 第 i 天盤後決策(0~1);lag=1 → 第 i+1 天收盤才換到該部位,持有第 i+2 天的漲跌。回傳每日報酬與實際部位。"""
-    n = len(close); rets, expo = [], []
+    """pos[i] = 第 i 天盤後決策(0~1);lag=1 → 第 i+1 天收盤才換到該部位,持有第 i+2 天的漲跌。
+    回傳 (策略每日報酬, 每日實際部位, 指數每日報酬),長度皆 N-1,第 j 筆對應日期 j+1。"""
+    n = len(close); rets, expo, idx = [], [], []
     prev_e = 0.0
     for j in range(1, n):
         k = j - 1 - lag
         e = pos[k] if k >= 0 else 0.0
         ret = close[j] / close[j - 1] - 1
-        c = abs(e - prev_e) * cost
-        rets.append(e * ret - c); expo.append(e); prev_e = e
-    return rets, expo
+        rets.append(e * ret - abs(e - prev_e) * cost); expo.append(e); idx.append(ret); prev_e = e
+    return rets, expo, idx
+
+def run_seq(days, cfg, mode):
+    """依 cfg 由舊到新逐日重算胖虎指標(hist 只含之前的日子);mode=live 模擬 15:40 融資未公布"""
+    seq = []
+    for t0 in days:
+        t = json.loads(json.dumps(t0))
+        if mode == "live": t["margin_note"] = "回測模擬 15:40:當日融資未公布"
+        t["panghu"] = fa.build_panghu(t, seq[-1] if seq else {}, seq[-20:], cfg)
+        seq.append(t)
+    return seq
+
+def pos_of(seq): return [((s.get("panghu") or {}).get("suggest_pct") or 0) / 100 for s in seq]
+
+def find_episodes(close, dd_min=0.08, bear=0.15):
+    """回檔事件:從前高跌超過 dd_min 算一次,直到收盤站回前高為止。深度 ≥ bear 算「真下跌」,其餘算「洗盤」。
+    回傳 [(peak_i, trough_i, recover_i 或 None)]"""
+    eps = []; peak = 0; trough = None; on = False
+    for i in range(1, len(close)):
+        if not on:
+            if close[i] >= close[peak]: peak = i
+            elif close[i] / close[peak] - 1 <= -dd_min: on = True; trough = i
+        else:
+            if close[i] < close[trough]: trough = i
+            if close[i] >= close[peak]: eps.append((peak, trough, i)); on = False; peak = i
+    if on: eps.append((peak, trough, None))
+    return [(p, t, e, "真下跌" if close[t] / close[p] - 1 <= -bear else "洗盤") for p, t, e in eps]
+
+def grade_episode(ep, close, eq, expo_full, N, re_lvl=0.7, cut_ratio=0.5, rally_days=60):
+    p, t, e, kind = ep
+    idx_dd = close[t] / close[p] - 1; s_dd = eq[t] / eq[p] - 1
+    e0 = expo_full[p]
+    cut = next((i for i in range(p + 1, t + 1) if e0 > 0 and expo_full[i] <= e0 * cut_ratio), None)
+    re = next((i for i in range(t, N) if expo_full[i] >= re_lvl), None)
+    w = min(t + rally_days, N - 1); ridx = close[w] / close[t] - 1; rs = eq[w] / eq[t] - 1
+    return {"expo_peak": r4(e0), "expo_trough": r4(expo_full[t]), "strat_dd": r4(s_dd),
+            "avoided": r4(1 - s_dd / idx_dd) if idx_dd < 0 else None,
+            "cut_days": (cut - p) if cut is not None else None, "cut_at_dd": r4(close[cut] / close[p] - 1) if cut is not None else None,
+            "re_days": (re - t) if re is not None else None, "re_missed": r4(close[re] / close[t] - 1) if re is not None else None,
+            "rally_days": w - t, "rally_idx": r4(ridx), "rally_cap": r4(rs / ridx) if ridx > 0 else None}
+
+def goals_of(ep_rows, key):
+    """三個目標:真下跌少跌幾成、洗盤谷底還留幾成與幾天回到七成、大底後 60 天吃到幾成"""
+    bear = [r[key] for r in ep_rows if r["kind"] == "真下跌"]; wash = [r[key] for r in ep_rows if r["kind"] == "洗盤"]
+    return {"bear_n": len(bear), "bear_avoided": r4(mean([g["avoided"] for g in bear if g["avoided"] is not None])),
+            "bear_cut_at": r4(mean([g["cut_at_dd"] for g in bear if g["cut_at_dd"] is not None])),
+            "wash_n": len(wash), "wash_expo_trough": r4(mean([g["expo_trough"] for g in wash])),
+            "wash_re_days": r4(mean([g["re_days"] for g in wash if g["re_days"] is not None])),
+            "wash_never_back": sum(1 for g in wash if g["re_days"] is None),
+            "rally_cap": r4(mean([g["rally_cap"] for g in bear if g["rally_cap"] is not None]))}
+
+# 多組設定並排:把不屬於該組的權重歸零(溫度只用剩下的項目標準化)
+GROUPS = {
+    "all":   {"name": "全部 13 項", "keep": None},
+    "chips": {"name": "只看籌碼", "keep": ["foreign_spot", "fut_long", "fut_short", "retail", "pc", "margin"]},
+    "price": {"name": "只看價格趨勢", "keep": ["trend", "volume", "pv"]},
+}
+# 參數敏感度:主要門檻與權重各 ×0.8 / ×1.2
+SENS = [
+    (("thresholds", "trend", "strong_pct"), "趨勢強勢乖離 %"), (("thresholds", "trend", "weak_pct"), "趨勢站穩乖離 %"),
+    (("thresholds", "volume", "hi"), "放量倍數"), (("thresholds", "foreign_spot", "big_yi"), "外資大買金額(億)"),
+    (("thresholds", "fut", "deadzone"), "期貨增減門檻(口)"), (("thresholds", "retail", "mild"), "散戶偏多空門檻 %"),
+    (("thresholds", "pc", "lo"), "P/C 偏空線"), (("position", "buffer"), "換級緩衝(分)"),
+    (("stops", "line1_cut_pct"), "跌破防線降幅 %"), (("stops", "line1_lookback"), "防線回看天數"),
+    (("weights", "trend"), "趨勢權重"), (("weights", "foreign_spot"), "外資現貨權重"),
+]
+def cfg_with(cfg, path, factor):
+    c = json.loads(json.dumps(cfg)); o = c
+    for k in path[:-1]: o = o[k]
+    v = o[path[-1]]; nv = v * factor
+    if path[-1].endswith(("lookback", "_days", "days")): nv = max(1, int(round(nv)))   # 只有「天數」類取整;權重、門檻保留小數(權重 2 × 0.8 = 1.6,取整會變回 2 等於沒測)
+    o[path[-1]] = nv
+    return c, v, nv
 
 # ─────────────── eval ───────────────
 def cmd_eval():
@@ -163,59 +239,65 @@ def cmd_eval():
     need = int(os.environ.get("BT_MIN_DAYS", "30"))
     if len(days) < need: print(f"可用交易日只有 {len(days)} 天,至少要 {need} 天才評估;先不產生結果"); return
     fa.FX_RANGE = "10y"
-    for d in days:                                    # 匯率:回測期間用長區間日線補(原始資料抓的是當時的 fx,缺的補上)
+    for d in days:                                    # 匯率:缺的用長區間日線補
         if not d.get("fx"): d["fx"] = fa.fx_for(d["date"])
-
-    runs = {}
-    for variant in ("live", "full"):
-        seq = []
-        for i, t0 in enumerate(days):
-            t = json.loads(json.dumps(t0))
-            if variant == "live": t["margin_note"] = "回測模擬 15:40:當日融資未公布"
-            p = seq[-1] if seq else {}
-            t["panghu"] = fa.build_panghu(t, p, seq[-20:], cfg)
-            seq.append(t)
-        runs[variant] = seq
-
-    live, full = runs["live"], runs["full"]
-    dates = [d["date"] for d in days]; close = [d["index"]["close"] for d in days]; N = len(days)
+    dates = [d["date"] for d in days]; close = [d["index"]["close"] for d in days]; N = len(days); mid = N // 2
     def fwd(k): return [(close[i + k] / close[i] - 1) if i + k < N else None for i in range(N)]
-    F = {1: fwd(1), 5: fwd(5), 20: fwd(20)}
+    F = {5: fwd(5), 20: fwd(20)}
+    t0 = time.time()
 
-    # ── 策略
-    def pos_of(seq): return [((s.get("panghu") or {}).get("suggest_pct") or 0) / 100 for s in seq]
+    live = run_seq(days, cfg, "live"); full = run_seq(days, cfg, "full")
     strat_pos = {"panghu_live": pos_of(live), "panghu_full": pos_of(full), "buy_hold": [1.0] * N, "fixed_half": [0.5] * N}
     names = {"panghu_live": "胖虎指標(15:40 版)", "panghu_full": "胖虎指標(含融資)", "buy_hold": "全程滿倉", "fixed_half": "固定五成"}
-    mid = N // 2
-    strategy = {"all": {}, "h1": {}, "h2": {}}; curves = {}
-    for k, pos in strat_pos.items():
-        rets, expo = simulate(close, pos)
-        strategy["all"][k], curves[k] = metrics(rets, expo)
-        strategy["h1"][k], _ = metrics(rets[:mid], expo[:mid])
-        strategy["h2"][k], _ = metrics(rets[mid:], expo[mid:])
+    grp_seq = {"all": live}
+    for g, spec in GROUPS.items():
+        if spec["keep"] is None: continue
+        c = json.loads(json.dumps(cfg)); c["weights"] = {k: (w if k in spec["keep"] else 0) for k, w in cfg["weights"].items()}
+        grp_seq[g] = run_seq(days, c, "live")
+        strat_pos["grp_" + g] = pos_of(grp_seq[g]); names["grp_" + g] = spec["name"]
 
-    # ── 溫度分組(15:40 版)
+    # ── 策略績效(全期間 / 前半 / 後半)
+    strategy = {"all": {}, "h1": {}, "h2": {}}; curves = {}; expos = {}; idx_rets = None
+    for k, pos in strat_pos.items():
+        rets, expo, idx_rets = simulate(close, pos)
+        strategy["all"][k], curves[k] = metrics(rets, expo, idx_rets)
+        strategy["h1"][k], _ = metrics(rets[:mid], expo[:mid], idx_rets[:mid])
+        strategy["h2"][k], _ = metrics(rets[mid:], expo[mid:], idx_rets[mid:])
+        curves[k] = [1.0] + curves[k]; expos[k] = [0.0] + expo      # 對齊日期(第 i 筆 = dates[i])
+
+    # ── 回檔事件 + 三個目標
+    eps = find_episodes(close)
+    ep_rows = []
+    for ep in eps:
+        p, t, e, kind = ep
+        row = {"kind": kind, "peak": dates[p], "trough": dates[t], "recover": dates[e] if e is not None else None,
+               "depth": r4(close[t] / close[p] - 1), "days_down": t - p, "days_back": (e - t) if e is not None else None}
+        for k in strat_pos:
+            if k in ("buy_hold", "fixed_half", "panghu_full"): continue
+            row[k] = grade_episode(ep, close, curves[k], expos[k], N)
+        ep_rows.append(row)
+    goals = {k: goals_of(ep_rows, k) for k in strat_pos if k not in ("buy_hold", "fixed_half", "panghu_full")}
+
+    # ── 溫度分組 / 等級相關(15:40 版)
     temps = [(s.get("panghu") or {}).get("temp") for s in live]
     buckets = []
     for lo in (0, 20, 40, 60, 80):
         hi = 101 if lo == 80 else lo + 20
-        idx = [i for i, tp in enumerate(temps) if tp is not None and lo <= tp < hi]
-        row = {"lo": lo, "hi": min(hi, 100), "n": len(idx)}
+        ii = [i for i, tp in enumerate(temps) if tp is not None and lo <= tp < hi]
+        row = {"lo": lo, "hi": min(hi, 100), "n": len(ii)}
         for k in (5, 20):
-            xs = [F[k][i] for i in idx if F[k][i] is not None]
+            xs = [F[k][i] for i in ii if F[k][i] is not None]
             row[f"fwd{k}"] = r4(mean(xs)); row[f"hit{k}"] = r4(mean([1 if x > 0 else 0 for x in xs])) if xs else None
         buckets.append(row)
     uncond = {k: r4(mean([x for x in F[k] if x is not None])) for k in (5, 20)}
-    ic = {}
-    for k in (5, 20):
-        pairs = [(temps[i], F[k][i]) for i in range(N) if temps[i] is not None and F[k][i] is not None]
-        ic[f"fwd{k}"] = r4(spearman([a for a, _ in pairs], [b for _, b in pairs])) if pairs else None
-        ic[f"n{k}"] = len(pairs)
-    for part, rng in (("h1", range(0, mid)), ("h2", range(mid, N))):
-        pairs = [(temps[i], F[20][i]) for i in rng if temps[i] is not None and F[20][i] is not None]
-        ic[f"fwd20_{part}"] = r4(spearman([a for a, _ in pairs], [b for _, b in pairs])) if len(pairs) >= 5 else None
+    def ic_of(seq, rng=None, k=20):
+        tp = [(s.get("panghu") or {}).get("temp") for s in seq]; rng = rng or range(N)
+        pr = [(tp[i], F[k][i]) for i in rng if tp[i] is not None and F[k][i] is not None]
+        return r4(spearman([a for a, _ in pr], [b for _, b in pr])) if len(pr) >= 5 else None
+    ic = {"fwd5": ic_of(live, k=5), "fwd20": ic_of(live), "fwd20_h1": ic_of(live, range(0, mid)), "fwd20_h2": ic_of(live, range(mid, N))}
+    for g, sq in grp_seq.items(): ic["grp_" + g] = ic_of(sq)
 
-    # ── 各指標(含融資版,涵蓋 13 項):分數與 20 日前瞻報酬的等級相關
+    # ── 各指標(含融資版):分數與之後報酬的等級相關
     items = []
     for k, nm in cfg["names"].items():
         sc, f5, f20 = [], [], []
@@ -233,9 +315,8 @@ def cmd_eval():
     sc_rows = {}
     for i, s in enumerate(full):
         for it in (s.get("panghu") or {}).get("items", []):
-            key = (it["k"], it["scenario"])
-            row = sc_rows.setdefault(key, {"k": it["k"], "name": it["name"], "scenario": it["scenario"], "score": it["score"],
-                                           "n": 0, "_f5": [], "_f20": [], "example": None})
+            row = sc_rows.setdefault((it["k"], it["scenario"]), {"k": it["k"], "name": it["name"], "scenario": it["scenario"],
+                                                                 "score": it["score"], "n": 0, "_f5": [], "_f20": [], "example": None})
             row["n"] += 1
             if F[5][i] is not None: row["_f5"].append(F[5][i])
             if F[20][i] is not None: row["_f20"].append(F[20][i])
@@ -256,6 +337,26 @@ def cmd_eval():
     untriggered = [{"k": k, "name": cfg["names"].get(k, k), "scenario": sk, "score": v["score"]}
                    for k, grp in cfg["scenarios"].items() if k in cfg["names"] for sk, v in grp.items() if (k, sk) not in seen]
 
+    # ── 參數敏感度(15:40 版):各 ×0.8 / ×1.2
+    base = strategy["all"]["panghu_live"]; bg = goals["panghu_live"]
+    sens = []
+    for path, label in SENS:
+        row = {"label": label, "path": ".".join(path)}
+        for tag, fct in (("lo", 0.8), ("hi", 1.2)):
+            try:
+                c, v, nv = cfg_with(cfg, path, fct)
+                sq = run_seq(days, c, "live"); rets, expo, ir = simulate(close, pos_of(sq))
+                m, cv = metrics(rets, expo, ir); cv = [1.0] + cv; ex = [0.0] + expo
+                g = goals_of([{"kind": r["kind"], "x": grade_episode((dates.index(r["peak"]), dates.index(r["trough"]),
+                              dates.index(r["recover"]) if r["recover"] else None, r["kind"]), close, cv, ex, N)} for r in ep_rows], "x")
+                row["base"] = v; row[tag] = {"value": nv, "total": m["total"], "mdd": m["mdd"], "calmar": m["calmar"], "ic20": ic_of(sq),
+                                             "bear_avoided": g["bear_avoided"], "wash_re_days": g["wash_re_days"]}
+            except Exception as e: row[tag] = {"error": f"{e.__class__.__name__}"}
+        dt_ = [abs((row[t].get("total") or 0) - (base["total"] or 0)) for t in ("lo", "hi") if "total" in row[t]]
+        dm_ = [abs((row[t].get("mdd") or 0) - (base["mdd"] or 0)) for t in ("lo", "hi") if "mdd" in row[t]]
+        row["fragile"] = bool((dt_ and max(dt_) > 0.08) or (dm_ and max(dm_) > 0.04))
+        sens.append(row)
+
     acts = {}
     for s in live:
         a = ((s.get("panghu") or {}).get("discipline") or {}).get("act")
@@ -265,24 +366,31 @@ def cmd_eval():
         "generated_at": tpe_now().isoformat(timespec="seconds"), "config_version": cfg.get("version"),
         "range": [dates[0], dates[-1]], "n_days": N, "split_date": dates[mid], "cost_per_turn": COST_PER_TURN,
         "vix_days": sum(1 for d in days if d.get("vix")), "uncond": uncond,
-        "names": names, "strategy": strategy, "buckets": buckets, "ic": ic, "items": items,
-        "scenarios": scenarios, "untriggered": untriggered, "actions": acts,
-        "series": {"dates": dates, "close": close, "temp": temps,
-                   "pos": [round(p * 100) for p in strat_pos["panghu_live"]],
-                   "eq": {k: [round(x, 4) for x in [1.0] + v] for k, v in curves.items()}},
+        "names": names, "groups": {("grp_" + g): s["name"] for g, s in GROUPS.items() if s["keep"] is not None},
+        "strategy": strategy, "goals": goals, "episodes": ep_rows,
+        "buckets": buckets, "ic": ic, "items": items, "scenarios": scenarios, "untriggered": untriggered,
+        "sensitivity": {"base": {"total": base["total"], "mdd": base["mdd"], "calmar": base["calmar"], "ic20": ic["fwd20"],
+                                 "bear_avoided": bg["bear_avoided"], "wash_re_days": bg["wash_re_days"]}, "rows": sens},
+        "actions": acts,
+        "series": {"dates": dates, "close": close, "temp": temps, "pos": [round(p * 100) for p in strat_pos["panghu_live"]],
+                   "eq": {k: [round(x, 4) for x in v] for k, v in curves.items()}},
         "notes": [
             "15:40 版模擬盤後發 LINE 的時點:當日融資未公布,融資不計分;含融資版是 21:30 補齊後的結果。",
             f"台指 VIX 官方只留近 3 個月,回測 {N} 天中只有 {sum(1 for d in days if d.get('vix'))} 天有 VIX,其餘不計分。",
             "決策在當日盤後,策略從隔日收盤才換倉(不偷看)。加權指數為價格指數,不含股息。",
             f"換倉成本以每 100% 部位變動 {COST_PER_TURN * 100:.2f}% 計。",
-            "情境表的「方向不符」= 分數給正、之後 20 日卻跑輸平均(或反之)超過 0.5%;樣本少於 5 次不判斷。"]
+            "回檔事件:從前高跌超過 8% 算一次,站回前高結束;跌幅 ≥ 15% 算「真下跌」,其餘算「洗盤」。這是事後分類,用來打分數;指標本身只能用當下資料判斷。",
+            "情境表的「方向不符」= 分數給正、之後 20 日卻跑輸平均(或反之)超過 0.5%;樣本少於 5 次不判斷。",
+            "參數敏感度:單一門檻 ×0.8 / ×1.2 後總報酬變動超過 8 個百分點或最大回檔變動超過 4 個百分點,標為「敏感」,代表那個數字可能是剛好擬合出來的。"]
     }
     jsave(os.path.join(BT, "result.json"), res)
     L = strategy["all"]
-    print(f"回測 {dates[0]} ~ {dates[-1]},{N} 天;溫度與 20 日報酬等級相關 {ic.get('fwd20')}")
+    print(f"回測 {dates[0]} ~ {dates[-1]},{N} 天(計算 {time.time() - t0:.0f} 秒);溫度與 20 日報酬等級相關 {ic.get('fwd20')}")
     for k in strat_pos: print(f"  {names[k]:<14} 總報酬 {L[k]['total']:+.2%}  最大回檔 {L[k]['mdd']:.2%}  換倉 {L[k]['changes']} 次  平均部位 {L[k]['avg_expo']:.0%}")
-    bad = [r for r in scenarios if r["flag"] == "方向不符"]
-    print(f"  情境 {len(scenarios)} 種出現過,{len(untriggered)} 種沒出現;方向不符 {len(bad)} 種")
+    g = goals["panghu_live"]
+    print(f"  回檔事件 {len(ep_rows)} 次(真下跌 {g['bear_n']}、洗盤 {g['wash_n']});真下跌少跌 {g['bear_avoided']};洗盤谷底部位 {g['wash_expo_trough']}、回到七成 {g['wash_re_days']} 天;大底後 60 天參與 {g['rally_cap']}")
+    print(f"  情境 {len(scenarios)} 種出現過,{len(untriggered)} 種沒出現;方向不符 {sum(1 for r in scenarios if r['flag'] == '方向不符')} 種;敏感參數 {sum(1 for r in sens if r['fragile'])} 個")
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
