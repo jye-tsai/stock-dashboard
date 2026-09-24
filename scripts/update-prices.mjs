@@ -214,6 +214,68 @@ async function fromTpex() {
   return map;
 }
 
+// ─── 停損 / 目標價盤中提醒(LINE):價位是自己設的,這裡只負責「碰到了告訴你」
+// 同一檔同一種提醒跨過去只發一次;價格回到停損 +1% 以上(目標 −1% 以下)或改了價位才重新起算。
+// 狀態存在 data.alerts(跟著 data.json 一起加密);漲跌超過 ±10.5%(超出漲跌停)視為資料異常不發;LINE secrets 沒設就只寫 log。
+function scanAlerts(data, stamp) {
+  const st = data.alerts && typeof data.alerts === 'object' ? data.alerts : {};
+  const fire = [];
+  for (const h of data.holdings || []) {
+    if (!h.code) continue;
+    const held = h.lots > 0 && h.price > 0;
+    const sane = !(h.prevClose > 0) || Math.abs(h.price / h.prevClose - 1) <= 0.105;
+    const rules = [
+      ['stop', h.stop, p => p <= h.stop, p => p >= h.stop * 1.01],
+      ['target', h.target, p => p >= h.target, p => p <= h.target * 0.99],
+    ];
+    for (const [kind, lv, hit, back] of rules) {
+      const key = h.code + ':' + kind;
+      if (!held || !(lv > 0)) { delete st[key]; continue; }          // 賣光 / 沒設價位 → 清掉
+      if (!sane) continue;
+      if (st[key] && st[key].level !== lv) delete st[key];            // 改了價位 → 重新起算
+      if (st[key] && back(h.price)) delete st[key];                   // 回到安全區 → 重新起算
+      if (!st[key] && hit(h.price)) { st[key] = { level: lv, price: h.price, at: stamp }; fire.push({ kind, h, key }); }
+    }
+  }
+  data.alerts = st;
+  return fire;
+}
+function alertText(fire, stamp) {
+  const n2 = x => (+x).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const pct = x => (x >= 0 ? '+' : '') + (x * 100).toFixed(1) + '%';
+  const L = [];
+  for (const kind of ['stop', 'target']) {
+    const xs = fire.filter(f => f.kind === kind);
+    if (!xs.length) continue;
+    L.push(kind === 'stop' ? `⚠ 停損提醒 ${stamp.slice(11, 16)}` : `🎯 目標價提醒 ${stamp.slice(11, 16)}`);
+    for (const { h } of xs) {
+      L.push(`${h.code} ${(h.name || '').slice(0, 8)} 現價 ${n2(h.price)} ${kind === 'stop' ? '≤ 停損' : '≥ 目標'} ${n2(kind === 'stop' ? h.stop : h.target)}`);
+      const day = h.prevClose > 0 ? `今日 ${pct(h.price / h.prevClose - 1)}` : '';
+      const vs = h.cost > 0 ? `成本 ${n2(h.cost)}(${pct(h.price / h.cost - 1)})` : '';
+      if (day || vs) L.push([day, vs].filter(Boolean).join('｜'));
+    }
+    L.push(kind === 'stop' ? '停損是你自己設的,執不執行由你決定。' : '目標價是你自己設的,要不要賣由你決定。');
+  }
+  return L.join('\n');
+}
+async function sendAlerts(data, fire, stamp) {
+  if (!fire.length) return;
+  const text = alertText(fire, stamp);
+  console.log('提醒:\n' + text);
+  const tok = process.env.LINE_CHANNEL_TOKEN, uid = process.env.LINE_USER_ID;
+  let ok = false;
+  if (tok && uid) {
+    try {
+      const r = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: uid, messages: [{ type: 'text', text: text.slice(0, 4900) }] }),
+      });
+      ok = r.ok; console.log('LINE 提醒:', r.status);
+    } catch (e) { console.log('LINE 提醒失敗:', e.message); }
+  } else console.log('沒有 LINE secrets,提醒只寫 log');
+  if (!ok) fire.forEach(f => delete data.alerts[f.key]);            // 沒送出去 → 不記狀態,下一輪再試
+}
+
 async function main() {
   // 週末不動作(台北星期六/日);排程設成每天跑,由這裡擋掉非交易日,避免漏掉週五又不在假日亂寫
   const tpeDow = new Date(Date.now() + 8 * 3600 * 1000).getUTCDay(); // 0=日 .. 6=六(台北)
@@ -337,6 +399,8 @@ async function main() {
       }
       if (f || m) console.log(`回補 ${c} 歷史價 ${f} 天;補不到 ${m} 天`);
     }
+
+    await sendAlerts(data, scanAlerts(data, stamp), stamp);   // 停損 / 目標價提醒(價格都更新完才檢查)
 
     writeData(data);
     console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
