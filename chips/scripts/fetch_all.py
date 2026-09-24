@@ -719,27 +719,39 @@ def build_panghu(t, p, hist, cfg):
 # 極端事件(超跌、深逆價差、爆量長黑、P/C 極低)只標出,並附上歷史每一次「獨立事件」的後續(backtest 產生的 events.json)。
 EVENTS_PATH = os.path.join(DATA, "..", "backtest", "events.json")
 _IH = {}
-def _month_index(y, m):
-    """證交所每日市場成交資訊月表 → {日期: (加權收盤, 成交金額億)};同一次執行快取"""
+def _month_index(y, m, tries=3):
+    """證交所每日市場成交資訊月表 → {日期: (加權收盤, 成交金額億)};同一次執行快取(抓成功才快取)。
+    證交所對連續請求會擋:失敗就等一下重試,最多 tries 次;每支之間間隔 1.2 秒。"""
     key = (y, m)
-    if key in _IH: return _IH[key]
+    if _IH.get(key): return _IH[key]
     out = {}
-    try:
-        r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H, timeout=30)
-        j = r.json()
-        if j.get("stat") == "OK":
-            for row in j.get("data") or []:
-                yy, mm, dd = row[0].strip().split("/")
-                out[f"{int(yy) + 1911}/{mm}/{dd}"] = (num(row[4]), round(num(row[2]) / 1e8))
-    except Exception as e: log(f"  加權月表 {y}/{m:02d} 失敗({e.__class__.__name__})")
-    _IH[key] = out; time.sleep(0.4)
+    for a in range(tries):
+        try:
+            r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H, timeout=30)
+            j = r.json()
+            if j.get("stat") == "OK":
+                for row in j.get("data") or []:
+                    yy, mm, dd = row[0].strip().split("/")
+                    out[f"{int(yy) + 1911}/{mm}/{dd}"] = (num(row[4]), round(num(row[2]) / 1e8))
+                if out: break
+            else: log(f"  加權月表 {y}/{m:02d}:證交所回 {j.get('stat')}")
+        except Exception as e: log(f"  加權月表 {y}/{m:02d} 失敗({e.__class__.__name__}),第 {a + 1} 次")
+        time.sleep(3 * (a + 1))
+    if out: _IH[key] = out
+    time.sleep(1.2)
     return out
 
 def index_history(date, n=130):
-    """date(含)之前最近 n 個交易日:(收盤 list, 成交金額 list, 日期 list),由舊到新"""
+    """date(含)之前最近 n 個交易日:(收盤 list, 成交金額 list, 日期 list),由舊到新。
+    中間只要有一個月抓不到,就回傳空的(寧可不寫趨勢,也不要跳過缺的月份、算出錯位的均線)。
+    當月例外:月初第一個交易日月表可能還沒更新,當月空的允許(describe_live 會補上當天)。"""
     y, m = int(date[:4]), int(date[5:7]); got = {}
-    for _ in range(12):
-        got.update(_month_index(y, m))
+    for k in range(12):
+        mt = _month_index(y, m)
+        if not mt and not (k == 0 and int(date[8:10]) <= 5):
+            log(f"  加權月表 {y}/{m:02d} 抓不到,趨勢與超跌判斷今天不寫(避免均線錯位)")
+            return [], [], []
+        got.update(mt)
         if len([d for d in got if d <= date]) >= n: break
         m -= 1
         if m == 0: y, m = y - 1, 12
@@ -906,7 +918,7 @@ def describe_live(t, p, hist, cfg):
     """每天盤後用:加權收盤從證交所月表往回抓 130 天、匯率用 Yahoo 日線;極端事件附 events.json 的歷史"""
     closes, amts, ds = index_history(t["date"], 130)
     ix = t.get("index") or {}
-    if ix.get("close") and (not ds or ds[-1] != t["date"]):          # 月表還沒更新到當天 → 補上當日
+    if closes and ix.get("close") and ds[-1] != t["date"]:           # 月表還沒更新到當天 → 補上當日(月表抓不齊時不補,整段留空)
         closes.append(ix["close"]); amts.append(ix.get("amount_yi") or 0)
     return build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history())
 
