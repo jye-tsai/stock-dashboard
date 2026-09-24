@@ -6,7 +6,7 @@
 ## 三步上線
 1. 把 `chips/` 資料夾與 `.github/workflows/chips.yml` 放進 stock-dashboard repo 後 push。
 2. **Settings → Pages**：Source 選 `Deploy from a branch`，Branch 選 `main` / `(root)`，存檔。
-3. **Actions** 分頁 → 左側「台股盤後籌碼抓取」→ `Run workflow` 跑第一次。
+3. **Actions** 分頁 → 左側「chips・盤後籌碼」→ `Run workflow` 跑第一次。
    之後每個交易日 15:40、16:40 自動跑；網址 `https://jye-tsai.github.io/stock-dashboard/chips/`。
 
 ## 頁面上「▶ 立即抓取」按鈕
