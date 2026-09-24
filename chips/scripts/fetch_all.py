@@ -784,7 +784,7 @@ def event_history_text(h):
     if b.get("n"): s += f";其中發生在空頭排列時 {b['n']} 次:{b['up20']} 漲 {b['down20']} 跌"
     return s
 
-def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None):
+def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
     """t 當日、p 前一日、hist 之前的日子(由舊到新,至少 20 天);closes / amts 為 t(含)之前的加權收盤與成交金額(至少 120 天);
     fxh = {usdtwd: [...], dxy: [...]}(t 含之前)。ev_hist = 極端事件歷史(None 表示不附)。"""
     ix = t.get("index") or {}; close, chg, amt = ix.get("close"), ix.get("chg"), ix.get("amount_yi")
@@ -859,12 +859,18 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None):
         return sum(xs) / len(xs) if xs else None
     r, rp = rmean(t), rmean(p)
     if r is not None:
-        rlab = "散戶偏多" if r >= S["retail_mild"] else "散戶偏空" if r <= -S["retail_mild"] else "散戶中性"; parts.append(rlab)
+        rb = hist_band("retail", r, dist)                                   # 有歷史分布就跟自己的歷史比(P80 以上偏多、P20 以下偏空)
+        if rb is not None: rlab = "散戶偏多" if rb > 0 else "散戶偏空" if rb < 0 else "散戶中性"
+        else: rlab = "散戶偏多" if r >= S["retail_mild"] else "散戶偏空" if r <= -S["retail_mild"] else "散戶中性"
+        parts.append(rlab)
         det = "、".join(f"{nm} {x['ratio_pct']:+.1f}%" for nm, x in (("小台", t.get("mtx_retail")), ("微台", t.get("tmf_retail"))) if x and x.get("ratio_pct") is not None)
         lines.append(f"散戶多空比 {det}" + (f"(前日平均 {rp:+.1f}% → 今 {r:+.1f}%)" if rp is not None else ""))
     pc = (t.get("pc") or {}).get("oi_ratio_pct"); pp = (p.get("pc") or {}).get("oi_ratio_pct")
     if pc is not None:
-        plab = "P/C 偏高" if pc >= S["pc_hi"] else "P/C 偏低" if pc <= S["pc_lo"] else "P/C 中性"; parts.append(plab)
+        pb = hist_band("pc", pc, dist)
+        if pb is not None: plab = "P/C 偏高" if pb > 0 else "P/C 偏低" if pb < 0 else "P/C 中性"
+        else: plab = "P/C 偏高" if pc >= S["pc_hi"] else "P/C 偏低" if pc <= S["pc_lo"] else "P/C 中性"
+        parts.append(plab)
         lines.append(f"全市場 P/C(OI) {pc:.1f}%" + (f"(前日 {pp:.1f}%)" if pp is not None else ""))
     vx = t.get("vix"); vs = [h.get("vix") for h in hist[-S["vix_days"]:] if h.get("vix")]
     if vx:
@@ -924,8 +930,9 @@ def describe_live(t, p, hist, cfg):
     ix = t.get("index") or {}
     if closes and ix.get("close") and ds[-1] != t["date"]:           # 月表還沒更新到當天 → 補上當日(月表抓不齊時不補,整段留空)
         closes.append(ix["close"]); amts.append(ix.get("amount_yi") or 0)
-    pg = build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history())
-    try: attach_position(pg, t, load_dist())
+    dist = load_dist()
+    pg = build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history(), dist)
+    try: attach_position(pg, t, dist)
     except Exception as e: log(f"  位置百分位計算失敗:{e.__class__.__name__}: {e}")
     return pg
 
@@ -960,6 +967,13 @@ def pctile(v, q):
     if j > i: return (i + j - 1) / 2
     return (i - 1) + (v - q[i - 1]) / (q[i] - q[i - 1])
 
+def hist_band(k, v, dist):
+    """跟歷史分布比:≥ P80 → 1、≤ P20 → -1、中間 → 0;沒有分布 → None(呼叫端退回固定門檻)"""
+    d = ((dist or {}).get("metrics") or {}).get(k)
+    if v is None or not d or len(d.get("q") or []) != 101: return None
+    p = pctile(v, d["q"])
+    return 1 if p >= 80 else -1 if p <= 20 else 0
+
 def pct_band(p):
     return "極低" if p <= 5 else "偏低" if p <= 20 else "極高" if p >= 95 else "偏高" if p >= 80 else "正常區間"
 
@@ -975,8 +989,11 @@ def attach_position(pg, t, dist):
         v, d = vals.get(k), M.get(k)
         if v is None or not d or len(d.get("q") or []) != 101: continue
         p = int(round(pctile(v, d["q"])))
+        nf, unit = fm[:fm.index("}") + 1], fm[fm.index("}") + 1:]            # 數字格式 / 單位分開,區間只寫一次單位
+        q20, q50, q80 = d["q"][20], d["q"][50], d["q"][80]
         out.append({"k": k, "aspect": ak, "name": name, "value": v, "text": fm.format(v), "p": p, "band": pct_band(p),
-                    "years": d.get("years"), "n": d.get("n")})
+                    "years": d.get("years"), "n": d.get("n"), "q20": q20, "q50": q50, "q80": q80,
+                    "range_text": f"正常 {nf.format(q20)} ~ {nf.format(q80)}{unit}・中位數 {nf.format(q50)}{unit}"})
     if out:
         pg["position"] = out
         pg["position_note"] = f"位置 = 今天的值在過去歷史中排第幾(0 最低、100 最高),分布資料到 {(dist.get('range') or ['', ''])[1]};只描述多極端,不是買賣訊號。"

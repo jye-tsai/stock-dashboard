@@ -52,6 +52,8 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .disc .pbar{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap}
 .disc .pbar i{flex:1 1 70px;min-width:70px;max-width:150px;height:6px;border-radius:3px;background:#ffffff22;position:relative;overflow:hidden}
 .disc .pbar i b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#9fb0d6}
+.disc .pbar i u{position:absolute;top:0;bottom:0;width:1px;background:#ffffff88}
+.disc .prng{font-size:11.5px;color:#9fb0d6;margin-top:-3px}
 .disc .pbar.hl i b{background:#FFD682}.disc .pbar.hl .pp{color:#FFD682;font-weight:700}
 .disc .pnote{margin-top:8px;padding-top:7px;border-top:1px solid #ffffff22;font-size:12px;line-height:1.55}
 .disc .asp{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;padding:7px 0;border-top:1px solid #ffffff22}
@@ -309,7 +311,7 @@ function renderDisc(t){   // 胖虎指標 v4:四面向現況描述 + 當日極�
   $('#discCap').innerHTML=`${t.date} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${pg.note||''}`;
   const base=(EVJ&&EVJ.trend_states)||{};
   const POS=pg.position||[];   // 10 年位置百分位:只描述今天在歷史中多極端,不加總、不給結論
-  const pbar=x=>`<div class="ad pbar${x.p>=80||x.p<=20?' hl':''}"><span>${x.name} ${x.text}</span><i><b style="width:${Math.max(2,x.p)}%"></b></i><span class="pp">第 ${x.p} 百分位・${x.band}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</span></div>`;
+  const pbar=x=>`<div class="ad pbar${x.p>=80||x.p<=20?' hl':''}"><span>${x.name} ${x.text}</span><i><b style="width:${Math.max(2,x.p)}%"></b><u style="left:20%"></u><u style="left:80%"></u></i><span class="pp">第 ${x.p} 百分位・${x.band}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</span></div>${x.range_text?`<div class="ad prng">${x.range_text}</div>`:''}`;
   $('#discLines').innerHTML=pg.aspects.map(a=>{
     const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
     return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${POS.filter(x=>x.aspect===a.k).map(pbar).join('')}${b}</div>`}).join('')

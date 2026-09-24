@@ -621,8 +621,8 @@ def cmd_eval():
         jsave(os.path.join(BT, "events.json"), evj)
         dist = build_dist(dseq, dates)                                   # 位置百分位的歷史分布 → fetch_all 每天盤後對照
         jsave(os.path.join(BT, "dist.json"), dist)
-        nm = {k: n for k, _, n, _ in fa.POS_SPEC}
-        res["position_dist"] = {k: {"name": nm.get(k, k), "n": v["n"], "years": v["years"], "from": v["from"],
+        nm = {k: n for k, _, n, _ in fa.POS_SPEC}; un = {k: fm[fm.index("}") + 1:].strip() for k, _, _, fm in fa.POS_SPEC}
+        res["position_dist"] = {k: {"name": nm.get(k, k), "unit": un.get(k, ""), "n": v["n"], "years": v["years"], "from": v["from"],
                                     **{f"p{p}": v["q"][p] for p in (5, 20, 50, 80, 95)}} for k, v in dist["metrics"].items()}
         res["events_summary"] = {k: {x: v.get(x) for x in ("name", "n", "n_days", "up20", "down20", "median20", "worst_dd20", "in_bear")} for k, v in evj["events"].items()}
         res["trend_states"] = evj["trend_states"]
