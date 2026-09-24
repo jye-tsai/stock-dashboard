@@ -117,8 +117,8 @@ function render(R,S){
       <div class="tw" style="margin-top:10px"><table><tr><th>趨勢狀態</th><th>天數(段數)</th><th>之後 20 日中位數</th><th>之後 20 日上漲機率</th></tr>
       ${Object.entries(TS).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.days}(${v.runs})</td><td class="${cl(v.median20)}">${pc(v.median20)}</td><td>${pc0(v.up20)}</td></tr>`).join('')}</table></div>
       ${Object.keys(PD).length?`<div class="sm" style="margin:10px 0 6px">位置百分位的歷史分布(每天盤後拿今天的值來對,算出第幾百分位)</div>
-      <div class="tw"><table><tr><th>指標</th><th>資料</th><th>第 5</th><th>第 20</th><th>第 50</th><th>第 80</th><th>第 95</th></tr>
-      ${Object.values(PD).map(v=>`<tr><td>${esc(v.name)}</td><td>${v.years} 年<div class="sm mut">${v.n} 天</div></td><td>${f1(v.p5)}</td><td>${f1(v.p20)}</td><td>${f1(v.p50)}</td><td>${f1(v.p80)}</td><td>${f1(v.p95)}</td></tr>`).join('')}</table></div>`:''}
+      <div class="tw"><table><tr><th>指標</th><th>資料</th><th>極低 ≤ 第 5</th><th>偏低 ≤ 第 20</th><th>中位數</th><th>偏高 ≥ 第 80</th><th>極高 ≥ 第 95</th></tr>
+      ${Object.values(PD).map(v=>{const u=x=>x==null?'—':f1(x)+(v.unit==='口'?' 口':v.unit||'');return `<tr><td>${esc(v.name)}</td><td>${v.years} 年<div class="sm mut">${v.n} 天</div></td><td>${u(v.p5)}</td><td>${u(v.p20)}</td><td><b>${u(v.p50)}</b></td><td>${u(v.p80)}</td><td>${u(v.p95)}</td></tr>`}).join('')}</table></div>`:''}
       <div class="sm mut" style="margin-top:6px">趨勢狀態之後的表現差異不大(空頭排列之後 20 日平均反而是漲的),所以 v4 不拿它預測,只當作背景。</div></div>`;
   }
 
