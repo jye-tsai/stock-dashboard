@@ -80,7 +80,7 @@ function lineChart(series,labels,o={}){
 }
 
 function render(R,S){
-  $('#hdr').textContent=`${R.range[0]} ～ ${R.range[1]}・${R.n_days} 個交易日・設定 v${R.config_version}・產生 ${R.generated_at.replace('T',' ')}`;
+  $('#hdr').textContent=`${R.range[0]} ～ ${R.range[1]}・${R.n_days} 個交易日・現行胖虎指標 v${R.current_version??4}(v${R.config_version} 為停用的對照組)・產生 ${R.generated_at.replace('T',' ')}`;
   const st=R.strategy, keys=['panghu_live','panghu_full','buy_hold','fixed_half'].concat(st.all.panghu_v3?['panghu_v3']:[]);
   const L=st.all.panghu_live,B=st.all.buy_hold;
   let h='';
