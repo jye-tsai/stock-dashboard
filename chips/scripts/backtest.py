@@ -649,7 +649,7 @@ def cmd_eval():
         if a: acts[a] = acts.get(a, 0) + 1
 
     res = {
-        "generated_at": tpe_now().isoformat(timespec="seconds"), "config_version": cfg.get("version"),
+        "generated_at": tpe_now().isoformat(timespec="seconds"), "config_version": cfg.get("version"), "current_version": fa.load_panghu_cfg().get("version"),   # config_version = v2 對照組;current_version = 現行 panghu.json
         "range": [dates[0], dates[-1]], "n_days": N, "split_date": dates[mid], "cost_per_turn": COST_PER_TURN,
         "lite_days": len(lite_idx), "segments": segments,
         "vix_days": sum(1 for d in days if d.get("vix")), "uncond": uncond,
