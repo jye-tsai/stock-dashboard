@@ -19,6 +19,8 @@ header a{color:#fff;text-decoration:none;border:1px solid #ffffff55;border-radiu
 header>div:nth-child(2){min-width:0}
 main{max-width:980px;margin:0 auto;padding:14px 12px 40px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;overflow:hidden}
+.v2old>summary{cursor:pointer;font-weight:700;padding:12px 16px;border:1px dashed var(--line);border-radius:14px;margin-bottom:12px;color:var(--gray);list-style-position:inside}
+.v2old[open]>summary{margin-bottom:12px}
 .card h2{margin:0 0 10px;font-size:15px;color:var(--gold)}
 .mut{color:var(--gray)}.sm{font-size:12px}
 .up{color:var(--c-red)}.dn{color:var(--c-green)}
@@ -104,9 +106,28 @@ function render(R,S){
         ${J.states.map(x=>`<tr><td>${esc(x.state)}</td><td>${x.n}</td><td class="${cl(x.fwd20)}">${pc(x.fwd20,2)}</td><td>${pc0(x.up20)}</td><td>${pc0(x.down20)}</td></tr>`).join('')}</table></div>`:''}
       <div class="sm mut" style="margin-top:6px">${esc(J.notes||'')}</div></div>`;}
 
+  // 現行 v4:極端事件 + 趨勢狀態 + 位置百分位分布
+  const ES=R.events_summary||{},TS=R.trend_states||{},PD=R.position_dist||{};
+  if(Object.keys(ES).length||Object.keys(TS).length){
+    const f1=x=>x==null?'—':(+x).toLocaleString(undefined,{maximumFractionDigits:2});
+    h+=`<div class="card"><h2>現行 v4:極端事件與趨勢狀態(10 年)</h2>
+      <div class="sm" style="margin-bottom:6px">v4 只描述現況,不預測、不給倉位。極端事件同一波(相隔 10 個交易日內)只算一次。</div>
+      <div class="tw"><table><tr><th>極端事件</th><th>獨立次數</th><th>之後 20 日</th><th>20 日中位數</th><th>20 日內最深再跌</th><th>空頭排列中</th></tr>
+      ${Object.values(ES).map(v=>{const b=v.in_bear||{};return `<tr><td>${esc(v.name)}<div class="sm mut">${v.n_days} 天</div></td><td>${v.n}</td><td>${v.up20} 漲 ${v.down20} 跌</td><td class="${cl(v.median20)}">${pc(v.median20)}</td><td class="dn">${pc(v.worst_dd20)}</td><td>${b.n?`${b.n} 次:${b.up20} 漲 ${b.down20} 跌`:'—'}</td></tr>`}).join('')}</table></div>
+      <div class="tw" style="margin-top:10px"><table><tr><th>趨勢狀態</th><th>天數(段數)</th><th>之後 20 日中位數</th><th>之後 20 日上漲機率</th></tr>
+      ${Object.entries(TS).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.days}(${v.runs})</td><td class="${cl(v.median20)}">${pc(v.median20)}</td><td>${pc0(v.up20)}</td></tr>`).join('')}</table></div>
+      ${Object.keys(PD).length?`<div class="sm" style="margin:10px 0 6px">位置百分位的歷史分布(每天盤後拿今天的值來對,算出第幾百分位)</div>
+      <div class="tw"><table><tr><th>指標</th><th>資料</th><th>第 5</th><th>第 20</th><th>第 50</th><th>第 80</th><th>第 95</th></tr>
+      ${Object.values(PD).map(v=>`<tr><td>${esc(v.name)}</td><td>${v.years} 年<div class="sm mut">${v.n} 天</div></td><td>${f1(v.p5)}</td><td>${f1(v.p20)}</td><td>${f1(v.p50)}</td><td>${f1(v.p80)}</td><td>${f1(v.p95)}</td></tr>`).join('')}</table></div>`:''}
+      <div class="sm mut" style="margin-top:6px">趨勢狀態之後的表現差異不大(空頭排列之後 20 日平均反而是漲的),所以 v4 不拿它預測,只當作背景。</div></div>`;
+  }
+
+  // ── 以下是舊版 v2 評分的完整回測(已停用),收起來當對照紀錄
+  h+=`<details class="v2old"><summary>舊版 v2 評分(已停用)完整回測:點開看為什麼不用分數</summary>`;
+
   // 重點
   h+=`<div class="card"><h2>重點</h2><div class="kpis">
-    <div class="kpi"><div class="l">胖虎指標總報酬(15:40 版)</div><div class="v ${cl(L.total)}">${pc(L.total)}</div><div class="sm mut">全程滿倉 ${pc(B.total)}</div></div>
+    <div class="kpi"><div class="l">v2 評分總報酬(15:40)</div><div class="v ${cl(L.total)}">${pc(L.total)}</div><div class="sm mut">全程滿倉 ${pc(B.total)}</div></div>
     <div class="kpi"><div class="l">最大回檔</div><div class="v">${pc(L.mdd)}</div><div class="sm mut">全程滿倉 ${pc(B.mdd)}</div></div>
     <div class="kpi"><div class="l">溫度與之後 20 日報酬相關</div><div class="v">${R.ic.fwd20==null?'—':R.ic.fwd20.toFixed(2)}</div><div class="sm mut">正值 = 溫度越高之後越漲;第一年 ${R.ic.fwd20_h1??'—'}、第二年 ${R.ic.fwd20_h2??'—'}</div></div>
     <div class="kpi"><div class="l">平均部位 / 換倉次數</div><div class="v">${pc0(L.avg_expo)}</div><div class="sm mut">換倉 ${L.changes} 次</div></div>
@@ -195,6 +216,7 @@ function render(R,S){
   const actName={out:'跌破第二道',below_line2:'仍在第二道下',down:'跌破防線',below_line:'仍在防線下',fake_break:'假跌破觀察',gate:'外資未買超暫不加碼',up:'升級',weaken:'降級',top:'滿倉',bottom:'空手',steady:'連日維持',hold:'維持'};
   h+=`<div class="card"><h2>紀律動作分布(15:40 版)</h2><div class="tw"><table><tr><th>動作</th><th>天數</th></tr>${Object.entries(R.actions).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${actName[k]||k}</td><td>${v}</td></tr>`).join('')}</table></div></div>`;
   h+=`<div class="card"><h2>回測期間沒出現過的情境</h2><div class="sm">${R.untriggered.map(u=>`${esc(u.name)}・${esc(u.scenario)}(${u.score>0?'+':''}${u.score})`).join('、')||'全部都出現過'}</div></div>`;
+  h+=`</details>`;
   h+=`<div class="card"><h2>注意事項</h2><ul class="sm">${R.notes.map(x=>`<li>${esc(x)}</li>`).join('')}<li>這是機械式指標回測,用來找出分數給錯的情境,不是保證未來績效,也不是投資建議。</li></ul></div>`;
   $('#app').innerHTML=h;
 
