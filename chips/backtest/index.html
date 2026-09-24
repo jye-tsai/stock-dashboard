@@ -207,8 +207,8 @@ function render(R,S){
     for(const r of R.scenarios){if(only&&!(r.flag==='方向不符'||r.flag==='中性卻有方向'))continue;
       if(r.name!==last){rows+=`<tr class="grp"><td colspan="8">${esc(r.name)}</td></tr>`;last=r.name}
       const fc=r.flag==='方向不符'?'bad':r.flag==='中性卻有方向'?'warn':'few';
-      rows+=`<tr><td>${esc(r.scenario)}</td><td>${r.score>0?'+':''}${r.score}</td><td>${r.n}</td><td class="${cl(r.fwd5)}">${pc(r.fwd5,2)}</td><td class="${cl(r.fwd20)}">${pc(r.fwd20,2)}</td><td class="${cl(r.excess20)}">${pc(r.excess20,2)}</td><td>${r.flag?`<span class="flag ${fc}">${r.flag}</span>`:''}</td><td class="ex">${esc(r.example||'')}</td></tr>`}
-    $('#scTbl').innerHTML=`<table><tr><th>情境</th><th>分數</th><th>次數</th><th>之後 5 日</th><th>之後 20 日</th><th>比平均多</th><th>判定</th><th>最近一次</th></tr>${rows||'<tr><td colspan="8" class="mut">沒有</td></tr>'}</table>`};
+      rows+=`<tr><td>${esc(r.scenario)}</td><td>${r.score>0?'+':''}${r.score}</td><td>${r.n_events??'—'}<div class="sm mut">${r.n} 天</div></td><td class="${cl(r.fwd5)}">${pc(r.fwd5,2)}</td><td class="${cl(r.ev_fwd20??r.fwd20)}">${pc(r.ev_fwd20??r.fwd20,2)}<div class="sm mut">逐日 ${pc(r.fwd20,1)}</div></td><td class="${cl(r.excess20)}">${pc(r.excess20,2)}</td><td>${r.flag?`<span class="flag ${fc}">${r.flag}</span>`:''}</td><td class="ex">${esc(r.example||'')}</td></tr>`}
+    $('#scTbl').innerHTML=`<table><tr><th>情境</th><th>分數</th><th>獨立事件</th><th>之後 5 日</th><th>之後 20 日(獨立)</th><th>比平均多</th><th>判定</th><th>最近一次</th></tr>${rows||'<tr><td colspan="8" class="mut">沒有</td></tr>'}</table>`};
   scTbl(); $('#onlyBad').onchange=scTbl;
 }
 
