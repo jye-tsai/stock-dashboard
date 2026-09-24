@@ -56,6 +56,8 @@ def chips_lines():
     pg = t.get("panghu") or {}
     if pg.get("version") == 4 and pg.get("aspects"):     # 胖虎指標 v4:四面向現況描述;有極端事件才附歷史紀錄
         L += ["── 胖虎指標(現況描述) ──"] + [f"{a['name']}:{a['short']}" for a in pg["aspects"]]
+        SH = {"gap60": "乖離", "vol_ratio": "量能", "foreign20_pct": "外資", "fut_net": "期貨", "retail": "散戶", "pc": "P/C", "twd20": "台幣"}
+        if pg.get("position"): L.append("歷史位置:" + "・".join(f"{SH.get(x['k'], x['name'])} P{x['p']}" for x in pg["position"]))
         for e in pg.get("events") or []:
             L.append(f"⚠ {e['name']}:{e['text']}" + (f"(近 10 日第 {e['day']} 次)" if e.get("day", 1) > 1 else ""))
             if e.get("history_text"): L.append("　" + e["history_text"])
@@ -98,7 +100,9 @@ def holdings_lines(d):
             day_chg += js_round((h["price"] - pc) * 1000 * h["lots"]); day_base += js_round(pc * 1000 * h["lots"])
             day = f" {((h['price'] / pc) - 1) * 100:+.2f}%"
         name = (h.get("name") or "")[:6]
-        L.append(f"{h.get('code','')} {name}　{fmt2(h['price'])}{day}　{fmt(un)}（{(un / cost * 100) if cost else 0:+.1f}%）")
+        st, tg = h.get("stop") or 0, h.get("target") or 0                  # 自己設的停損 / 目標價:觸到就標出來(盤中另有即時提醒)
+        mk = f"　⚠ 低於停損 {fmt2(st)}" if st > 0 and h["price"] <= st else f"　🎯 達目標 {fmt2(tg)}" if tg > 0 and h["price"] >= tg else ""
+        L.append(f"{h.get('code','')} {name}　{fmt2(h['price'])}{day}　{fmt(un)}（{(un / cost * 100) if cost else 0:+.1f}%）{mk}")
     realized, dividend = d.get("已實現損益") or 0, d.get("股息收入") or 0
     total_ret = t_un + realized + dividend
     L.append("──")

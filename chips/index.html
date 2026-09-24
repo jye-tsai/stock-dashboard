@@ -49,6 +49,10 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .disc .ok{color:#7be0a5;font-weight:700}.disc .bad{color:#ff8a8a;font-weight:700}.disc .wait{color:#FFD682;font-weight:700}
 .disc .sm{font-size:12px;color:#c8cfe0}
 .disc .pend{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;background:#e5484d;color:#fff;font-size:11.5px;font-weight:700}
+.disc .pbar{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap}
+.disc .pbar i{flex:1 1 70px;min-width:70px;max-width:150px;height:6px;border-radius:3px;background:#ffffff22;position:relative;overflow:hidden}
+.disc .pbar i b{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#9fb0d6}
+.disc .pbar.hl i b{background:#FFD682}.disc .pbar.hl .pp{color:#FFD682;font-weight:700}
 .disc .pnote{margin-top:8px;padding-top:7px;border-top:1px solid #ffffff22;font-size:12px;line-height:1.55}
 .disc .asp{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;padding:7px 0;border-top:1px solid #ffffff22}
 .disc .asp .an{font-weight:700;color:#FFD682;font-size:14px}
@@ -304,9 +308,12 @@ function renderDisc(t){   // 胖虎指標 v4:四面向現況描述 + 當日極�
   const miss=t.missing||[], core=miss.filter(k=>k!=='margin');
   $('#discCap').innerHTML=`${t.date} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${pg.note||''}`;
   const base=(EVJ&&EVJ.trend_states)||{};
+  const POS=pg.position||[];   // 10 年位置百分位:只描述今天在歷史中多極端,不加總、不給結論
+  const pbar=x=>`<div class="ad pbar${x.p>=80||x.p<=20?' hl':''}"><span>${x.name} ${x.text}</span><i><b style="width:${Math.max(2,x.p)}%"></b></i><span class="pp">第 ${x.p} 百分位・${x.band}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</span></div>`;
   $('#discLines').innerHTML=pg.aspects.map(a=>{
     const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
-    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${b}</div>`}).join('');
+    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${POS.filter(x=>x.aspect===a.k).map(pbar).join('')}${b}</div>`}).join('')
+    +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${pg.position_note}</div>`:'');
   const ev=pg.events||[];
   $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'')
     +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${miss.map(k=>MISS[k]||k).join('、')}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`

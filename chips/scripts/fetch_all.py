@@ -9,7 +9,7 @@ fetch_all.py ─ 台股盤後籌碼一鍵抓取（期交所＋證交所＋永豐
   data/YYYYMMDD_spf_*.png   永豐 籌碼快訊／盤後快訊 轉圖
 用法：python scripts/fetch_all.py [YYYY/MM/DD]
 """
-import sys, os, io, re, json, time, math, datetime as dt
+import sys, os, io, re, json, time, math, bisect, datetime as dt
 import requests, pandas as pd
 from urllib.parse import urljoin
 
@@ -892,6 +892,10 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None):
     if parts:
         label = "・".join(parts); asp("fx", "匯率", label, tone, lines, label)
 
+    if amt and len(amts) > 20:                                        # 成交金額對前 20 日均量(%),給位置百分位用
+        _a = sum(amts[-21:-1]) / 20
+        if _a: data["vol_ratio"] = round(amt / _a * 100, 1)
+
     # ── 極端事件(只標出,附歷史獨立事件後續;同一波連續出現標「第 N 天」)
     E = cfg["events"]; fired = []
     if 20 in gap and gap[20] <= E["oversold"]["pct"]: fired.append(("oversold", f"收盤低於 20 日均 {abs(gap[20]):.1f}%"))
@@ -920,7 +924,62 @@ def describe_live(t, p, hist, cfg):
     ix = t.get("index") or {}
     if closes and ix.get("close") and ds[-1] != t["date"]:           # 月表還沒更新到當天 → 補上當日(月表抓不齊時不補,整段留空)
         closes.append(ix["close"]); amts.append(ix.get("amount_yi") or 0)
-    return build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history())
+    pg = build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history())
+    try: attach_position(pg, t, load_dist())
+    except Exception as e: log(f"  位置百分位計算失敗:{e.__class__.__name__}: {e}")
+    return pg
+
+# ─────────────── 胖虎指標 v4:歷史位置百分位 ───────────────
+# 只回答「今天這個值在過去歷史中排第幾(0 最低、100 最高)」;不加總、不給多空結論。
+# 分布由 backtest.py 重算時產生(chips/backtest/dist.json,每週六更新),只含過去的日子,不偷看未來。
+DIST_PATH = os.path.join(DATA, "..", "backtest", "dist.json")
+POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
+    ("gap60", "trend", "收盤對 60 日均", "{:+.1f}%"),
+    ("vol_ratio", "trend", "成交對 20 日均量", "{:.0f}%"),
+    ("foreign20_pct", "chips", "外資現貨 20 日佔成交", "{:+.1f}%"),
+    ("fut_net", "chips", "外資台指期淨未平倉", "{:+,.0f} 口"),
+    ("retail", "sentiment", "散戶多空比", "{:+.1f}%"),
+    ("pc", "sentiment", "P/C(OI)", "{:.1f}%"),
+    ("twd20", "fx", "美元兌台幣 20 日", "{:+.2f}%"),
+]
+
+def position_values(t, data):
+    """位置百分位用的原始值;t 當日、data = build_describe 的 data"""
+    f = (t.get("txf") or {}).get("外資") or {}
+    ok_oi = ((f.get("long") or 0) + (f.get("short") or 0)) > 0          # 未平倉全 0 = 期交所還沒算好
+    rs = [x["ratio_pct"] for x in (t.get("mtx_retail"), t.get("tmf_retail")) if x and x.get("ratio_pct") is not None]
+    return {"gap60": data.get("gap60"), "vol_ratio": data.get("vol_ratio"), "foreign20_pct": data.get("foreign20_pct"),
+            "fut_net": f.get("net") if ok_oi else None, "retail": round(sum(rs) / len(rs), 2) if rs else None,
+            "pc": (t.get("pc") or {}).get("oi_ratio_pct"), "twd20": data.get("twd20")}
+
+def pctile(v, q):
+    """q = 101 個分位點(第 0~100 百分位,由小到大)→ v 的百分位;同值一大串時取中間"""
+    if v <= q[0]: return 0.0
+    if v >= q[-1]: return 100.0
+    i, j = bisect.bisect_left(q, v), bisect.bisect_right(q, v)
+    if j > i: return (i + j - 1) / 2
+    return (i - 1) + (v - q[i - 1]) / (q[i] - q[i - 1])
+
+def pct_band(p):
+    return "極低" if p <= 5 else "偏低" if p <= 20 else "極高" if p >= 95 else "偏高" if p >= 80 else "正常區間"
+
+def load_dist():
+    try: return json.load(open(DIST_PATH, encoding="utf-8"))
+    except Exception: return None
+
+def attach_position(pg, t, dist):
+    if not dist or not pg: return
+    vals, M = position_values(t, pg.get("data") or {}), dist.get("metrics") or {}
+    out = []
+    for k, ak, name, fm in POS_SPEC:
+        v, d = vals.get(k), M.get(k)
+        if v is None or not d or len(d.get("q") or []) != 101: continue
+        p = int(round(pctile(v, d["q"])))
+        out.append({"k": k, "aspect": ak, "name": name, "value": v, "text": fm.format(v), "p": p, "band": pct_band(p),
+                    "years": d.get("years"), "n": d.get("n")})
+    if out:
+        pg["position"] = out
+        pg["position_note"] = f"位置 = 今天的值在過去歷史中排第幾(0 最低、100 最高),分布資料到 {(dist.get('range') or ['', ''])[1]};只描述多極端,不是買賣訊號。"
 
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
 def finish_day(t, p):
@@ -940,6 +999,8 @@ def finish_day(t, p):
     pg = t.get("panghu") or {}
     if pg.get("version") == 4 and pg.get("aspects"):
         t["claude_text"] += "\n【胖虎指標・現況描述】" + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in pg["aspects"])
+        if pg.get("position"):
+            t["claude_text"] += "\n・歷史位置:" + "、".join(f"{x['name']} {x['text']} 第 {x['p']} 百分位({x['band']})" for x in pg["position"])
         for e in pg.get("events") or []:
             t["claude_text"] += f"\n⚠ 極端事件 {e['name']}({e['text']},近 10 日第 {e['day']} 次):{e.get('history_text', '')}"
     prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）

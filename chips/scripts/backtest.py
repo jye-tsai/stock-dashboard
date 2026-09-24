@@ -316,6 +316,22 @@ def run_describe(days, cfg4):
         seq.append(t)
     return seq
 
+def build_dist(dseq, dates):
+    """位置百分位用:每個指標取歷史上所有有值的日子,存 101 個分位點(第 0~100 百分位);少於 250 天(約一年)不收"""
+    vals = {k: [] for k, _, _, _ in fa.POS_SPEC}; first = {}
+    for s, d in zip(dseq, dates):
+        for k, v in fa.position_values(s, (s.get("panghu") or {}).get("data") or {}).items():
+            if v is None or k not in vals: continue
+            vals[k].append(v); first.setdefault(k, d)
+    out = {}
+    for k, xs in vals.items():
+        if len(xs) < 250: continue
+        xs = sorted(xs); n = len(xs)
+        out[k] = {"n": n, "from": first[k], "to": dates[-1], "years": round(n / 245, 1),
+                  "q": [round(xs[int(round(i / 100 * (n - 1)))], 4) for i in range(101)]}
+    return {"generated_at": tpe_now().isoformat(timespec="seconds"), "range": [dates[0], dates[-1]], "metrics": out,
+            "note": "q = 第 0~100 百分位的值(由小到大)。外資台指期、散戶多空比只有近 3 年(期交所只開放近 3 年)。"}
+
 def events_summary(dseq, close, dates, cfg4):
     N = len(close)
     def fw(i, k): return (close[i + k] / close[i] - 1) if i + k < N else None
@@ -371,7 +387,7 @@ def cmd_eval():
 
     live = run_seq(days, cfg, "live"); full = run_seq(days, cfg, "full")
     strat_pos = {"panghu_live": pos_of(live), "panghu_full": pos_of(full), "buy_hold": [1.0] * N, "fixed_half": [0.5] * N}
-    names = {"panghu_live": "胖虎指標(15:40 版)", "panghu_full": "胖虎指標(含融資)", "buy_hold": "全程滿倉", "fixed_half": "固定五成"}
+    names = {"panghu_live": "v2 評分・已停用(15:40)", "panghu_full": "v2 評分・已停用(含融資)", "buy_hold": "全程滿倉", "fixed_half": "固定五成"}
     cfg3 = jload(V3_CFG_PATH)
     seq3 = run_seq_v3(days, cfg3, cfg) if cfg3 else None
     if seq3:
@@ -512,7 +528,7 @@ def cmd_eval():
     ma60 = [(_ma := (sum(close[i - 59:i + 1]) / 60)) if i >= 59 else None for i in range(N)]
     base_trend = [None if ma60[i] is None else ("偏多" if close[i] >= ma60[i] * 1.02 else "偏空" if close[i] <= ma60[i] * 0.98 else "中性") for i in range(N)]
     methods = {"v2": [call_of(round(x * 100)) for x in strat_pos["panghu_live"]], "always_bull": ["偏多"] * N, "ma60": base_trend}
-    mnames = {"v2": "胖虎 v2", "always_bull": "永遠偏多(笨方法)", "ma60": "60 日均線 ±2%(笨方法)"}
+    mnames = {"v2": "v2 評分(已停用)", "always_bull": "永遠偏多(笨方法)", "ma60": "60 日均線 ±2%(笨方法)"}
     if seq3:
         methods["v3"] = [call_of((x.get("panghu3") or {}).get("pos")) for x in seq3]; mnames["v3"] = "胖虎 v3(實驗)"
         reg_call = {"多頭": "偏多", "盤整": "中性", "空頭": "偏空"}
@@ -603,6 +619,11 @@ def cmd_eval():
         dseq = run_describe(days, cfg4)
         evj = events_summary(dseq, close, dates, cfg4)
         jsave(os.path.join(BT, "events.json"), evj)
+        dist = build_dist(dseq, dates)                                   # 位置百分位的歷史分布 → fetch_all 每天盤後對照
+        jsave(os.path.join(BT, "dist.json"), dist)
+        nm = {k: n for k, _, n, _ in fa.POS_SPEC}
+        res["position_dist"] = {k: {"name": nm.get(k, k), "n": v["n"], "years": v["years"], "from": v["from"],
+                                    **{f"p{p}": v["q"][p] for p in (5, 20, 50, 80, 95)}} for k, v in dist["metrics"].items()}
         res["events_summary"] = {k: {x: v.get(x) for x in ("name", "n", "n_days", "up20", "down20", "median20", "worst_dd20", "in_bear")} for k, v in evj["events"].items()}
         res["trend_states"] = evj["trend_states"]
         print("  極端事件(獨立):" + "、".join(f"{v['name']} {v['n']} 次({v['up20']} 漲 {v['down20']} 跌)" for v in evj["events"].values()))
