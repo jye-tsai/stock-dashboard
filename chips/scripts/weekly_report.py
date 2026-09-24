@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""weekly_report.py ─ 每週日產生「交接文件更新草稿」：本週序列表＋胖虎指標與自動紀律。
+"""weekly_report.py ─ 每週日產生「交接文件更新草稿」：本週序列表＋胖虎指標(現況描述)。
 輸出 data/weekly_YYYYMMDD.md 與 data/weekly_index.json"""
 import os, json, glob, datetime as dt
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
@@ -35,17 +35,18 @@ L += ["", "## 二、週末狀態（校驗用前值）", "",
       f"- 外資期貨 OI：多 {n(f.get('long'))}／空 {n(f.get('short'))}／淨 {n(f.get('net'))}；投信淨多 {n(g(last,'txf','投信','net'))}；自營 {n(g(last,'txf','自營商','net'))}",
       f"- 外資選擇權：買權淨 {n(g(last,'opt','外資','call'))}、賣權淨 {n(g(last,'opt','外資','put'))}",
       f"- 散戶：小台 {n(g(last,'mtx_retail','ratio_pct'),'{:+.2f}%')}、微台 {n(g(last,'tmf_retail','ratio_pct'),'{:+.2f}%')}；P/C {n(g(last,'pc','oi_ratio_pct'))}%",
-      "", "## 三、胖虎指標與紀律（每日盤後自動）", ""]
+      "", "## 三、胖虎指標（每日盤後現況描述，不預測、不給倉位）", ""]
 pgs = [(t["date"][5:], t.get("panghu") or {}) for t in rows]
-if any(pg.get("temp") is not None for _, pg in pgs):
-    L += ["| 日期 | 胖虎指標 | 判讀 | 建議倉位 | 動作 |", "|---|---|---|---|---|"]
+if any(pg.get("version") == 4 for _, pg in pgs):
+    L += ["| 日期 | 趨勢 | 籌碼 | 情緒 | 匯率 | 極端事件 |", "|---|---|---|---|---|---|"]
     for dte, pg in pgs:
-        d = pg.get("discipline") or {}
-        L.append(f"| {dte} | {n(pg.get('temp'))} | {pg.get('label', '—')} | {pg.get('suggest', '—')} | {d.get('action', '—')} |")
-    d = pgs[-1][1].get("discipline") or {}
-    if d.get("line1"): L += ["", f"- 週末防線 {d['line1']:,}、第二道 {d['line2']:,}（依收盤自動計算）"]
+        a = {x["k"]: x["label"] for x in pg.get("aspects") or []}
+        ev = "、".join(e["name"] for e in pg.get("events") or []) or "—"
+        L.append(f"| {dte} | {a.get('trend', '—')} | {a.get('chips', '—')} | {a.get('sentiment', '—')} | {a.get('fx', '—')} | {ev} |")
+    last_pg = pgs[-1][1]
+    for x in last_pg.get("aspects") or []: L.append(f"- 週末{x['name']}:{';'.join(x['lines'])}")
 else:
-    L.append("- 本週資料尚無胖虎指標")
+    L.append("- 本週資料尚無胖虎指標 v4")
 L += ["", "## 四、待 Claude 補寫", "", "- 劇情主線（本週四～五個交易日的因果）", "- 外資期貨方法論新增觀察", "- 散戶溫度計案例入庫", "- 紀律成本照實記（出入點位與差額）", "- 下週事件時程與補齊／防守條件"]
 fn = f"weekly_{today}.md"
 open(os.path.join(DATA, fn), "w", encoding="utf-8").write("\n".join(L))

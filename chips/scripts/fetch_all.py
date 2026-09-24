@@ -705,6 +705,202 @@ def build_panghu(t, p, hist, cfg):
     if len(items) < cfg.get("min_items_note", 10): out["partial"] = _fmt(cfg["partial_note"], n=len(items))
     return out
 
+# ─────────────── 胖虎指標 v4(描述型) ───────────────
+# 只描述盤後現況的四個面向:趨勢、籌碼、情緒、匯率;不合成分數、不預測漲跌、不給倉位。
+# 10 年回測顯示用這些資料預測之後 20~60 日漲跌,沒有明顯贏過單看 60 日均線或永遠偏多,所以改成誠實描述。
+# 極端事件(超跌、深逆價差、爆量長黑、P/C 極低)只標出,並附上歷史每一次「獨立事件」的後續(backtest 產生的 events.json)。
+EVENTS_PATH = os.path.join(DATA, "..", "backtest", "events.json")
+_IH = {}
+def _month_index(y, m):
+    """證交所每日市場成交資訊月表 → {日期: (加權收盤, 成交金額億)};同一次執行快取"""
+    key = (y, m)
+    if key in _IH: return _IH[key]
+    out = {}
+    try:
+        r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H, timeout=30)
+        j = r.json()
+        if j.get("stat") == "OK":
+            for row in j.get("data") or []:
+                yy, mm, dd = row[0].strip().split("/")
+                out[f"{int(yy) + 1911}/{mm}/{dd}"] = (num(row[4]), round(num(row[2]) / 1e8))
+    except Exception as e: log(f"  加權月表 {y}/{m:02d} 失敗({e.__class__.__name__})")
+    _IH[key] = out; time.sleep(0.4)
+    return out
+
+def index_history(date, n=130):
+    """date(含)之前最近 n 個交易日:(收盤 list, 成交金額 list, 日期 list),由舊到新"""
+    y, m = int(date[:4]), int(date[5:7]); got = {}
+    for _ in range(12):
+        got.update(_month_index(y, m))
+        if len([d for d in got if d <= date]) >= n: break
+        m -= 1
+        if m == 0: y, m = y - 1, 12
+    ds = sorted(d for d in got if d <= date)[-n:]
+    return [got[d][0] for d in ds], [got[d][1] for d in ds], ds
+
+def fx_history(date, n=40):
+    """date(含)之前最近 n 筆匯率日線(Yahoo),由舊到新"""
+    out = {}
+    for k, sym in FX_SYMS.items():
+        mp = _fx_series(sym); ds = sorted(d for d in mp if d <= date)[-n:]
+        out[k] = [mp[d] for d in ds]
+    return out
+
+_EV = None
+def load_events_history():
+    global _EV
+    if _EV is None:
+        try: _EV = json.load(open(EVENTS_PATH, encoding="utf-8")).get("events") or {}
+        except Exception: _EV = {}
+    return _EV
+
+def _pct(a, b): return (a / b - 1) * 100 if (a is not None and b) else None
+
+def event_history_text(h):
+    """極端事件歷史摘要(獨立事件,同一波只算一次)"""
+    if not h or not h.get("n"): return "歷史上沒有同類事件紀錄"
+    s = f"歷史 {h['n']} 次:之後 20 日 {h['up20']} 漲 {h['down20']} 跌、中位數 {h['median20'] * 100:+.1f}%,20 日內最深再跌 {h['worst_dd20'] * 100:.1f}%"
+    b = h.get("in_bear") or {}
+    if b.get("n"): s += f";其中發生在空頭排列時 {b['n']} 次:{b['up20']} 漲 {b['down20']} 跌"
+    return s
+
+def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None):
+    """t 當日、p 前一日、hist 之前的日子(由舊到新,至少 20 天);closes / amts 為 t(含)之前的加權收盤與成交金額(至少 120 天);
+    fxh = {usdtwd: [...], dxy: [...]}(t 含之前)。ev_hist = 極端事件歷史(None 表示不附)。"""
+    ix = t.get("index") or {}; close, chg, amt = ix.get("close"), ix.get("chg"), ix.get("amount_yi")
+    pclose = _close(p) or (close - chg if (close and chg is not None) else None)
+    cp = (chg / pclose * 100) if (chg is not None and pclose) else None
+    aspects, data, events = [], {}, []
+    def asp(k, name, label, tone, lines, short):
+        aspects.append({"k": k, "name": name, "label": label, "tone": tone, "lines": [x for x in lines if x], "short": short})
+
+    # ── 趨勢:收盤對 20 / 60 / 120 日均線,與 60 日均線方向
+    T = cfg["trend"]; mas = {n: sum(closes[-n:]) / n for n in T["ma"] if len(closes) >= n}
+    gap = {n: _pct(close, v) for n, v in mas.items()} if close else {}
+    sm, lag = T["slope_ma"], T["slope_lag"]
+    slope = _pct(sum(closes[-sm:]) / sm, sum(closes[-sm - lag:-lag]) / sm) if len(closes) >= sm + lag else None
+    if close and 20 in mas and 60 in mas:
+        m20, m60, m120 = mas[20], mas[60], mas.get(120)
+        if m120 and m20 > m60 > m120 and close > m20: key, tone = "bull_stack", "bull"
+        elif m120 and m20 < m60 < m120 and close < m20: key, tone = "bear_stack", "bear"
+        elif close >= m60: key, tone = "above60", "bull_lean"
+        else: key, tone = "below60", "bear_lean"
+        label = T["labels"][key]
+        ma_txt = "、".join(f"{n} 日均 {v:,.0f}({gap[n]:+.1f}%)" for n, v in sorted(mas.items()))
+        sl_txt = None if slope is None else f"{sm} 日均線近 {lag} 日 {slope:+.1f}%,{'上彎' if slope >= T['slope_flat_pct'] else '下彎' if slope <= -T['slope_flat_pct'] else '走平'}"
+        asp("trend", "趨勢", label, tone, [f"收盤 {close:,.0f}:{ma_txt}", sl_txt],
+            f"{label}(20 日均 {gap[20]:+.1f}%、60 日均 {gap[60]:+.1f}%)")
+        data.update({"trend": key, "ma20": round(m20), "ma60": round(m60), "ma120": round(m120) if m120 else None,
+                     "gap20": round(gap[20], 2), "gap60": round(gap[60], 2), "gap120": round(gap[120], 2) if 120 in gap else None,
+                     "slope60": round(slope, 2) if slope is not None else None})
+
+    # ── 籌碼:外資現貨(今日、連買賣、20 日累計佔成交)、外資期貨多空、融資
+    Cc = cfg["chips"]; seq = hist + [t]
+    fs = [((d.get("inst") or {}).get("外資")) for d in seq[-Cc["foreign_days"]:]]
+    am = [_amt(d) for d in seq[-Cc["foreign_days"]:]]
+    fx0 = fs[-1]; lines = []; flabel = None; ftone = "neutral"; f20 = None
+    if fx0 is not None:
+        s = 1 if fx0 > 0 else -1 if fx0 < 0 else 0; run = 0
+        for v in reversed(fs):
+            if v is None or v == 0 or (v > 0) != (s > 0): break
+            run += 1
+        pairs = [(a, b) for a, b in zip(fs, am) if a is not None and b]
+        if len(pairs) >= 10:
+            f20 = sum(a for a, _ in pairs) / sum(b for _, b in pairs) * 100
+            flabel = Cc["labels"]["buy"] if f20 >= Cc["foreign_pct"] else Cc["labels"]["sell"] if f20 <= -Cc["foreign_pct"] else Cc["labels"]["flat"]
+            ftone = "buy" if f20 >= Cc["foreign_pct"] else "sell" if f20 <= -Cc["foreign_pct"] else "neutral"
+            data["foreign20_pct"] = round(f20, 2)
+        runs = "" if (s == 0 or abs(fx0) < Cc["foreign_flat_yi"]) else f"(連{'買' if s > 0 else '賣'} {run} 日)"
+        lines.append(f"外資現貨 今日 {fx0:+,.0f} 億{runs}" + (f",近 {len(pairs)} 日累計 {sum(a for a, _ in pairs):+,.0f} 億、佔成交 {f20:+.1f}%" if f20 is not None else ""))
+    fu, fp = (t.get("txf") or {}).get("外資"), (p.get("txf") or {}).get("外資")
+    combo = None
+    if fu and fp:
+        dl, ds_ = fu["long"] - fp["long"], fu["short"] - fp["short"]; dz = Cc["fut_deadzone"]
+        ml = 0 if abs(dl) < dz else (1 if dl > 0 else -1); ms = 0 if abs(ds_) < dz else (1 if ds_ > 0 else -1)
+        ck = ((("add_long" if ml > 0 else "cut_long") + "_" + ("add_short" if ms > 0 else "cut_short")) if (ml and ms) else
+              ("add_long" if ml > 0 else "cut_long") if ml else ("add_short" if ms > 0 else "cut_short") if ms else "none")
+        combo = Cc["fut_combo"][ck]; base = Cc["baseline_net"]; net = fu["net"]
+        lines.append(f"外資台指期 多單 {dl:+,} 口、空單 {ds_:+,} 口({combo});淨{'空' if net < 0 else '多'} {abs(net):,} 口,"
+                     f"{'低於' if net > base else '高於'} {abs(base) // 10000} 萬口基態")
+    n = Cc["margin_days"]
+    if t.get("margin_note"): lines.append("今日融資尚未公布(21:30 那班補)")
+    elif close and len(seq) > n:
+        b0 = seq[-n - 1]; m0, m1, c0 = b0.get("margin"), t.get("margin"), _close(b0)
+        if m0 and m1 and c0: lines.append(f"融資近 {n} 日 {_pct(m1, m0):+.2f}%(同期指數 {_pct(close, c0):+.2f}%),餘額 {m1:,.1f} 億")
+    if flabel or combo:
+        label = "・".join(x for x in (flabel, f"期貨{combo}" if combo else None) if x)
+        asp("chips", "籌碼", label, ftone, lines, label + (f"(20 日累計佔成交 {f20:+.1f}%)" if f20 is not None else ""))
+
+    # ── 情緒:散戶多空比、P/C、VIX
+    S = cfg["sentiment"]; lines = []; parts = []; rlab = plab = None
+    def rmean(d):
+        xs = [x["ratio_pct"] for x in ((d or {}).get("mtx_retail"), (d or {}).get("tmf_retail")) if x and x.get("ratio_pct") is not None]
+        return sum(xs) / len(xs) if xs else None
+    r, rp = rmean(t), rmean(p)
+    if r is not None:
+        rlab = "散戶偏多" if r >= S["retail_mild"] else "散戶偏空" if r <= -S["retail_mild"] else "散戶中性"; parts.append(rlab)
+        det = "、".join(f"{nm} {x['ratio_pct']:+.1f}%" for nm, x in (("小台", t.get("mtx_retail")), ("微台", t.get("tmf_retail"))) if x and x.get("ratio_pct") is not None)
+        lines.append(f"散戶多空比 {det}" + (f"(前日平均 {rp:+.1f}% → 今 {r:+.1f}%)" if rp is not None else ""))
+    pc = (t.get("pc") or {}).get("oi_ratio_pct"); pp = (p.get("pc") or {}).get("oi_ratio_pct")
+    if pc is not None:
+        plab = "P/C 偏高" if pc >= S["pc_hi"] else "P/C 偏低" if pc <= S["pc_lo"] else "P/C 中性"; parts.append(plab)
+        lines.append(f"全市場 P/C(OI) {pc:.1f}%" + (f"(前日 {pp:.1f}%)" if pp is not None else ""))
+    vx = t.get("vix"); vs = [h.get("vix") for h in hist[-S["vix_days"]:] if h.get("vix")]
+    if vx:
+        avg = sum(vs) / len(vs) if len(vs) >= 5 else None
+        lines.append(f"VIX {vx}" + (f"(近 {len(vs)} 日均 {avg:.1f},{'偏高' if vx >= avg * (1 + S['vix_mild']) else '偏低' if vx <= avg * (1 - S['vix_mild']) else '持平'})" if avg else ""))
+    if parts:
+        tone = "hot" if (rlab == "散戶偏多" and plab == "P/C 偏低") else "cold" if (rlab == "散戶偏空" and plab == "P/C 偏高") else "neutral"
+        label = "・".join(parts); asp("sentiment", "情緒", label, tone, lines, label + (f"・VIX {vx}" if vx else ""))
+
+    # ── 匯率:台幣、美元指數 20 日變化
+    X = cfg["fx"]; lines = []; parts = []; tone = "neutral"
+    def chg_n(xs): return _pct(xs[-1], xs[-1 - X["days"]]) if len(xs) > X["days"] else (_pct(xs[-1], xs[0]) if len(xs) >= 5 else None)
+    tw = [x for x in (fxh.get("usdtwd") or []) if x]; dx = [x for x in (fxh.get("dxy") or []) if x]
+    if tw:
+        c = chg_n(tw)
+        if c is not None:
+            lab = "台幣升值" if c <= -X["flat_pct"] else "台幣貶值" if c >= X["flat_pct"] else "台幣持平"; parts.append(lab)
+            tone = "inflow" if c <= -X["flat_pct"] else "outflow" if c >= X["flat_pct"] else "neutral"
+            lines.append(f"美元兌台幣 {tw[-1]:.3f},近 {X['days']} 日 {c:+.2f}%({lab})"); data["twd20"] = round(c, 2)
+    if dx:
+        c = chg_n(dx)
+        if c is not None:
+            lab = "美元偏強" if c >= X["flat_pct"] else "美元偏弱" if c <= -X["flat_pct"] else "美元持平"; parts.append(lab)
+            lines.append(f"美元指數 {dx[-1]:.2f},近 {X['days']} 日 {c:+.2f}%({lab})"); data["dxy20"] = round(c, 2)
+    if parts:
+        label = "・".join(parts); asp("fx", "匯率", label, tone, lines, label)
+
+    # ── 極端事件(只標出,附歷史獨立事件後續;同一波連續出現標「第 N 天」)
+    E = cfg["events"]; fired = []
+    if 20 in gap and gap[20] <= E["oversold"]["pct"]: fired.append(("oversold", f"收盤低於 20 日均 {abs(gap[20]):.1f}%"))
+    if t.get("basis") is not None and t["basis"] <= E["deep_neg"]["basis"]: fired.append(("deep_neg", f"基差 {t['basis']:+.0f} 點"))
+    ad = E["surge_down"]["avg_days"]
+    if amt and len(amts) > ad and cp is not None:
+        avg = sum(amts[-ad - 1:-1]) / ad
+        if avg and amt >= avg * E["surge_down"]["ratio"] and cp <= E["surge_down"]["chg_pct"]:
+            fired.append(("surge_down", f"成交 {amt:,} 億(均量的 {amt / avg * 100:.0f}%),指數 {cp:+.2f}%"))
+    if pc is not None and pc <= E["pc_low"]["pc"]: fired.append(("pc_low", f"P/C(OI) {pc:.1f}%"))
+    for k, txt in fired:
+        cnt = sum(1 for h in hist[-E["dedupe_days"]:] if k in [e["k"] for e in ((h.get("panghu") or {}).get("events") or [])])
+        ev = {"k": k, "name": E[k]["name"], "text": txt, "day": cnt + 1, "new": cnt == 0}   # day = 近 dedupe_days 日內第幾次出現;new = 新一波
+        if ev_hist is not None:
+            hh = ev_hist.get(k) or {}
+            ev["history"] = {x: hh.get(x) for x in ("n", "up20", "down20", "median20", "worst_dd20", "in_bear")}
+            ev["history_text"] = event_history_text(hh)
+        events.append(ev)
+
+    summary = "|".join(f"{a['name']} {a['label']}" for a in aspects)
+    return {"version": 4, "aspects": aspects, "events": events, "summary": summary, "data": data, "note": cfg.get("note", "")}
+
+def describe_live(t, p, hist, cfg):
+    """每天盤後用:加權收盤從證交所月表往回抓 130 天、匯率用 Yahoo 日線;極端事件附 events.json 的歷史"""
+    closes, amts, ds = index_history(t["date"], 130)
+    ix = t.get("index") or {}
+    if ix.get("close") and (not ds or ds[-1] != t["date"]):          # 月表還沒更新到當天 → 補上當日
+        closes.append(ix["close"]); amts.append(ix.get("amount_yi") or 0)
+    return build_describe(t, p, hist, cfg, closes, amts, fx_history(t["date"]), load_events_history())
+
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
 def finish_day(t, p):
     """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
@@ -714,17 +910,17 @@ def finish_day(t, p):
     hist = recent_days(20, ymd(t["date"]))
     try: t["insight"] = build_insight(t, p, hist)
     except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
-    try: t["panghu"] = build_panghu(t, p, hist, load_panghu_cfg())
+    try: t["panghu"] = describe_live(t, p, hist, load_panghu_cfg())      # v4 描述型(v2 評分版 build_panghu 只留給回測當對照)
     except Exception as e: log(f"  胖虎指標計算失敗:{e.__class__.__name__}: {e}")
     t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
     if (t.get("insight") or {}).get("lines"):
         t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
     pg = t.get("panghu") or {}
-    if pg.get("summary"):
-        d = pg.get("discipline") or {}
-        t["claude_text"] += "\n【胖虎指標】" + pg["summary"] + (f"({pg['partial']})" if pg.get("partial") else "") + (("\n" + d["action"]) if d.get("action") else "") \
-            + "\n" + "\n".join(f"・{i['name']} {i['score']:+d}(×{i['w']}):{i['note']}" for i in pg["items"])
+    if pg.get("version") == 4 and pg.get("aspects"):
+        t["claude_text"] += "\n【胖虎指標・現況描述】" + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in pg["aspects"])
+        for e in pg.get("events") or []:
+            t["claude_text"] += f"\n⚠ 極端事件 {e['name']}({e['text']},近 10 日第 {e['day']} 次):{e.get('history_text', '')}"
     prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）
     if os.path.exists(prev_file):
         try:

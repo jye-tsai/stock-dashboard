@@ -36,6 +36,14 @@ _argv = sys.argv; sys.argv = ["fetch_all"]; spec.loader.exec_module(fa); sys.arg
 _spec3 = importlib.util.spec_from_file_location("panghu_v3", os.path.join(HERE, "panghu_v3.py"))
 v3 = importlib.util.module_from_spec(_spec3); _spec3.loader.exec_module(v3)
 V3_CFG_PATH = os.path.join(ROOT, "panghu_v3.json")
+V2_CFG_PATH = os.path.join(ROOT, "panghu_v2.json")          # 封存的 v2 評分版設定(對照組);正式版 panghu.json 已是 v4 描述型
+DEDUPE = 10                                                  # 獨立事件:同一種情境 / 事件相隔 10 個交易日以內算同一波
+
+def load_v2_cfg():
+    c = jload(V2_CFG_PATH)
+    if c: return c
+    c = fa.load_panghu_cfg()
+    return c if c.get("version", 2) == 2 else None
 
 def tpe_now(): return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=8)).replace(tzinfo=None)   # 台北時間(不帶時區字尾,免得誤讀成 UTC)
 def jload(p, d=None):
@@ -295,9 +303,57 @@ def cfg_with(cfg, path, factor):
     o[path[-1]] = nv
     return c, v, nv
 
+def run_describe(days, cfg4):
+    """v4 描述型逐日重算(模擬 15:40,融資未公布);收盤 / 成交金額 / 匯率用回測資料本身"""
+    cl = [d["index"]["close"] for d in days]; am = [d["index"]["amount_yi"] for d in days]
+    fxs = {k: [(d.get("fx") or {}).get(k) for d in days] for k in fa.FX_SYMS}
+    seq = []
+    for i, t0 in enumerate(days):
+        t = json.loads(json.dumps(t0)); t["margin_note"] = "回測模擬 15:40:當日融資未公布"
+        fxh = {k: [x for x in v[max(0, i - 40):i + 1] if x] for k, v in fxs.items()}
+        t["panghu"] = fa.build_describe(t, seq[-1] if seq else {}, seq[-20:], cfg4, cl[max(0, i - 129):i + 1], am[max(0, i - 129):i + 1], fxh, None)
+        seq.append(t)
+    return seq
+
+def events_summary(dseq, close, dates, cfg4):
+    N = len(close)
+    def fw(i, k): return (close[i + k] / close[i] - 1) if i + k < N else None
+    trend = [((s.get("panghu") or {}).get("data") or {}).get("trend") for s in dseq]
+    evs = {}
+    for key, spec in cfg4["events"].items():
+        if not isinstance(spec, dict): continue
+        hit = [i for i, s in enumerate(dseq) if any(e["k"] == key for e in (s.get("panghu") or {}).get("events", []))]
+        first = [i for j, i in enumerate(hit) if j == 0 or i - hit[j - 1] > DEDUPE]
+        lst = []
+        for i in first:
+            txt = next((e["text"] for e in dseq[i]["panghu"]["events"] if e["k"] == key), "")
+            lst.append({"date": dates[i], "close": close[i], "text": txt, "trend": cfg4["trend"]["labels"].get(trend[i], trend[i]),
+                        "fwd5": r4(fw(i, 5)), "fwd20": r4(fw(i, 20)), "fwd60": r4(fw(i, 60)),
+                        "dd20": r4(min(close[i:min(N, i + 21)]) / close[i] - 1)})
+        done = [x for x in lst if x["fwd20"] is not None]; f20 = sorted(x["fwd20"] for x in done)
+        bear = [x for x in done if x["trend"] == cfg4["trend"]["labels"]["bear_stack"]]
+        evs[key] = {"name": spec["name"], "n": len(done), "n_days": len(hit), "pending": len(lst) - len(done),
+                    "up20": sum(1 for x in done if x["fwd20"] > 0), "down20": sum(1 for x in done if x["fwd20"] <= 0),
+                    "median20": r4(f20[len(f20) // 2]) if f20 else None, "mean20": r4(mean(f20)),
+                    "worst_dd20": r4(min((x["dd20"] for x in done), default=None)) if done else None,
+                    "in_bear": {"n": len(bear), "up20": sum(1 for x in bear if x["fwd20"] > 0), "down20": sum(1 for x in bear if x["fwd20"] <= 0)},
+                    "list": lst}
+    ts = {}
+    for key, label in cfg4["trend"]["labels"].items():
+        ii = [i for i, x in enumerate(trend) if x == key]
+        runs = sum(1 for j, i in enumerate(ii) if j == 0 or i - ii[j - 1] > 1)
+        f = sorted(x for x in (fw(i, 20) for i in ii) if x is not None)
+        ts[label] = {"key": key, "days": len(ii), "runs": runs, "share": r4(len(ii) / N),
+                     "median20": r4(f[len(f) // 2]) if f else None, "mean20": r4(mean(f)),
+                     "up20": r4(mean([1 if x > 0 else 0 for x in f])) if f else None}
+    return {"generated_at": tpe_now().isoformat(timespec="seconds"), "range": [dates[0], dates[-1]], "n_days": N, "dedupe_days": DEDUPE,
+            "events": evs, "trend_states": ts,
+            "note": "獨立事件:同一種事件相隔 10 個交易日以內算同一波,只取第一天。dd20 = 事件後 20 日內最低收盤相對事件日的跌幅。回測期間 3 年以前為精簡資料,不影響這幾種事件的判斷(只用指數、成交金額、基差、P/C)。"}
+
 # ─────────────── eval ───────────────
 def cmd_eval():
-    cfg = fa.load_panghu_cfg()
+    cfg = load_v2_cfg()
+    if not cfg: print("找不到 v2 設定(chips/panghu_v2.json),無法評估對照組"); return
     days = []
     for f in sorted(os.listdir(RAW)) if os.path.isdir(RAW) else []:
         if f.endswith(".json"): days += [v for v in (jload(os.path.join(RAW, f), {}) or {}).values() if v.get("_ok")]
@@ -405,18 +461,21 @@ def cmd_eval():
     for i, s in enumerate(full):
         for it in (s.get("panghu") or {}).get("items", []):
             row = sc_rows.setdefault((it["k"], it["scenario"]), {"k": it["k"], "name": it["name"], "scenario": it["scenario"],
-                                                                 "score": it["score"], "n": 0, "_f5": [], "_f20": [], "example": None})
-            row["n"] += 1
+                                                                 "score": it["score"], "n": 0, "_f5": [], "_f20": [], "_idx": [], "example": None})
+            row["n"] += 1; row["_idx"].append(i)
             if F[5][i] is not None: row["_f5"].append(F[5][i])
             if F[20][i] is not None: row["_f20"].append(F[20][i])
             row["example"] = f"{s['date']}:{it['note']}"
     scenarios = []
     for row in sc_rows.values():
-        f5, f20 = row.pop("_f5"), row.pop("_f20")
+        f5, f20, ix_ = row.pop("_f5"), row.pop("_f20"), row.pop("_idx")
         row["fwd5"] = r4(mean(f5)); row["fwd20"] = r4(mean(f20)); row["hit20"] = r4(mean([1 if x > 0 else 0 for x in f20])) if f20 else None
-        ex = (row["fwd20"] - uncond[20]) if (row["fwd20"] is not None and uncond[20] is not None) else None
+        first = [i for j, i in enumerate(ix_) if j == 0 or i - ix_[j - 1] > DEDUPE]          # 同一波只算第一天,避免連續天數灌水
+        ev20 = [F[20][i] for i in first if F[20][i] is not None]
+        row["n_events"] = len(first); row["ev_fwd20"] = r4(mean(ev20)); row["ev_hit20"] = r4(mean([1 if x > 0 else 0 for x in ev20])) if ev20 else None
+        ex = (row["ev_fwd20"] - uncond[20]) if (row["ev_fwd20"] is not None and uncond[20] is not None) else None
         row["excess20"] = r4(ex)
-        row["flag"] = ("樣本少" if row["n"] < 5 else
+        row["flag"] = ("樣本少" if row["n_events"] < 5 else
                        "方向不符" if (ex is not None and row["score"] != 0 and (ex > 0) != (row["score"] > 0) and abs(ex) >= 0.005) else
                        "中性卻有方向" if (ex is not None and row["score"] == 0 and abs(ex) >= 0.02) else "")
         scenarios.append(row)
@@ -534,9 +593,18 @@ def cmd_eval():
             f"期交所期貨 / 選擇權三大法人只開放近 3 年;更早的 {len(lite_idx)} 天為精簡版,外資期貨多空與散戶多空比不計分(分段表分開看)。",
             f"換倉成本以每 100% 部位變動 {COST_PER_TURN * 100:.2f}% 計。",
             "回檔事件:從前高跌超過 8% 算一次,站回前高結束;跌幅 ≥ 15% 算「真下跌」,其餘算「洗盤」。這是事後分類,用來打分數;指標本身只能用當下資料判斷。",
-            "情境表的「方向不符」= 分數給正、之後 20 日卻跑輸平均(或反之)超過 0.5%;樣本少於 5 次不判斷。",
+            "情境表改用「獨立事件」:同一情境相隔 10 個交易日以內算同一波,只取第一天;「方向不符」= 分數給正、獨立事件之後 20 日卻跑輸平均(或反之)超過 0.5%;獨立事件少於 5 次不判斷。",
             "參數敏感度:單一門檻 ×0.8 / ×1.2 後總報酬變動超過 8 個百分點或最大回檔變動超過 4 個百分點,標為「敏感」,代表那個數字可能是剛好擬合出來的。"]
     }
+    # ── v4 描述型:極端事件歷史(獨立事件)與趨勢狀態基準 → events.json(籌碼站與 LINE 讀)
+    cfg4 = fa.load_panghu_cfg()
+    if cfg4.get("version") == 4:
+        dseq = run_describe(days, cfg4)
+        evj = events_summary(dseq, close, dates, cfg4)
+        jsave(os.path.join(BT, "events.json"), evj)
+        res["events_summary"] = {k: {x: v.get(x) for x in ("name", "n", "n_days", "up20", "down20", "median20", "worst_dd20", "in_bear")} for k, v in evj["events"].items()}
+        res["trend_states"] = evj["trend_states"]
+        print("  極端事件(獨立):" + "、".join(f"{v['name']} {v['n']} 次({v['up20']} 漲 {v['down20']} 跌)" for v in evj["events"].values()))
     jsave(os.path.join(BT, "result.json"), res)
     L = strategy["all"]
     print(f"回測 {dates[0]} ~ {dates[-1]},{N} 天(計算 {time.time() - t0:.0f} 秒);溫度與 20 日報酬等級相關 {ic.get('fwd20')}")

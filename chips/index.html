@@ -48,6 +48,21 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .disc .ln{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #ffffff22;font-size:14px}
 .disc .ok{color:#7be0a5;font-weight:700}.disc .bad{color:#ff8a8a;font-weight:700}.disc .wait{color:#FFD682;font-weight:700}
 .disc .sm{font-size:12px;color:#c8cfe0}
+.disc .asp{display:grid;grid-template-columns:44px 1fr;gap:4px 10px;padding:7px 0;border-top:1px solid #ffffff22}
+.disc .asp .an{font-weight:700;color:#FFD682;font-size:14px}
+.disc .asp .al{font-weight:700;font-size:15px}
+.disc .asp .ad{grid-column:2;font-size:12.5px;color:#c8cfe0;line-height:1.55}
+.disc .t-bull,.disc .t-buy,.disc .t-inflow{color:#ff9b9b}.disc .t-bear,.disc .t-sell,.disc .t-outflow{color:#7be0a5}
+.disc .t-bull_lean{color:#ffc4c4}.disc .t-bear_lean{color:#b5efcc}.disc .t-hot{color:#FFD682}.disc .t-cold{color:#9fc3ff}
+.disc .evbox{margin-top:8px;padding:8px 10px;border-radius:10px;background:#ffffff14;border:1px solid #FFD68266;font-size:13px}
+.disc .evbox b{color:#FFD682}
+.evt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.evt th,.evt td{padding:4px 5px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.evt th{color:var(--gray);font-weight:600;border-top:none}.evt td:first-child,.evt th:first-child{text-align:left}
+.evsum{display:grid;gap:6px}
+.evsum details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.evsum summary{cursor:pointer;font-weight:700}
+.evsum .on{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,transparent)}
 .lbl{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border-radius:14px;font-size:12px;font-weight:700;color:#fff}
 .chart{width:100%;height:auto;display:block;margin-top:6px}
 .chart text{font-size:11px;fill:var(--gray)}
@@ -113,23 +128,15 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
   </div>
 
   <div class="disc" id="disc" style="display:none">
-    <h2>紀律狀態</h2>
-    <div class="pos" id="discPos"></div>
+    <h2 style="display:flex;align-items:center;gap:8px">胖虎指標・市場狀態 <a href="backtest/" style="margin-left:auto;color:#FFD682;font-size:12px;text-decoration:none;border:1px solid #FFD68266;border-radius:8px;padding:2px 8px" title="10 年回測報告">📊 回測</a></h2>
     <div class="sm" id="discCap"></div>
     <div id="discLines"></div>
+    <div id="discPos"></div>
   </div>
 
   <div class="card" id="phCard" style="display:none">
-    <h2>胖虎指標 <a class="btn-mini" href="backtest/" style="text-decoration:none;order:2" title="看這套規則過去兩年的表現">📊 回測</a><span class="mut" style="font-weight:400;font-size:12px">13 項指標依情境給分加權,0 偏空 → 100 偏多;溫度 20 以下空手、80 以上滿倉,中間每 10% 一級</span></h2>
-    <div class="phhead">
-      <div class="phtemp" id="phTemp">—</div>
-      <div>
-        <div class="phlabel" id="phLabel"></div>
-        <div class="phtrack"><div class="phmark" id="phMark" style="left:50%"></div></div>
-        <div class="phscale" style="position:relative;display:block;height:15px"><span style="position:absolute;left:0">0</span><span style="position:absolute;left:20%;transform:translateX(-50%)">20 空手</span><span style="position:absolute;left:50%;transform:translateX(-50%)">50 五成</span><span style="position:absolute;left:80%;transform:translateX(-50%)">80 滿倉</span><span style="position:absolute;right:0">100</span></div>
-      </div>
-    </div>
-    <div class="phitems" id="phItems"></div>
+    <h2>極端事件紀錄 <span class="mut" style="font-weight:400;font-size:12px">10 年回測,同一波只算一次;只列歷史後續,不是買賣訊號</span></h2>
+    <div class="evsum" id="evBox"></div>
   </div>
 
   <div class="card">
@@ -221,7 +228,7 @@ async function loadIndex(){
   try{
     const idx=await (await fetch('data/index.json?'+Date.now())).json();
     $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
-    await loadSeries(idx); loadWeekly();
+    await loadSeries(idx); await loadEvents(); loadWeekly();
     if(idx.length)await loadDay(idx[0]);
     else $('#status').textContent='尚無資料，請先跑一次 Action';
   }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
@@ -283,22 +290,20 @@ function render(t){
   renderIns(t); renderPanghu(t); renderDisc(t); renderLabels(t); renderCharts();
 }
 // ── 紀律狀態
-function renderDisc(t){   // 紀律狀態:只看胖虎指標(每天盤後自動產生),沒有就整張藏起來
-  const pg=t.panghu||{},d=pg.discipline||null,c=(t.index||{}).close;
-  if(!d){$('#disc').style.display='none';return}
+function renderDisc(t){   // 胖虎指標 v4:四面向現況描述 + 當日極端事件;不預測、不給倉位
+  const pg=t.panghu||{};
+  if(pg.version!==4||!(pg.aspects||[]).length){
+    if(pg.temp!=null){$('#disc').style.display='';$('#discCap').textContent='這天是舊版(v2 評分)資料,重新回補後會換成 v4 現況描述';$('#discLines').innerHTML='';$('#discPos').innerHTML=''}
+    else $('#disc').style.display='none';
+    return}
   $('#disc').style.display='';
-  const was=d.prev_name&&d.prev_pct!==d.suggest_pct?`<span class="sm">　(昨 ${d.prev_name})</span>`:'';
-  $('#discPos').innerHTML=`建議 <b>${d.suggest}</b>${was}`;
-  $('#discCap').textContent=`胖虎指標 ${pg.temp} ${pg.label}(${pg.delta||''})・依 ${t.date} 盤後資料自動判讀`+(pg.partial?`;${pg.partial}`:'');
-  const ln=(label,level,ok)=>{if(level==null)return '';const dlt=c!=null?Math.round(c-level):null;
-    const st=dlt==null?'—':ok?`守住 +${fmt(dlt)}`:`已跌破 ${sgn(dlt)}`;
-    return `<div class="ln"><span>${label}　<b>${fmt(level)}</b></span><span class="${dlt==null?'wait':ok?'ok':'bad'}">${st}</span></div>`};
-  let html=ln('防線:收盤跌破 → 降兩級',d.line1,d.line1_ok)+ln('第二道:收盤跌破 → 空手',d.line2,d.line2_ok);
-  if(d.next_name){const a=d.next_ok_temp,b=d.next_ok_foreign;
-    html+=`<div class="ln"><span>下一步:指標 ≥ ${d.next_temp} 且外資現貨買超 → ${d.next_name}</span><span class="${a&&b?'ok':'wait'}">${a&&b?'雙勾 ✓✓':`${a?'指標✓':'指標✗'} ${b?'外資✓':'外資✗'}`}</span></div>`}
-  else html+=`<div class="ln"><span>已是滿倉級距,不再加碼,只管防線</span><span class="ok">—</span></div>`;
-  if(d.action){const warn=['out','down','fake_break'].includes(d.act);html+=`<div class="ln"><span class="${warn?'bad':'sm'}" style="font-weight:700">${warn?'🚨 ':''}${d.action}</span></div>`}
-  $('#discLines').innerHTML=html;
+  $('#discCap').textContent=`${t.date} 盤後現況・${pg.note||''}`;
+  const base=(EVJ&&EVJ.trend_states)||{};
+  $('#discLines').innerHTML=pg.aspects.map(a=>{
+    const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
+    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${b}</div>`}).join('');
+  const ev=pg.events||[];
+  $('#discPos').innerHTML=ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'';
 }
 // ── 自動判讀標籤
 function renderLabels(t){
@@ -379,7 +384,7 @@ const kInt=v=>v==null?'—':Math.round(v).toLocaleString();
 // 胖虎指標圖的倉位級距色帶(要在 SPARKS 之前宣告,SPARKS 會引用)
 const PH_BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
 const SPARKS={
-  panghu:{t:'胖虎指標',g:t=>gv(t,'panghu','temp'),f:v=>v==null?'—':Math.round(v)+'',o:{color:'var(--c-gold)',fixed:[0,100],bands:PH_BANDS}},
+  panghu:{t:'收盤對 60 日均線（%）',g:t=>gv(t,'panghu','data','gap60'),f:v=>v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%',o:{zero:true,color:'var(--c-gold)'}},
   idx:{t:'加權指數',g:t=>gv(t,'index','close'),f:kInt,o:{color:'var(--c-red)'}},
   inst_all:{t:'三大法人（億）',g:t=>gv(t,'inst','合計'),f:kInt,o:{bars:true,zero:true}},
   inst_fore:{t:'外資買賣超（億）',g:t=>gv(t,'inst','外資'),f:kInt,o:{bars:true,zero:true}},
@@ -405,15 +410,21 @@ document.addEventListener('click',e=>{
   if(!was){box.innerHTML=miniSpark(k.dataset.spark);k.classList.add('open')}
 });
 
-// ── 胖虎指標卡(溫度、建議倉位、逐項分數與理由)
+// ── 極端事件紀錄(讀 backtest/events.json;當天有觸發的那一種自動展開)
+var EVJ=null;   // var:避免在宣告前被 renderDisc 讀到時的暫時性死區
+async function loadEvents(){try{EVJ=await (await fetch('backtest/events.json?'+Date.now())).json()}catch(e){EVJ=null}}
 function renderPanghu(t){
-  const pg=t.panghu,card=$('#phCard');
-  if(!pg||pg.temp==null){card.style.display='none';return}
+  const card=$('#phCard');
+  if(!EVJ||!EVJ.events){card.style.display='none';return}
   card.style.display='';
-  $('#phTemp').textContent=pg.temp;
-  $('#phLabel').textContent=`${pg.label}・建議 ${pg.suggest}（${pg.delta||''}）`+(pg.partial?`・${pg.partial}`:`・${pg.n_items} 項有資料`);
-  $('#phMark').style.left=pg.temp+'%';
-  $('#phItems').innerHTML=(pg.items||[]).map(i=>`<div class="phi"><span class="phs ${i.score>0?'up':i.score<0?'dn':'mut'}">${i.score>0?'+':''}${i.score}</span><span class="phn">${i.name}<span class="mut" style="font-weight:400"> ×${i.w}</span></span><span class="pht mut">${i.note}</span></div>`).join('');
+  const today=new Set(((t.panghu||{}).events||[]).map(e=>e.k));
+  const p1=x=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(1)+'%';
+  $('#evBox').innerHTML=Object.entries(EVJ.events).map(([k,v])=>{
+    const b=v.in_bear||{};
+    const rows=(v.list||[]).slice().reverse().map(x=>`<tr><td>${x.date}<div class="mut" style="font-size:11px">${x.trend||''}</div></td><td>${Math.round(x.close).toLocaleString()}</td><td class="${cls(x.fwd5)}">${p1(x.fwd5)}</td><td class="${cls(x.fwd20)}">${p1(x.fwd20)}</td><td class="${cls(x.fwd60)}">${p1(x.fwd60)}</td><td class="dn">${p1(x.dd20)}</td></tr>`).join('');
+    return `<details${today.has(k)?' open class="on"':''}><summary>${today.has(k)?'⚠ 今天出現・':''}${v.name}:${v.n} 次,之後 20 日 ${v.up20} 漲 ${v.down20} 跌,中位數 ${p1(v.median20)},最深再跌 ${p1(v.worst_dd20)}${b.n?`;空頭排列中 ${b.n} 次 ${b.up20} 漲 ${b.down20} 跌`:''}</summary>
+      <div style="overflow-x:auto;margin-top:6px"><table class="evt"><tr><th>日期</th><th>收盤</th><th>5 日</th><th>20 日</th><th>60 日</th><th>20 日內再跌</th></tr>${rows}</table></div></details>`}).join('')
+    +`<div class="mut" style="font-size:12px">${EVJ.note||''}(資料 ${EVJ.range[0]} ～ ${EVJ.range[1]})</div>`;
 }
 
 function renderCharts(){
@@ -422,10 +433,10 @@ function renderCharts(){
   const sv=(f)=>series.map(t=>({d:d(t),v:f(t)}));
   const k=v=>v==null?'—':Math.round(v).toLocaleString();
   const idxClose=sv(t=>g(t,'index','close'));
-  const dl=(((current||{}).panghu||{}).discipline||{}).line1, lines=dl?[dl]:[];   // 加權圖的防線 = 胖虎指標自動算的防線
+  const dl=(((current||{}).panghu||{}).data||{}).ma60, lines=dl?[dl]:[];   // 加權圖的參考線 = 60 日均線(胖虎指標 v4)
   $('#charts').innerHTML=[
-    spark('胖虎指標（0 偏空 → 100 偏多）',sv(t=>g(t,'panghu','temp')),v=>v==null?'—':Math.round(v)+'',{color:'var(--c-gold)',fixed:[0,100],bands:PH_BANDS}),
-    spark('加權指數',idxClose,k,{color:'var(--c-red)',ref:lines[0],refLabel:lines[0]?'防線 '+fmt(lines[0]):''}),
+    spark('收盤對 60 日均線（%）',sv(t=>g(t,'panghu','data','gap60')),v=>v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
+    spark('加權指數',idxClose,k,{color:'var(--c-red)',ref:lines[0],refLabel:lines[0]?'60 日均 '+fmt(lines[0]):''}),
     spark('外資期貨淨空（口）',sv(t=>g(t,'txf','外資','net')),k,{color:'var(--c-green)',ref:-80000,refLabel:'8 萬口基態'}),
     spark('外資現貨買賣超（億）',sv(t=>g(t,'inst','外資')),v=>v==null?'—':Math.round(v)+'',{bars:true,zero:true}),
     spark('小台散戶多空比（%）',sv(t=>g(t,'mtx_retail','ratio_pct')),v=>v==null?'—':v.toFixed(1)+'%',{zero:true,color:'var(--c-gold)'}),
