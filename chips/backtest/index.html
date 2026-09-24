@@ -109,6 +109,16 @@ function render(R,S){
   h+=`<div class="card"><h2>策略績效</h2><div class="tabs" id="stTabs"><button data-p="all" class="on">全期間</button><button data-p="h1">第一年(樣本內)</button><button data-p="h2">第二年(樣本外)</button></div><div class="tw" id="stTbl"></div>
     <div class="sm mut" style="margin-top:6px">切分日 ${R.split_date}。第一年拿來看要不要調,第二年只驗不調;兩段都要站得住才算數。</div></div>`;
 
+  // 分段:近 3 年完整版 vs 更早精簡版
+  const SG=R.segments||{};
+  if(SG.full||SG.lite){
+    const segRow=(key,label)=>{const x=SG[key];if(!x)return '';const m=x.strategy.panghu_live,b=x.strategy.buy_hold,f=x.strategy.fixed_half,g=(x.goals||{}).panghu_live||{};
+      return `<tr><td>${label}<div class="sm mut">${x.range[0]} ～ ${x.range[1]}・${x.n} 天</div></td><td class="${cl(m.total)}">${pc(m.total)}</td><td>${pc(m.mdd)}</td><td class="${cl(b.total)}">${pc(b.total)}</td><td>${pc(b.mdd)}</td><td class="${cl(f.total)}">${pc(f.total)}</td><td>${x.ic20==null?'—':x.ic20.toFixed(2)}</td><td>${x.n_episodes}</td><td>${pc0(g.bear_avoided)}</td><td>${pc0(g.wash_expo_trough)}</td><td>${pc0(g.rally_cap)}</td></tr>`};
+    h+=`<div class="card"><h2>分段:近 3 年完整版 vs 更早精簡版</h2><div class="tw"><table><tr><th>區段</th><th>胖虎報酬</th><th>胖虎回檔</th><th>滿倉報酬</th><th>滿倉回檔</th><th>固定五成</th><th>溫度與 20 日相關</th><th>回檔事件</th><th>真下跌少跌</th><th>洗盤谷底部位</th><th>大底後參與</th></tr>
+      ${segRow('lite','更早精簡版(缺期貨籌碼)')}${segRow('full','近 3 年完整 13 項')}</table></div>
+      <div class="sm mut" style="margin-top:6px">期交所期貨三大法人只開放近 3 年,更早的日子外資期貨多空與散戶多空比不計分。兩段口徑不同,分開看;精簡版主要用來驗「環境判斷」在 2018、2020、2022 等不同行情裡站不站得住。</div></div>`;
+  }
+
   // 淨值
   const eq=R.series.eq;
   h+=`<div class="card"><h2>淨值曲線(起點 1)</h2>${lineChart(keys.map(k=>({name:R.names[k],color:COLORS[k],v:eq[k],dash:k==='fixed_half'?'5 4':null,w:k.startsWith('panghu')?2.4:1.6})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}</div>`;

@@ -13,6 +13,8 @@
 
 注意:
   - 台指 VIX 官方只留近 3 個月,回測期間大多沒有 → 該項自動不計分(溫度用有資料的項目標準化)。
+  - 期交所的期貨 / 選擇權三大法人只開放近 3 年;更早的日子走「精簡抓取」(lite):照抓指數、外資現貨、融資、P/C、台指期收盤、匯率,
+    外資期貨多空與散戶多空比留空不計分。評估時「近 3 年完整版」與「更早精簡版」分兩段看,口徑不同不混在一起。
   - 「15:40 版」模擬盤後實際發 LINE 的時點:當日融資還沒公布,融資那項不計分;「含融資版」是 21:30 補齊後的結果。
   - 決策在當日盤後,最快隔日收盤才能執行 → 策略從「決策日 +1 的收盤」開始持有,不偷看當天收盤。
   - 加權指數是價格指數,不含股息;成本以換倉幅度 × COST_PER_TURN 計。
@@ -67,6 +69,21 @@ def safe(fn, *a):
     try: return fn(*a)
     except Exception as e: print(f"  {fn.__name__} 失敗:{e.__class__.__name__}"); return None
 
+# ─────────────── 精簡抓取(3 年以前) ───────────────
+FULL_YEARS = 3              # 期交所三大法人開放的年數;早於「今天 - 3 年 + 15 天」的日子才允許走精簡版(近期的失敗照常重試,不降級)
+TWSE_GAP = 0.8              # 連打兩支證交所之間的間隔,避免被擋
+def collect_lite(d):
+    out = {"date": d, "lite": True, "txf": {}, "mtx": {}, "tmf": {}, "mtx_retail": None, "tmf_retail": None, "opt": None, "vix": None}
+    out["index"] = cached_index(d)
+    out["inst"] = safe(fa.twse_inst, d); time.sleep(TWSE_GAP)
+    out["margin"] = safe(fa.twse_margin, d)
+    out["pc"] = safe(fa.taifex_pc, d)
+    out["tx"] = safe(fa.taifex_tx_close, d)
+    if out["tx"] and out.get("index") and out["tx"].get("close"): out["basis"] = round(out["tx"]["close"] - out["index"]["close"], 2)
+    out["fx"] = fa.fx_for(d)
+    out["missing"] = [k for k in ("index", "inst", "margin", "pc", "tx") if out.get(k) is None] + ["期貨三大法人(官方只開放近 3 年)"]
+    return out
+
 # ─────────────── fetch ───────────────
 def cmd_fetch(years, minutes, limit_days):
     fa.twse_index = cached_index
@@ -83,6 +100,8 @@ def cmd_fetch(years, minutes, limit_days):
             if d >= start: todo.append(d)
     if limit_days: todo = todo[-limit_days:]
     print(f"回測期間 {todo[0] if todo else '—'} ~ {todo[-1] if todo else '—'},共 {len(todo)} 個交易日")
+    lite_before = (now - dt.timedelta(days=int(FULL_YEARS * 365.25) - 15)).strftime("%Y/%m/%d")
+    print(f"{lite_before} 以前走精簡抓取(期貨三大法人官方只開放近 {FULL_YEARS} 年)")
     stores = {}; done = skip = fail = 0; stopped = False
     for d in todo:
         ym = d[:4] + d[5:7]; path = os.path.join(RAW, ym + ".json")
@@ -90,12 +109,15 @@ def cmd_fetch(years, minutes, limit_days):
         st = stores[ym]
         if (st.get(d) or {}).get("_ok"): skip += 1; continue
         if time.time() > t_end: stopped = True; break
-        df = safe(fa.taifex_fut, d)
-        if df is None: fail += 1; print(f"  {d} 期交所無資料,略過"); time.sleep(PACE); continue
-        c = fa.collect(d, df)
+        df = None if d < lite_before else safe(fa.taifex_fut, d)        # 太舊的日子不用試,期交所一定回 DateTime error
+        if df is None:
+            if d >= lite_before: fail += 1; print(f"  {d} 期交所無資料,略過(近期日子不降級,下次重試)"); time.sleep(PACE); continue
+            c = collect_lite(d)
+        else:
+            c = fa.collect(d, df)
         if c.get("inst") is None: time.sleep(8); c["inst"] = safe(fa.twse_inst, d)          # 證交所偶爾擋 → 等一下重抓一次
         if c.get("margin") is None: time.sleep(8); c["margin"] = safe(fa.twse_margin, d)
-        c["_ok"] = bool(c.get("index") and c.get("inst") and (c.get("txf") or {}).get("外資"))
+        c["_ok"] = bool(c.get("index") and c.get("inst") and (c.get("lite") or (c.get("txf") or {}).get("外資")))
         st[d] = c; jsave(path, st); fa.LOG.clear()
         if c["_ok"]: done += 1
         else: fail += 1
@@ -106,7 +128,8 @@ def cmd_fetch(years, minutes, limit_days):
         ym = f[:6]
         if ym not in stores: total_ok += sum(1 for v in (jload(os.path.join(RAW, f), {}) or {}).values() if v.get("_ok"))
     status = {"updated": now.isoformat(timespec="seconds"), "range": [todo[0], todo[-1]] if todo else None,
-              "trading_days": len(todo), "ok": total_ok, "new": done, "fail": fail, "complete": (not stopped) and total_ok >= len(todo) - fail}
+              "trading_days": len(todo), "ok": total_ok, "new": done, "fail": fail, "lite_before": lite_before,
+              "complete": (not stopped) and total_ok >= len(todo) - fail}
     jsave(os.path.join(BT, "fetch_status.json"), status)
     print(f"\n抓取結束:新抓 {done}、失敗 {fail}、原本已有 {skip};累計可用 {total_ok}/{len(todo)}" + ("(時間用完,再跑一次會接著抓)" if stopped else ""))
 
@@ -278,6 +301,21 @@ def cmd_eval():
         ep_rows.append(row)
     goals = {k: goals_of(ep_rows, k) for k in strat_pos if k not in ("buy_hold", "fixed_half", "panghu_full")}
 
+    # ── 分段:近 3 年完整版 vs 更早精簡版(缺期貨三大法人)
+    lite_idx = [i for i, d in enumerate(days) if d.get("lite")]
+    segments = {}
+    if lite_idx and len(lite_idx) < N:
+        cut = max(lite_idx) + 1                                            # 精簡版一定在最前面連續一段
+        for seg, (a, b) in (("lite", (0, cut)), ("full", (cut, N))):
+            if b - a < 30: continue
+            sm = {}
+            for k, pos in strat_pos.items():
+                rets, expo, ir = simulate(close[a:b], pos[a:b])
+                sm[k], _ = metrics(rets, expo, ir)
+            sub_eps = [r for r in ep_rows if a <= dates.index(r["peak"]) < b]
+            segments[seg] = {"range": [dates[a], dates[b - 1]], "n": b - a, "strategy": sm,
+                             "goals": {k: goals_of(sub_eps, k) for k in goals}, "n_episodes": len(sub_eps)}
+
     # ── 溫度分組 / 等級相關(15:40 版)
     temps = [(s.get("panghu") or {}).get("temp") for s in live]
     buckets = []
@@ -296,6 +334,9 @@ def cmd_eval():
         return r4(spearman([a for a, _ in pr], [b for _, b in pr])) if len(pr) >= 5 else None
     ic = {"fwd5": ic_of(live, k=5), "fwd20": ic_of(live), "fwd20_h1": ic_of(live, range(0, mid)), "fwd20_h2": ic_of(live, range(mid, N))}
     for g, sq in grp_seq.items(): ic["grp_" + g] = ic_of(sq)
+    for seg, sv in segments.items():
+        a = dates.index(sv["range"][0]); b = dates.index(sv["range"][1]) + 1
+        sv["ic20"] = ic_of(live, range(a, b)); sv["ic20_chips"] = ic_of(grp_seq["chips"], range(a, b)) if "chips" in grp_seq else None
 
     # ── 各指標(含融資版):分數與之後報酬的等級相關
     items = []
@@ -365,6 +406,7 @@ def cmd_eval():
     res = {
         "generated_at": tpe_now().isoformat(timespec="seconds"), "config_version": cfg.get("version"),
         "range": [dates[0], dates[-1]], "n_days": N, "split_date": dates[mid], "cost_per_turn": COST_PER_TURN,
+        "lite_days": len(lite_idx), "segments": segments,
         "vix_days": sum(1 for d in days if d.get("vix")), "uncond": uncond,
         "names": names, "groups": {("grp_" + g): s["name"] for g, s in GROUPS.items() if s["keep"] is not None},
         "strategy": strategy, "goals": goals, "episodes": ep_rows,
@@ -378,6 +420,7 @@ def cmd_eval():
             "15:40 版模擬盤後發 LINE 的時點:當日融資未公布,融資不計分;含融資版是 21:30 補齊後的結果。",
             f"台指 VIX 官方只留近 3 個月,回測 {N} 天中只有 {sum(1 for d in days if d.get('vix'))} 天有 VIX,其餘不計分。",
             "決策在當日盤後,策略從隔日收盤才換倉(不偷看)。加權指數為價格指數,不含股息。",
+            f"期交所期貨 / 選擇權三大法人只開放近 3 年;更早的 {len(lite_idx)} 天為精簡版,外資期貨多空與散戶多空比不計分(分段表分開看)。",
             f"換倉成本以每 100% 部位變動 {COST_PER_TURN * 100:.2f}% 計。",
             "回檔事件:從前高跌超過 8% 算一次,站回前高結束;跌幅 ≥ 15% 算「真下跌」,其餘算「洗盤」。這是事後分類,用來打分數;指標本身只能用當下資料判斷。",
             "情境表的「方向不符」= 分數給正、之後 20 日卻跑輸平均(或反之)超過 0.5%;樣本少於 5 次不判斷。",
