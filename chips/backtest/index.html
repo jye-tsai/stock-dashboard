@@ -92,6 +92,19 @@ function render(R,S){
     <div class="kpi"><div class="l">平均部位 / 換倉次數</div><div class="v">${pc0(L.avg_expo)}</div><div class="sm mut">換倉 ${L.changes} 次</div></div>
   </div></div>`;
 
+  // 三個目標(對應:轉多抓得到、洗盤敢進場、真下跌跑得快)
+  const G=R.goals||{}, gk=['panghu_live'].concat(Object.keys(R.groups||{})), gn=k=>k==='panghu_live'?'全部 13 項':R.names[k];
+  const days=x=>x==null?'—':Math.round(x)+' 天';
+  const grow=(label,f,hint)=>`<tr><td>${label}<div class="sm mut">${hint}</div></td>${gk.map(k=>`<td>${f(G[k]||{})}</td>`).join('')}</tr>`;
+  const g0=G.panghu_live||{};
+  h+=`<div class="card"><h2>三個目標</h2><div class="tw"><table><tr><th>目標</th>${gk.map(k=>`<th>${esc(gn(k))}</th>`).join('')}</tr>
+    ${grow('① 真下跌少跌幾成',g=>pc0(g.bear_avoided),`跌 15% 以上共 ${g0.bear_n??0} 次;全程滿倉 = 0%`)}
+    ${grow('　真下跌在跌到多少時減半',g=>pc(g.bear_cut_at),'越接近 0 代表跑得越快')}
+    ${grow('② 洗盤谷底還留幾成部位',g=>pc0(g.wash_expo_trough),`跌 8%~15% 又創新高共 ${g0.wash_n??0} 次;越高代表越敢留`)}
+    ${grow('　洗盤後幾天回到七成',g=>days(g.wash_re_days)+(g.wash_never_back?`(${g.wash_never_back} 次沒回來)`:''),'越短越好')}
+    ${grow('③ 大底後 60 天吃到幾成漲幅',g=>pc0(g.rally_cap),'真下跌谷底起算;全程滿倉 = 100%')}
+  </table></div><div class="sm mut" style="margin-top:6px">洗盤 / 真下跌是事後依跌幅分類,用來打分數;指標本身只能用當下資料判斷,這正是它難的地方。</div></div>`;
+
   // 策略績效
   h+=`<div class="card"><h2>策略績效</h2><div class="tabs" id="stTabs"><button data-p="all" class="on">全期間</button><button data-p="h1">第一年(樣本內)</button><button data-p="h2">第二年(樣本外)</button></div><div class="tw" id="stTbl"></div>
     <div class="sm mut" style="margin-top:6px">切分日 ${R.split_date}。第一年拿來看要不要調,第二年只驗不調;兩段都要站得住才算數。</div></div>`;
@@ -99,6 +112,15 @@ function render(R,S){
   // 淨值
   const eq=R.series.eq;
   h+=`<div class="card"><h2>淨值曲線(起點 1)</h2>${lineChart(keys.map(k=>({name:R.names[k],color:COLORS[k],v:eq[k],dash:k==='fixed_half'?'5 4':null,w:k.startsWith('panghu')?2.4:1.6})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}</div>`;
+
+  // 組合比較:全部 / 只看籌碼 / 只看價格趨勢
+  const ck=['panghu_live'].concat(Object.keys(R.groups||{})).concat(['buy_hold']);
+  const CC={panghu_live:'var(--c-gold)',grp_chips:'var(--c-blue)',grp_price:'var(--teal)',buy_hold:'var(--c-red)'};
+  h+=`<div class="card"><h2>組合比較:全部 vs 只看籌碼 vs 只看價格趨勢</h2>
+    ${lineChart(ck.map(k=>({name:k==='panghu_live'?'全部 13 項':R.names[k],color:CC[k]||'var(--gray)',v:eq[k],w:k==='panghu_live'?2.4:1.6,dash:k==='buy_hold'?'5 4':null})),R.series.dates,{fmt:v=>v.toFixed(2),ref:1})}
+    <div class="tw"><table><tr><th>組合</th><th>總報酬</th><th>最大回檔</th><th>報酬÷回檔</th><th>上漲參與</th><th>下跌承受</th><th>換倉</th><th>溫度與 20 日相關</th></tr>
+    ${ck.map(k=>{const m=st.all[k];const ick=k==='panghu_live'?'grp_all':k;return `<tr><td>${k==='panghu_live'?'全部 13 項':R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td>${pc(m.mdd)}</td><td>${m.calmar??'—'}</td><td>${pc0(m.up_cap)}</td><td>${pc0(m.down_cap)}</td><td>${m.changes}</td><td>${R.ic[ick]==null?'—':R.ic[ick].toFixed(2)}</td></tr>`}).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">只看籌碼 = 外資現貨、外資期貨多空、散戶多空比、P/C、融資;只看價格趨勢 = 趨勢、量能、價量。其他項目權重歸零,溫度用剩下的項目標準化。</div></div>`;
 
   // 指數 + 溫度 + 建議倉位
   const BANDS=[[0,20,'#3ECF8E30'],[20,40,'#3ECF8E18'],[40,60,'#88888814'],[60,80,'#FF6B6B18'],[80,100,'#FF6B6B30']];
@@ -110,6 +132,14 @@ function render(R,S){
     ${R.buckets.map(b=>`<tr><td>${b.lo}–${b.hi}</td><td>${b.n}</td><td class="${cl(b.fwd5)}">${pc(b.fwd5,2)}</td><td>${pc0(b.hit5)}</td><td class="${cl(b.fwd20)}">${pc(b.fwd20,2)}</td><td>${pc0(b.hit20)}</td></tr>`).join('')}
     <tr><td class="mut">全部平均</td><td></td><td class="${cl(R.uncond[5])}">${pc(R.uncond[5],2)}</td><td></td><td class="${cl(R.uncond[20])}">${pc(R.uncond[20],2)}</td><td></td></tr></table></div>
     <div class="sm mut" style="margin-top:6px">理想狀況:溫度越高那一列的報酬越好。某一列天數太少(個位數)就別太相信。</div></div>`;
+
+  // 回檔事件
+  const EP=R.episodes||[];
+  h+=`<div class="card"><h2>回檔事件(跌 8% 以上)</h2>${EP.length?`<div class="tw"><table><tr><th>類型</th><th>前高</th><th>谷底</th><th>站回</th><th>跌幅</th><th>前高部位</th><th>谷底部位</th><th>少跌</th><th>減半時跌幅</th><th>回到七成</th><th>60 天參與</th></tr>
+    ${EP.map(e=>{const g=e.panghu_live||{};return `<tr><td><span class="flag ${e.kind==='真下跌'?'bad':'warn'}">${e.kind}</span></td><td>${e.peak}</td><td>${e.trough}<div class="sm mut">${e.days_down} 天</div></td><td>${e.recover||'尚未'}${e.days_back!=null?`<div class="sm mut">${e.days_back} 天</div>`:''}</td>
+      <td class="dn">${pc(e.depth)}</td><td>${pc0(g.expo_peak)}</td><td>${pc0(g.expo_trough)}</td><td>${pc0(g.avoided)}</td><td>${g.cut_at_dd==null?'沒減半':pc(g.cut_at_dd)}</td>
+      <td>${g.re_days==null?'沒回來':g.re_days+' 天'}${g.re_missed?`<div class="sm mut">已漲 ${pc(g.re_missed)}</div>`:''}</td><td>${e.kind==='真下跌'?pc0(g.rally_cap):'—'}</td></tr>`}).join('')}</table></div>`:'<div class="mut">回測期間沒有跌超過 8% 的回檔</div>'}
+    <div class="sm mut" style="margin-top:6px">部位與少跌以「胖虎指標(15:40 版)」計。洗盤要看谷底部位高、回到七成快;真下跌要看減半時跌幅小、少跌多。</div></div>`;
 
   // 各指標
   h+=`<div class="card"><h2>各指標:分數有沒有預測力</h2><div class="tw"><table><tr><th>指標</th><th>權重</th><th>有資料天數</th><th>對 5 日相關</th><th>對 20 日相關</th><th>各分數之後 20 日平均</th></tr>
@@ -123,6 +153,14 @@ function render(R,S){
     <div class="sm" style="margin-bottom:8px"><span class="flag bad">方向不符 ${nb}</span>　<span class="flag warn">中性卻有方向 ${nw}</span>　<span class="mut">沒出現過 ${R.untriggered.length} 種</span></div>
     <label class="chk"><input type="checkbox" id="onlyBad"> 只看有問題的</label><div class="tw" id="scTbl"></div></div>`;
 
+  // 參數敏感度
+  const SS=R.sensitivity||{rows:[]},SB=SS.base||{};
+  const cellS=x=>x&&!x.error?`<b>${typeof x.value==='number'?+x.value.toFixed(3):x.value}</b><div class="sm">${pc(x.total)}・回檔 ${pc(x.mdd)}</div><div class="sm mut">少跌 ${pc0(x.bear_avoided)}・回補 ${days(x.wash_re_days)}</div>`:'<span class="mut">—</span>';
+  h+=`<div class="card"><h2>參數敏感度(×0.8 / ×1.2)</h2><div class="sm" style="margin-bottom:6px">目前設定:總報酬 ${pc(SB.total)}・最大回檔 ${pc(SB.mdd)}・真下跌少跌 ${pc0(SB.bear_avoided)}・洗盤回補 ${days(SB.wash_re_days)}</div>
+    <div class="tw"><table><tr><th>參數</th><th>目前</th><th>×0.8</th><th>×1.2</th><th>判定</th></tr>
+    ${SS.rows.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.base==null?'—':+(+r.base).toFixed(3)}</td><td>${cellS(r.lo)}</td><td>${cellS(r.hi)}</td><td>${r.fragile?'<span class="flag bad">敏感</span>':'<span class="mut">穩</span>'}</td></tr>`).join('')}</table></div>
+    <div class="sm mut" style="margin-top:6px">動兩成結果就大翻的數字,多半是剛好擬合這段行情;這種參數寧可取整數、取直觀的值,不要追最佳。</div></div>`;
+
   // 動作 + 未出現 + 注意
   const actName={out:'跌破第二道',below_line2:'仍在第二道下',down:'跌破防線',below_line:'仍在防線下',fake_break:'假跌破觀察',gate:'外資未買超暫不加碼',up:'升級',weaken:'降級',top:'滿倉',bottom:'空手',steady:'連日維持',hold:'維持'};
   h+=`<div class="card"><h2>紀律動作分布(15:40 版)</h2><div class="tw"><table><tr><th>動作</th><th>天數</th></tr>${Object.entries(R.actions).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${actName[k]||k}</td><td>${v}</td></tr>`).join('')}</table></div></div>`;
@@ -130,8 +168,8 @@ function render(R,S){
   h+=`<div class="card"><h2>注意事項</h2><ul class="sm">${R.notes.map(x=>`<li>${esc(x)}</li>`).join('')}<li>這是機械式指標回測,用來找出分數給錯的情境,不是保證未來績效,也不是投資建議。</li></ul></div>`;
   $('#app').innerHTML=h;
 
-  const stTbl=p=>{$('#stTbl').innerHTML=`<table><tr><th>策略</th><th>總報酬</th><th>年化</th><th>最大回檔</th><th>波動</th><th>夏普</th><th>平均部位</th><th>換倉</th></tr>
-    ${keys.map(k=>{const m=st[p][k];return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[k]};margin-right:6px"></i>${R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td class="${cl(m.cagr)}">${pc(m.cagr)}</td><td>${pc(m.mdd)}</td><td>${pc0(m.vol)}</td><td>${m.sharpe??'—'}</td><td>${pc0(m.avg_expo)}</td><td>${m.changes}</td></tr>`}).join('')}</table>`};
+  const stTbl=p=>{$('#stTbl').innerHTML=`<table><tr><th>策略</th><th>總報酬</th><th>年化</th><th>最大回檔</th><th>報酬÷回檔</th><th>上漲參與</th><th>下跌承受</th><th>夏普</th><th>平均部位</th><th>換倉</th></tr>
+    ${keys.map(k=>{const m=st[p][k];return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[k]};margin-right:6px"></i>${R.names[k]}</td><td class="${cl(m.total)}">${pc(m.total)}</td><td class="${cl(m.cagr)}">${pc(m.cagr)}</td><td>${pc(m.mdd)}</td><td>${m.calmar??'—'}</td><td>${pc0(m.up_cap)}</td><td>${pc0(m.down_cap)}</td><td>${m.sharpe??'—'}</td><td>${pc0(m.avg_expo)}</td><td>${m.changes}</td></tr>`}).join('')}</table>`};
   stTbl('all');
   document.querySelectorAll('#stTabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#stTabs button').forEach(x=>x.classList.toggle('on',x===b));stTbl(b.dataset.p)});
 
