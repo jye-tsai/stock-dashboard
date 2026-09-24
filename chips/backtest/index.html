@@ -37,7 +37,7 @@ td:first-child,th:first-child{text-align:left}
 svg.ch{width:100%;height:auto;display:block}
 svg.ch text{font-size:11px;fill:var(--gray)}
 .flag{font-weight:700;border-radius:6px;padding:1px 6px;font-size:12px}
-.flag.bad{background:#FF6B6B26;color:var(--c-red)}.flag.warn{background:#F2C35B26;color:var(--c-gold)}.flag.few{color:var(--gray)}
+.flag.ok{background:#3ECF8E26;color:var(--teal)}.flag.bad{background:#FF6B6B26;color:var(--c-red)}.flag.warn{background:#F2C35B26;color:var(--c-gold)}.flag.few{color:var(--gray)}
 .grp td{background:color-mix(in srgb,var(--gold) 10%,transparent);font-weight:700;color:var(--gold);text-align:left}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kpi{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
@@ -120,6 +120,27 @@ function render(R,S){
       <div class="tw"><table><tr><th>指標</th><th>資料</th><th>極低 ≤ 第 5</th><th>偏低 ≤ 第 20</th><th>中位數</th><th>偏高 ≥ 第 80</th><th>極高 ≥ 第 95</th></tr>
       ${Object.values(PD).map(v=>{const u=x=>x==null?'—':f1(x)+(v.unit==='口'?' 口':v.unit||'');return `<tr><td>${esc(v.name)}</td><td>${v.years} 年<div class="sm mut">${v.n} 天</div></td><td>${u(v.p5)}</td><td>${u(v.p20)}</td><td><b>${u(v.p50)}</b></td><td>${u(v.p80)}</td><td>${u(v.p95)}</td></tr>`}).join('')}</table></div>`:''}
       <div class="sm mut" style="margin-top:6px">趨勢狀態之後的表現差異不大(空頭排列之後 20 日平均反而是漲的),所以 v4 不拿它預測,只當作背景。</div></div>`;
+  }
+
+  // 波動 / 風險回測
+  const RK=R.risk;
+  if(RK&&RK.groups){
+    const f2=x=>x==null?'—':(+x).toFixed(2);
+    h+=`<div class="card"><h2>波動 / 風險回測(風險面向的依據)</h2>
+      <div class="sm" style="margin-bottom:6px">近 ${RK.days} 日實際波動 = 加權指數日報酬的標準差(年化)。分組只跟當天以前近 3 年比,不偷看未來。期間 ${RK.range[0]} ～ ${RK.range[1]}・${RK.n} 天。</div>
+      <div class="tw"><table><tr><th>問題</th><th>結果</th><th>結論</th></tr>
+        <tr><td>今天的波動能預測接下來 ${RK.days} 日的波動嗎</td><td>相關 全期 ${f2(RK.corr.all)}・前半 ${f2(RK.corr.h1)}・後半 ${f2(RK.corr.h2)}・獨立樣本 ${f2(RK.corr.indep)}</td><td><span class="flag ok">可以,且穩定</span></td></tr>
+        <tr><td>能預測接下來跌多深嗎</td><td>獨立樣本相關 ${f2(RK.corr_dd_indep)}</td><td><span class="flag warn">一般情況不能;只看得出最壞情況變壞</span></td></tr>
+        <tr><td>用常態分布估區間準嗎</td><td>±1 個標準差實際只涵蓋 ${pc0(RK.cover_1sd_normal)}(常態約 68%)</td><td><span class="flag warn">尾巴比較肥,改用歷史實際分布校準(× ${RK.k68})</span></td></tr></table></div>
+      <div class="sm" style="margin:10px 0 6px">預測接下來 ${RK.days} 日波動:今天的波動跟近 3 年平均怎麼配最準(誤差中位數,越小越好)</div>
+      <div class="tw"><table><tr>${RK.forecast_err.map(x=>`<th>今天 ${Math.round(x.w*100)}%</th>`).join('')}</tr><tr>${RK.forecast_err.map(x=>`<td>${f2(x.err)}${x.w===RK.today_weight?' ✓':''}</td>`).join('')}</tr></table></div>
+      <div class="sm" style="margin:10px 0 6px">各波動組之後 ${RK.days} 日(盤後「風險」面向引用這張)</div>
+      <div class="tw"><table><tr><th>波動組</th><th>天數</th><th>當時波動</th><th>之後波動</th><th>常見漲跌</th><th>最深跌中位數</th><th>最深跌最差 1 成</th><th>跌超過 8%</th><th>20 日報酬中位數</th><th>上漲機率</th></tr>
+      ${RK.groups.map(g=>`<tr><td>${esc(g.label)}</td><td>${g.n}</td><td>${g.rv_med}%</td><td>${g.frv_med}%</td><td>±${g.range_med}%</td><td class="dn">${g.dd_med}%</td><td class="dn">${g.dd_w10}%</td><td>${g.p8}%<div class="sm mut">獨立 ${g.n_ep} 段中 ${g.ep8} 段</div></td><td class="${cl(g.ret_med)}">${g.ret_med>0?'+':''}${g.ret_med}%</td><td>${g.up}%</td></tr>`).join('')}</table></div>
+      <div class="sm" style="margin:10px 0 6px">沒採用的發現:趨勢 × 波動。逐日看「季線之下・波動非高」好像最危險,改成獨立段落就消失了(連續天數重複計算造成的)</div>
+      <div class="tw"><table><tr><th>組合</th><th>逐日:跌超過 8%</th><th>獨立段落:跌超過 8%</th></tr>
+      ${RK.trend_cells.map(c=>`<tr><td>${esc(c.name)}</td><td>${c.p8}%<div class="sm mut">${c.n} 天</div></td><td>${c.ep8} / ${c.n_ep} 段</td></tr>`).join('')}</table></div>
+      <div class="sm mut" style="margin-top:6px">波動只描述震幅、不代表方向:高波動組之後大反彈也比較多。${esc(RK.note||'')}</div></div>`;
   }
 
   // ── 以下是舊版 v2 評分的完整回測(已停用),收起來當對照紀錄
