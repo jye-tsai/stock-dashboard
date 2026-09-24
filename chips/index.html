@@ -55,6 +55,7 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .disc .pbar i u{position:absolute;top:0;bottom:0;width:1px;background:#ffffff88}
 .disc .prng{font-size:11.5px;color:#9fb0d6;margin-top:-3px}
 .disc .pbar.hl i b{background:#FFD682}.disc .pbar.hl .pp{color:#FFD682;font-weight:700}
+.disc .hl1{font-size:15px;font-weight:700;line-height:1.5;margin:2px 0 8px;color:#fff}
 .disc .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:4px 0 10px}
 .disc .tile{background:#ffffff12;border-radius:10px;padding:7px 10px;min-width:0}
 .disc .tile .n{font-size:11.5px;color:#9fb0d6}.disc .tile .v{font-size:14px;font-weight:700;line-height:1.35}
@@ -335,7 +336,7 @@ function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常
     fut_net:['淨空偏多','淨空偏少'],rv20:['震幅小','震幅大'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
   const odd=POS.filter(x=>x.p<=20||x.p>=80);
   const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${a.name}</div><div class="v t-${a.tone}">${a.label}</div></div>`).join('')}</div>`;
-  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
+  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${x.word||(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
   const ruler=POS.length?`<div class="rhd"><span></span><span class="sc"><span>低</span><span>正常區間</span><span>高</span></span><span class="rr">正常範圍</span></div>`
     +POS.map(x=>`<div class="prow${x.p<=20||x.p>=80?' hl':''}"><div class="nm"><b>${x.name}</b>${x.text}・P${x.p}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</div><div class="trk"><div class="l"></div><div class="bd"></div><div class="dt" style="left:${Math.min(98,Math.max(2,x.p))}%"></div></div><div class="rg">${x.range||''}</div></div>`).join(''):'';
   const detail=pg.aspects.map(a=>{
@@ -343,7 +344,7 @@ function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常
     const pr=POS.filter(x=>x.aspect===a.k).map(x=>`<div class="ad" style="color:#9fb0d6">${x.name} ${x.text}:第 ${x.p} 百分位・${x.band};${x.range_text||''}</div>`).join('');
     return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${pr}${b}</div>`}).join('')
     +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${pg.position_note}</div>`:'');
-  $('#discLines').innerHTML=tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
+  $('#discLines').innerHTML=(pg.headline?`<div class="hl1">${pg.headline}</div>`:'')+tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
   const ev=pg.events||[];
   $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'')
     +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${miss.map(k=>MISS[k]||k).join('、')}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`

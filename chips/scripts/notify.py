@@ -55,7 +55,7 @@ def chips_lines():
     if ins: L += ["── 解讀 ──"] + ins            # 價量 / 籌碼衍生解讀(fetch_all 算好存在 json,這裡只轉貼;全部帶,訊息上限 4900 字綽綽有餘)
     pg = t.get("panghu") or {}
     if pg.get("version") == 4 and pg.get("aspects"):     # 胖虎指標 v4:四面向現況描述;有極端事件才附歷史紀錄
-        L += ["── 胖虎指標(現況描述) ──"] + [f"{a['name']}:{a['short']}" for a in pg["aspects"]]
+        L += ["── 胖虎指標(現況描述) ──"] + ([pg["headline"]] if pg.get("headline") else []) + [f"{a['name']}:{a['short']}" for a in pg["aspects"]]
         SH = {"gap60": "乖離", "vol_ratio": "量能", "foreign20_pct": "外資", "fut_chg20": "期貨20日", "retail": "散戶", "pc": "P/C", "twd20": "台幣", "rv20": "波動"}
         if pg.get("position"): L.append("歷史位置:" + "・".join(f"{SH.get(x['k'], x['name'])} P{x['p']}" for x in pg["position"]))
         for e in pg.get("events") or []:

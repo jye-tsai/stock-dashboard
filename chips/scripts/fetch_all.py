@@ -1007,6 +1007,12 @@ POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
     ("rv20", "risk", "近 20 日實際波動", "{:.1f}%"),                 # 只跟近 3 年比(波動水位會隨時代變)
 ]
 
+POS_WORDS = {   # 偏低 / 偏高的白話(頁面標籤、一句話總結共用);百分位高不代表好、低不代表壞
+    "gap60": ("跌離均線", "漲離均線"), "vol_ratio": ("量縮", "量增"), "foreign20_pct": ("外資賣得多", "外資買得多"),
+    "fut_chg20": ("期貨往空方", "期貨往多方"), "retail": ("散戶偏空", "散戶偏多"), "pc": ("避險少", "避險多"),
+    "twd20": ("台幣升", "台幣貶"), "rv20": ("震幅小", "震幅大"),
+}
+
 def position_values(t, data):
     """位置百分位用的原始值;t 當日、data = build_describe 的 data"""
     rs = [x["ratio_pct"] for x in (t.get("mtx_retail"), t.get("tmf_retail")) if x and x.get("ratio_pct") is not None]
@@ -1048,11 +1054,19 @@ def attach_position(pg, t, dist):
         q20, q50, q80 = d["q"][20], d["q"][50], d["q"][80]
         out.append({"k": k, "aspect": ak, "name": name, "value": v, "text": fm.format(v), "p": p, "band": pct_band(p),
                     "years": d.get("years"), "n": d.get("n"), "q20": q20, "q50": q50, "q80": q80,
+                    "word": POS_WORDS.get(k, ("偏低", "偏高"))[1 if p >= 50 else 0],
                     "range": f"{nf.format(q20)} ~ {nf.format(q80)}{unit}",
                     "range_text": f"正常 {nf.format(q20)} ~ {nf.format(q80)}{unit}・中位數 {nf.format(q50)}{unit}"})
     if out:
         pg["position"] = out
         pg["position_note"] = f"位置 = 今天的值在過去歷史中排第幾(0 最低、100 最高),分布資料到 {(dist.get('range') or ['', ''])[1]};只描述多極端,不是買賣訊號。"
+        # 一句話總結:趨勢・風險;幾項偏離平常(白話);有極端事件就附上 —— 純描述,不加總、不給結論
+        lab = {a["k"]: a["label"] for a in pg.get("aspects") or []}
+        head = "・".join(x for x in (lab.get("trend"), lab.get("risk")) if x)
+        odd = [x for x in out if x["p"] <= 20 or x["p"] >= 80]
+        tail = (f"{len(out)} 項中 {len(odd)} 項偏離平常(" + "、".join(x["word"] for x in odd) + ")") if odd else f"{len(out)} 項都在正常區間"
+        ev = "、".join(e["name"] for e in pg.get("events") or [])
+        pg["headline"] = "今天:" + (head + ";" if head else "") + tail + (f"・⚠ {ev}" if ev else "")
 
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
 def finish_day(t, p):
@@ -1071,7 +1085,7 @@ def finish_day(t, p):
         t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
     pg = t.get("panghu") or {}
     if pg.get("version") == 4 and pg.get("aspects"):
-        t["claude_text"] += "\n【胖虎指標・現況描述】" + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in pg["aspects"])
+        t["claude_text"] += "\n【胖虎指標・現況描述】" + (("\n" + pg["headline"]) if pg.get("headline") else "") + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in pg["aspects"])
         if pg.get("position"):
             t["claude_text"] += "\n・歷史位置:" + "、".join(f"{x['name']} {x['text']} 第 {x['p']} 百分位({x['band']})" for x in pg["position"])
         for e in pg.get("events") or []:
