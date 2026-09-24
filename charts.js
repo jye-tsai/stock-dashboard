@@ -691,11 +691,11 @@ function drawNavGroup(T) {
       })
     });
 
-    // 每日損益變動(較前一日未實現;紅賺綠賠,區間內賺最多 / 賠最多高亮)
+    // 每日損益變動(較前一日總報酬 = 未實現 + 已實現 + 股息;賣股日獲利從未實現搬到已實現不會被算成虧損;紅賺綠賠,區間內賺最多 / 賠最多高亮)
     const chgCanvas = el('navchg');
     if (wraps.chg && chgCanvas && mvData.length >= 2) {
       show(wraps.chg, true);
-      const chg = PfCalc.dailyChanges(unData);
+      const chg = PfCalc.dailyChanges(hist.map(p => Number(p.ret) || 0));
       let upIdx = -1, dnIdx = -1, upMax = 0, dnMin = 0;
       chg.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
       drawn.chg = true;
@@ -799,7 +799,7 @@ function drawHeatmap(T, histFull) {
   if (!panel || !box) return;
   const pts = histFull.filter(p => p && p.date);
   if (pts.length < 2) { panel.style.display = 'none'; return; }
-  const chg = PfCalc.dailyChanges(pts.map(p => Number(p.un) || 0));
+  const chg = PfCalc.dailyChanges(pts.map(p => Number(p.ret) || 0));   // 總報酬變化(同每日損益變動)
   const days = pts.slice(1).map((p, i) => ({ date: String(p.date), chg: chg[i + 1] }));   // 第一筆沒前值不列
   const MAX_WEEKS = window.innerWidth < 600 ? 13 : 26;                // 窄螢幕 13 週,格子才看得出深淺;跨斷點時 app.js 會重畫
   const toDate = ds => { const m = ds.split('-'); return new Date(+m[0], +m[1] - 1, +m[2]); };

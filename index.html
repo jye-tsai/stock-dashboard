@@ -47,15 +47,15 @@
   })();
 </script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script defer src="scripts/calc.js?v=20260923f"></script>
-<script defer src="charts.js?v=20260923f"></script>
-<script defer src="app.js?v=20260923f"></script>
+<script defer src="scripts/calc.js?v=20260924a"></script>
+<script defer src="charts.js?v=20260924a"></script>
+<script defer src="app.js?v=20260924a"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260923f">
+<link rel="stylesheet" href="styles.css?v=20260924a">
 </head>
 <body>
 <div id="splash">
@@ -136,7 +136,7 @@
         <div id="nav-empty" class="chart-subtitle empty-note" style="display:none">尚無歷史資料 —— Action 每天收盤後會累積一筆，過幾天這裡就會出現資產走勢曲線。</div>
         <div class="sub-charts">
         <div id="navchg-wrap" style="display:none">
-          <div class="chart-subtitle">每日損益變動（紅賺綠賠，較前一日未實現損益；區間內賺最多、賠最多以高亮色標示）</div>
+          <div class="chart-subtitle">每日損益變動（紅賺綠賠，較前一日總報酬：未實現 + 已實現 + 股息，賣股、股息入帳日也正確；區間內賺最多、賠最多以高亮色標示）</div>
           <div class="chart-box h170"><canvas id="navchg"></canvas></div>
         </div>
         <div id="navbench-wrap" style="display:none">
@@ -152,7 +152,7 @@
 
       <div class="panel full-panel" id="heat-panel" style="display:none">
         <h2>每日損益月曆</h2>
-        <div class="chart-subtitle">一格一天(週一~週五),紅賺綠賠、顏色越深金額越大;較前一交易日的未實現損益變動,近 26 週;滑過看金額、點一下走勢圖定位到那天</div>
+        <div class="chart-subtitle">一格一天(週一~週五),紅賺綠賠、顏色越深金額越大;較前一交易日的總報酬變動(未實現 + 已實現 + 股息),近 26 週;滑過看金額、點一下走勢圖定位到那天</div>
         <div class="heat-row">
           <div class="heat-main">
             <div id="heatmap" class="heatmap" role="img" aria-label="每日損益月曆熱圖"></div>
