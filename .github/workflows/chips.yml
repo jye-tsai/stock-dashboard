@@ -1,4 +1,4 @@
-name: 台股盤後籌碼抓取
+name: chips・盤後籌碼
 
 on:
   schedule:

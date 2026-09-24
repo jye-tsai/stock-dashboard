@@ -1,4 +1,4 @@
-name: update-stock-prices
+name: update-prices・股價更新
  
 on:
   # 備援排程:與 Cloudflare Worker 雙保險,任一邊漏跑另一邊補。
