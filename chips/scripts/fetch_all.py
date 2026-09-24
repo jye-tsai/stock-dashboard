@@ -67,6 +67,13 @@ def fut_oi(df, name):
                          "net": num(r["多空未平倉口數淨額"]), "day_net": num(r["多空交易口數淨額"])}
     return out
 
+def fut_ready(df):
+    """期交所盤後三大法人未平倉約 15:00 才算好;在那之前查得到當天的列,但多空未平倉全是 0 → 視為尚未公布"""
+    try:
+        o = fut_oi(df, "臺股期貨")
+        return any(((v.get("long") or 0) + (v.get("short") or 0)) > 0 for v in o.values())
+    except Exception: return False
+
 # ─────────────── 期交所：全市場 OI（小台／微台 → 散戶多空比） ───────────────
 def taifex_market_oi(date, code):
     r = requests.post(TAIFEX + "futDataDown",
@@ -276,7 +283,7 @@ def prev_trading_day(date):
         d -= dt.timedelta(days=1)
         if d.weekday() >= 5: continue
         s = d.strftime("%Y/%m/%d"); df = taifex_fut(s)
-        if df is not None: return s, df
+        if df is not None and fut_ready(df): return s, df
     return None, None
 
 def latest_trading_day():
@@ -285,7 +292,8 @@ def latest_trading_day():
         s = d.strftime("%Y/%m/%d")
         if d.weekday() < 5:
             df = taifex_fut(s)
-            if df is not None: return s, df
+            if df is not None and fut_ready(df): return s, df
+            if df is not None: log(f"  {s} 期交所三大法人尚未算好(未平倉全為 0),改用前一交易日")
         d -= dt.timedelta(days=1)
     return None, None
 
@@ -814,7 +822,8 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None):
         lines.append(f"外資現貨 今日 {fx0:+,.0f} 億{runs}" + (f",近 {len(pairs)} 日累計 {sum(a for a, _ in pairs):+,.0f} 億、佔成交 {f20:+.1f}%" if f20 is not None else ""))
     fu, fp = (t.get("txf") or {}).get("外資"), (p.get("txf") or {}).get("外資")
     combo = None
-    if fu and fp:
+    ok_oi = lambda x: bool(x) and ((x.get("long") or 0) + (x.get("short") or 0)) > 0     # 未平倉全 0 = 期交所還沒算好,不能拿來算增減
+    if ok_oi(fu) and ok_oi(fp):
         dl, ds_ = fu["long"] - fp["long"], fu["short"] - fp["short"]; dz = Cc["fut_deadzone"]
         ml = 0 if abs(dl) < dz else (1 if dl > 0 else -1); ms = 0 if abs(ds_) < dz else (1 if ds_ > 0 else -1)
         ck = ((("add_long" if ml > 0 else "cut_long") + "_" + ("add_short" if ms > 0 else "cut_short")) if (ml and ms) else
@@ -987,7 +996,7 @@ def main():
     if n_back: return backfill(n_back, arg[0] if arg else None, "--force" in argv)   # --force：連已存在的日子也重寫(補 VIX / 解讀)
     if arg:
         today = arg[0]; df_t = taifex_fut(today)
-        if df_t is None: sys.exit(f"{today} 期交所尚無資料")
+        if df_t is None or not fut_ready(df_t): sys.exit(f"{today} 期交所尚無資料或三大法人尚未算好")
     else:
         today, df_t = latest_trading_day()
         if df_t is None: sys.exit("找不到近期資料")

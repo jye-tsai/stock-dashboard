@@ -122,6 +122,7 @@ def cmd_fetch(years, minutes, limit_days):
         if (st.get(d) or {}).get("_ok"): skip += 1; continue
         if time.time() > t_end: stopped = True; break
         df = None if d < lite_before else safe(fa.taifex_fut, d)        # 太舊的日子不用試,期交所一定回 DateTime error
+        if df is not None and not fa.fut_ready(df): df = None                 # 當天三大法人還沒算好(未平倉全 0)→ 當作沒有,下次重試
         if df is None:
             if d >= lite_before: fail += 1; print(f"  {d} 期交所無資料,略過(近期日子不降級,下次重試)"); time.sleep(PACE); continue
             c = collect_lite(d)
