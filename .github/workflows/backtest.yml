@@ -1,15 +1,28 @@
 name: backtest
 
-# 胖虎指標回測:抓 1~2 年歷史逐日資料(可中斷續跑)→ 依 chips/panghu.json 重算每天的胖虎指標 → 產出 chips/backtest/result.json。
+# 胖虎指標回測:10 年歷史逐日資料(可中斷續跑)→ 重算 v2 / v3 對照組與 v4 極端事件統計 → 產出 chips/backtest/result.json 與 events.json。
 # 報告頁:https://jye-tsai.github.io/stock-dashboard/chips/backtest/
-# 第一次抓兩年約 40~80 分鐘;抓不完會把進度 commit 上去,再跑一次會接著抓。改了 panghu.json 只要 eval_only=true 重算(幾秒)。
+# 已有 10 年資料;每週六自動補新交易日(幾分鐘),改到指標規則 / 程式會自動重算。手動跑時 eval_only=true 只重算不抓。
 on:
+  # 每週六 11:00(台北)自動:補上這週新增的交易日,重算報告與 events.json(極端事件歷史)
+  schedule:
+    - cron: "0 3 * * 6"
+  # 改到指標規則或程式就自動重驗(只重算、不抓資料),報告跟著更新
+  push:
+    branches: [main]
+    paths:
+      - "chips/panghu.json"
+      - "chips/panghu_v2.json"
+      - "chips/panghu_v3.json"
+      - "chips/scripts/fetch_all.py"
+      - "chips/scripts/backtest.py"
+      - "chips/scripts/panghu_v3.py"
   workflow_dispatch:
     inputs:
       years:
-        description: "回測年數（預設 2）"
+        description: "回測年數（預設 10）"
         required: false
-        default: "2"
+        default: "10"
       minutes:
         description: "這次最多抓幾分鐘；抓不完會存進度，再跑一次接著抓"
         required: false
@@ -37,9 +50,10 @@ jobs:
           python-version: "3.11"
       - run: pip install requests pandas beautifulsoup4
 
+      # 手動(eval_only 不是 true)或每週排程才抓;push 觸發只重算
       - name: 抓歷史資料（可續跑）
-        if: ${{ github.event.inputs.eval_only != 'true' }}
-        run: python chips/scripts/backtest.py fetch --years "${{ github.event.inputs.years || '2' }}" --minutes "${{ github.event.inputs.minutes || '100' }}"
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.eval_only != 'true') }}
+        run: python chips/scripts/backtest.py fetch --years "${{ github.event.inputs.years || '10' }}" --minutes "${{ github.event.inputs.minutes || '100' }}"
 
       - name: 重算與統計
         run: python chips/scripts/backtest.py eval

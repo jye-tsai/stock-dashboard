@@ -31,4 +31,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Python syntax (chips)
-        run: python -m py_compile chips/scripts/fetch_all.py chips/scripts/notify.py chips/scripts/weekly_report.py chips/scripts/backtest.py
+        run: |
+          python -m py_compile chips/scripts/fetch_all.py chips/scripts/notify.py chips/scripts/weekly_report.py chips/scripts/backtest.py chips/scripts/panghu_v3.py
+          python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ['chips/panghu.json', 'chips/panghu_v2.json', 'chips/panghu_v3.json']]; print('panghu json OK')"
