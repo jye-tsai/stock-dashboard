@@ -46,7 +46,11 @@ def chips_lines():
     if f: L.append(f"外資期貨淨 {f['net']:+,}" + (f"（{f.get('day_net', 0):+,}）" if f.get("day_net") is not None else ""))
     if mr and tr: L.append(f"小台 {mr['ratio_pct']:+.2f}%　微台 {tr['ratio_pct']:+.2f}%")
     if t.get("pc"): L.append(f"P/C(OI) {t['pc'].get('oi_ratio_pct')}%")
-    if t.get("missing"): L.append("⚠ 缺：" + ", ".join(t["missing"]))
+    MISS = {"inst": "外資現貨", "margin": "融資餘額", "opt": "選擇權", "pc": "P/C", "index": "加權指數",
+            "mtx_retail": "小台散戶", "tmf_retail": "微台散戶", "txf.外資": "外資台指期"}
+    miss = t.get("missing") or []; core = [MISS.get(k, k) for k in miss if k != "margin"]
+    if core: L.append("⚠ 盤後尚未完整公布:" + "、".join(core) + ",後續班次自動更新")
+    if "margin" in miss: L.append("融資餘額待 21:30 更新(沿用前一交易日)")
     ins = (t.get("insight") or {}).get("lines") or []
     if ins: L += ["── 解讀 ──"] + ins            # 價量 / 籌碼衍生解讀(fetch_all 算好存在 json,這裡只轉貼;全部帶,訊息上限 4900 字綽綽有餘)
     pg = t.get("panghu") or {}
