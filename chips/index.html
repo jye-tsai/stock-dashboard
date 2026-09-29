@@ -236,6 +236,7 @@ const fmt=n=>n==null?'—':Number(n).toLocaleString('en-US');
 const sgn=n=>n==null?'—':(n>0?'+':'')+Number(n).toLocaleString('en-US');
 const cls=n=>n>0?'up':n<0?'dn':'mut';
 const pct=(n,d=2)=>n==null?'—':(n>0?'+':'')+Number(n).toFixed(d)+'%';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));   // 塞進 innerHTML 的文字一律先過這裡
 let cfg={};try{cfg=JSON.parse(localStorage.getItem('twdaily_cfg')||'{}')}catch(e){}
 // 沒設 token 就借儀表板的 GitHub 設定（同一個 origin、同一把 PAT，存在 localStorage 的 pf-gh）；有自己設的以自己的為準
 if(!cfg.token){try{const g=JSON.parse(localStorage.getItem('pf-gh')||'null');if(g&&g.token){cfg={...cfg,owner:g.owner,repo:g.repo,token:g.token,wf:cfg.wf||'chips.yml',shared:true}}}catch(e){}}
@@ -243,13 +244,17 @@ if(cfg.theme)document.documentElement.dataset.theme=cfg.theme;
 
 let current=null,series=[];
 async function loadSeries(idx){
+  // 先抓 series.json(fetch_all 每次寫好的近 20 日精簡資料,約 20 KB);沒有或不是最新的,才退回逐日抓 20 個完整日檔(約 320 KB)
+  try{const s=await (await fetch('data/series.json?'+Date.now())).json();
+    if(Array.isArray(s)&&s.length&&s[s.length-1].tag===idx[0]){series=s;return}
+  }catch(e){}
   const tags=idx.slice(0,20).reverse();
   const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
   series=rs.filter(Boolean);
 }
 async function loadWeekly(){
   try{const wi=await (await fetch('data/weekly_index.json?'+Date.now())).json();
-    if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${f}" target="_blank">${f.replace('weekly_','').replace('.md','')} 週報草稿</a></div>`).join('')}
+    if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${encodeURIComponent(f)}" target="_blank">${esc(f.replace('weekly_','').replace('.md',''))} 週報草稿</a></div>`).join('')}
   }catch(e){}
 }
 async function loadIndex(){
@@ -282,7 +287,7 @@ function render(t){
     kp('外資（億）',sgn(i['外資']),'',cls(i['外資']),'inst_fore'),
     kp('投信（億）',sgn(i['投信']),'',cls(i['投信']),'inst_it'),
     kp('自營（億）',sgn(i['自營']),'',cls(i['自營']),'inst_dl'),
-    kp('融資餘額（億）',fmt(t.margin),t.margin_note?t.margin_note:(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),'','margin'),
+    kp('融資餘額（億）',fmt(t.margin),t.margin_note?esc(t.margin_note):(p.margin!=null&&t.margin!=null?`前值 ${fmt(p.margin)}（${sgn(+(t.margin-p.margin).toFixed(1))}）`:''),'','margin'),
     kp('加權指數',fmt(ix.close),ix.amount_yi?`量 ${fmt(ix.amount_yi)} 億`:'',cls(ix.chg),'idx'),
   ].join('');
   const oc=$('#oiCards');oc.innerHTML='';
@@ -328,26 +333,26 @@ function renderDisc(t){   // 胖虎指標 v4:總覽 4 格 → 今天偏離平常
   // 盤後資料沒齊:主要資料缺 → 紅字標籤 + 紅色備註;只缺融資(15:40 常態,21:30 才公布)→ 灰色小字
   const MISS={inst:'外資現貨',margin:'融資餘額',opt:'選擇權',pc:'P/C',index:'加權指數',mtx_retail:'小台散戶',tmf_retail:'微台散戶','txf.外資':'外資台指期'};
   const miss=t.missing||[], core=miss.filter(k=>k!=='margin');
-  $('#discCap').innerHTML=`${t.date} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${pg.note||''}`;
+  $('#discCap').innerHTML=`${esc(t.date)} 盤後現況${core.length?'<span class="pend">盤後資料尚未完整公布</span>':''}・${esc(pg.note||'')}`;
   const base=(EVJ&&EVJ.trend_states)||{};
   const POS=pg.position||[];   // 歷史位置百分位:只描述今天在歷史中多極端,不加總、不給結論
   // 偏低 / 偏高各代表什麼(白話);顏色只分「正常 / 偏離」,不用紅綠,避免讀成看多看空
   const WORD={gap60:['跌離均線','漲離均線'],vol_ratio:['量縮','量增'],foreign20_pct:['外資賣得多','外資買得多'],fut_chg20:['期貨往空方','期貨往多方'],
     fut_net:['淨空偏多','淨空偏少'],rv20:['震幅小','震幅大'],retail:['散戶偏空','散戶偏多'],pc:['避險少','避險多'],twd20:['台幣升','台幣貶']};
   const odd=POS.filter(x=>x.p<=20||x.p>=80);
-  const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${a.name}</div><div class="v t-${a.tone}">${a.label}</div></div>`).join('')}</div>`;
-  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${x.word||(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0]} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
+  const tiles=`<div class="tiles">${pg.aspects.map(a=>`<div class="tile"><div class="n">${esc(a.name)}</div><div class="v t-${esc(a.tone)}">${esc(a.label)}</div></div>`).join('')}</div>`;
+  const oddH=POS.length?`<div class="oddh">今天跟平常不一樣的(${POS.length} 項中 ${odd.length} 項)</div><div class="odd">${odd.length?odd.map(x=>`<span class="chip">${esc(x.word||(WORD[x.k]||['偏低','偏高'])[x.p>=80?1:0])} P${x.p}</span>`).join(''):'<span class="sm">全部都在正常區間</span>'}</div>`:'';
   const ruler=POS.length?`<div class="rhd"><span></span><span class="sc"><span>低</span><span>正常區間</span><span>高</span></span><span class="rr">正常範圍</span></div>`
-    +POS.map(x=>`<div class="prow${x.p<=20||x.p>=80?' hl':''}"><div class="nm"><b>${x.name}</b>${x.text}・P${x.p}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</div><div class="trk"><div class="l"></div><div class="bd"></div><div class="dt" style="left:${Math.min(98,Math.max(2,x.p))}%"></div></div><div class="rg">${x.range||''}</div></div>`).join(''):'';
+    +POS.map(x=>`<div class="prow${x.p<=20||x.p>=80?' hl':''}"><div class="nm"><b>${esc(x.name)}</b>${esc(x.text)}・P${x.p}${x.years!=null&&x.years<9?`(近 ${x.years} 年)`:''}</div><div class="trk"><div class="l"></div><div class="bd"></div><div class="dt" style="left:${Math.min(98,Math.max(2,x.p))}%"></div></div><div class="rg">${esc(x.range||'')}</div></div>`).join(''):'';
   const detail=pg.aspects.map(a=>{
-    const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${a.label}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
-    const pr=POS.filter(x=>x.aspect===a.k).map(x=>`<div class="ad" style="color:#9fb0d6">${x.name} ${x.text}:第 ${x.p} 百分位・${x.band};${x.range_text||''}</div>`).join('');
-    return `<div class="asp"><div class="an">${a.name}</div><div class="al t-${a.tone}">${a.label}</div>${a.lines.map(l=>`<div class="ad">${l}</div>`).join('')}${pr}${b}</div>`}).join('')
-    +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${pg.position_note}</div>`:'');
-  $('#discLines').innerHTML=(pg.headline?`<div class="hl1">${pg.headline}</div>`:'')+tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
+    const b=a.k==='trend'&&base[a.label]?`<div class="ad" style="color:#9fb0d6">10 年裡「${esc(a.label)}」共 ${base[a.label].days} 天(${base[a.label].runs} 段),之後 20 日中位數 ${pct(base[a.label].median20*100,1)}、上漲機率 ${Math.round(base[a.label].up20*100)}%(參考,不是預測)</div>`:'';
+    const pr=POS.filter(x=>x.aspect===a.k).map(x=>`<div class="ad" style="color:#9fb0d6">${esc(x.name)} ${esc(x.text)}:第 ${x.p} 百分位・${esc(x.band)};${esc(x.range_text||'')}</div>`).join('');
+    return `<div class="asp"><div class="an">${esc(a.name)}</div><div class="al t-${esc(a.tone)}">${esc(a.label)}</div>${a.lines.map(l=>`<div class="ad">${esc(l)}</div>`).join('')}${pr}${b}</div>`}).join('')
+    +(POS.length&&pg.position_note?`<div class="sm" style="padding-top:6px;border-top:1px solid #ffffff22">${esc(pg.position_note)}</div>`:'');
+  $('#discLines').innerHTML=(pg.headline?`<div class="hl1">${esc(pg.headline)}</div>`:'')+tiles+oddH+ruler+`<details class="dm"${POS.length?'':' open'}><summary>看完整數字與說明</summary>${detail}</details>`;
   const ev=pg.events||[];
-  $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${e.name}</b>:${e.text}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${e.history_text||''}</div></div>`).join(''):'')
-    +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${miss.map(k=>MISS[k]||k).join('、')}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`
+  $('#discPos').innerHTML=(ev.length?ev.map(e=>`<div class="evbox">⚠ <b>${esc(e.name)}</b>:${esc(e.text)}${e.day>1?`(近 10 日第 ${e.day} 次)`:''}<div class="sm" style="margin-top:3px">${esc(e.history_text||'')}</div></div>`).join(''):'')
+    +(core.length?`<div class="pnote" style="color:#ff9b9b">※ 部分資訊待盤後公布後更新:${esc(miss.map(k=>MISS[k]||k).join('、'))}。15:40 / 16:40 / 21:30 那班會自動補上。</div>`
       :miss.includes('margin')?`<div class="pnote sm">※ 融資餘額待 21:30 更新(目前沿用前一交易日)</div>`:'');
 }
 // ── 自動判讀標籤
