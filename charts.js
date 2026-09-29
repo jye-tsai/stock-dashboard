@@ -662,124 +662,11 @@ function drawNavGroup(T) {
     const hiCol = T.v('--accent'), loCol = hiCol;                  // 極值 / 賺賠最多 / 回撤谷底一律主色:靠 ▲▼ 與形狀區分,不多開 hue
     const sync = { color: T.syncCol };
 
-    // 資產走勢:堆疊面積(成本 + 未實現 ≈ 總市值),總市值虛線標最高 / 最低
-    const ex = PfCalc.extremes(mvData);
-    const showPeaks = mvData.length >= 2 && ex.hi !== ex.lo;
-    const costColor = P.slices[5] || P.slices[P.slices.length - 1];
-    drawn.nav = true;
-    navChart = upsertChart(navChart, navCanvas, {
-      plugins: [navPeaksPlugin, navSyncPlugin],
-      type: 'line',
-      data: { labels, datasets: [
-        { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: areaGrad(costColor, .48, .08), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
-        { label: '未實現損益', data: unData, stack: 'comp', borderColor: T.up, backgroundColor: areaGrad(T.up, .6, .1), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
-        { label: '總市值', data: mvData, stack: 'mv', borderColor: T.text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointStyle: 'line',
-          pointRadius: mvData.map((_, i) => showPeaks && (i === ex.hi || i === ex.lo) ? 5 : 0),
-          pointBackgroundColor: mvData.map((_, i) => i === ex.hi ? hiCol : i === ex.lo ? loCol : 'transparent'),
-          pointBorderColor: mvData.map((_, i) => i === ex.hi ? hiCol : i === ex.lo ? loCol : 'transparent'), pointHoverRadius: 5 }
-      ] },
-      options: baseOpts({
-        interaction: { mode: 'index', intersect: false },
-        layout: { padding: { top: 20, right: 10, bottom: 2, left: 2 } },
-        scales: { x: axisX(T, { stacked: true }), y: axisY(T, tickWan, { stacked: true, beginAtZero: true, ticks: { maxTicksLimit: 6 } }) },
-        plugins: {
-          navPeaks: { showPeaks, hiIdx: ex.hi, loIdx: ex.lo, hiCol, loCol, mvData, chartFont: T.chartFont },
-          navSync: sync,
-          legend: legendBottom(T, 'rectRounded'),
-          tooltip: tooltipOpts(T, { displayColors: true, callbacks: { label: c => c.dataset.label === '總市值' ? ` 總市值：${fmt(c.parsed.y)}` : ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}` } })
-        }
-      })
-    });
-
-    // 每日損益變動(較前一日總報酬 = 未實現 + 已實現 + 股息;賣股日獲利從未實現搬到已實現不會被算成虧損;紅賺綠賠,區間內賺最多 / 賠最多高亮)
-    const chgCanvas = el('navchg');
-    if (wraps.chg && chgCanvas && mvData.length >= 2) {
-      show(wraps.chg, true);
-      const chg = PfCalc.dailyChanges(hist.map(p => Number(p.ret) || 0));
-      let upIdx = -1, dnIdx = -1, upMax = 0, dnMin = 0;
-      chg.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
-      drawn.chg = true;
-      navChgChart = upsertChart(navChgChart, chgCanvas, {
-        plugins: [chgExtremesPlugin, navSyncPlugin],
-        type: 'bar',
-        data: { labels, datasets: [{ label: '損益變動', data: chg, backgroundColor: chg.map((v, i) => i === upIdx ? hiCol : i === dnIdx ? loCol : (v >= 0 ? T.up : T.down)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }] },
-        options: baseOpts({
-          interaction: { mode: 'index', intersect: false },
-          layout: { padding: { top: 18, right: 10, bottom: 14, left: 2 } },
-          scales: { x: axisX(T), y: axisY(T, tickWanSigned) },
-          plugins: {
-            chgExtremes: { upIdx, dnIdx, upHiC: hiCol, dnHiC: loCol, chartFont: T.chartFont },
-            navSync: sync, legend: { display: false },
-            tooltip: tooltipOpts(T, { displayColors: false, callbacks: { label: c => ` 損益變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` } })
-          }
-        })
-      });
-    } else show(wraps.chg, false);
-
-    // 報酬對比:我的組合 vs 加權指數 vs 台積電,以區間內第一個有大盤資料的點為 0%
-    const benchCanvas = el('navbench');
-    // 我的組合走 TWR(含息):加碼 / 減碼 / 除息都不失真;real / div 缺欄的舊點給 null,calc 會當該日 Δ=0
-    const nz = k => hist.map(p => p[k] == null ? null : Number(p[k]));
-    const B = PfCalc.benchLines(mvData, hist.map(p => Number(p.taiex) || 0), hist.map(p => Number(p.tsmc) || 0), costData, nz('real'), nz('div'));
-    if (wraps.bench && benchCanvas && B) {
-      show(wraps.bench, true);
-      const sets = [
-        { label: '我的組合', data: B.me, borderColor: P.slices[0], backgroundColor: withAlpha(P.slices[0], .13), borderWidth: 2.5, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
-        { label: '加權指數', data: B.tw, borderColor: T.muted, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
-      ];
-      if (B.tsmc) sets.push({ label: '台積電', data: B.tsmc, borderColor: P.slices[1] || T.up, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
-      drawn.bench = true;
-      navBenchChart = upsertChart(navBenchChart, benchCanvas, {
-        plugins: [navSyncPlugin],
-        type: 'line',
-        data: { labels: labels.slice(B.firstT), datasets: sets },
-        options: baseOpts({
-          interaction: { mode: 'index', intersect: false },
-          layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
-          scales: { x: axisX(T), y: axisY(T, tickPct) },
-          plugins: {
-            navSync: sync,
-            legend: legendBottom(T, 'line', { labels: { usePointStyle: true, pointStyle: 'line', color: T.text, padding: 16, font: font(T, 12, 700) } }),
-            tooltip: tooltipOpts(T, { displayColors: true, callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}：${c.parsed.y > 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` } })
-          }
-        })
-      });
-    } else show(wraps.bench, false);
-
-    // 回撤:總報酬距「截至當日歷史最高」掉多少(佔成本 %);前高看全史、畫面只看區間
-    const ddCanvas = el('navdd'), ddSub = el('navdd-sub');
-    const W = PfCalc.worstDrawdown(PfCalc.drawdown(histFull.map(p => Number(p.ret) || 0), histFull.map(p => Number(p.cost) || 0)), off);
-    if (wraps.dd && ddCanvas && W && hist.length >= 2) {
-      show(wraps.dd, true);
-      const dd = W.dd, cur = dd[dd.length - 1];
-      const ddCol = T.down, ddHi = loCol;
-      if (ddSub) {
-        const peakDate = histFull[W.peakIdx] ? String(histFull[W.peakIdx].date).slice(5) : '';
-        const worstTxt = W.pct < 0 ? `最大回撤 ${W.pct.toFixed(1)}%(${peakDate} → ${labels[W.idx]},${W.days} 日,${fmt(W.amt)})` : '區間內沒有回撤';
-        const curTxt = cur.pct < 0 ? `目前 ${cur.pct.toFixed(1)}%,離新高差 ${fmt(-cur.amt)}` : '目前在新高 ●';
-        ddSub.textContent = `${worstTxt} · ${curTxt}`;
-      }
-      drawn.dd = true;
-      navDdChart = upsertChart(navDdChart, ddCanvas, {
-        plugins: [ddLabelPlugin, navSyncPlugin],
-        type: 'line',
-        data: { labels, datasets: [{
-          label: '回撤', data: dd.map(x => Math.round(x.pct * 100) / 100), borderColor: ddCol, borderWidth: 1.5, fill: 'origin',
-          backgroundColor: c => { const area = c.chart.chartArea; if (!area) return withAlpha(ddCol, .33); const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom); g.addColorStop(0, withAlpha(ddCol, .06)); g.addColorStop(1, withAlpha(ddCol, .53)); return g; },
-          tension: .3, pointRadius: dd.map((_, i) => i === W.idx && W.pct < 0 ? 4 : 0), pointBackgroundColor: ddHi, pointBorderColor: ddHi, pointHoverRadius: 5
-        }] },
-        options: baseOpts({
-          interaction: { mode: 'index', intersect: false },
-          layout: { padding: { top: 16, right: 10, bottom: 2, left: 2 } },
-          scales: { x: axisX(T), y: axisY(T, v => v.toFixed(1) + '%', { max: 0, suggestedMin: -1 }) },
-          plugins: {
-            ddLabel: { idx: W.pct < 0 ? W.idx : -1, text: `▼ 最大回撤 ${W.pct.toFixed(1)}%`, color: ddHi, chartFont: T.chartFont },
-            navSync: sync, legend: { display: false },
-            tooltip: tooltipOpts(T, { displayColors: false, callbacks: { label: c => { const x = dd[c.dataIndex]; return x && x.amt < 0 ? [` 距前高 ${x.pct.toFixed(2)}%`, ` 回吐 ${fmt(x.amt)}`] : ' 位於前高'; } } })
-          }
-        })
-      });
-    } else show(wraps.dd, false);
+    const C = { P, el, wraps, show, navCanvas, hist, histFull, off, labels, costData, unData, mvData, many, hiCol, loCol, sync, drawn };
+    drawNavAsset(T, C);
+    drawNavChange(T, C);
+    drawNavBench(T, C);
+    drawNavDrawdown(T, C);
   }
 
   drawHeatmap(T, histFull);
@@ -789,6 +676,137 @@ function drawNavGroup(T) {
   if (!drawn.chg && navChgChart) { navChgChart.destroy(); navChgChart = null; }
   if (!drawn.bench && navBenchChart) { navBenchChart.destroy(); navBenchChart = null; }
   if (!drawn.dd && navDdChart) { navDdChart.destroy(); navDdChart = null; }
+}
+
+// ── 走勢圖群的四張圖(拆自原本 150 行的 drawNavGroup;C 是共用的資料與 canvas 句柄,各圖只拿自己要的)
+function drawNavAsset(T, { P, navCanvas, labels, costData, unData, mvData, many, hiCol, loCol, sync, drawn }) {
+  // 資產走勢:堆疊面積(成本 + 未實現 ≈ 總市值),總市值虛線標最高 / 最低
+  const ex = PfCalc.extremes(mvData);
+  const showPeaks = mvData.length >= 2 && ex.hi !== ex.lo;
+  const costColor = P.slices[5] || P.slices[P.slices.length - 1];
+  drawn.nav = true;
+  navChart = upsertChart(navChart, navCanvas, {
+    plugins: [navPeaksPlugin, navSyncPlugin],
+    type: 'line',
+    data: { labels, datasets: [
+      { label: '成本', data: costData, stack: 'comp', borderColor: costColor, backgroundColor: areaGrad(costColor, .48, .08), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
+      { label: '未實現損益', data: unData, stack: 'comp', borderColor: T.up, backgroundColor: areaGrad(T.up, .6, .1), borderWidth: 1.5, fill: true, tension: .3, pointRadius: many ? 0 : 2, pointHoverRadius: 5, pointStyle: 'rectRounded' },
+      { label: '總市值', data: mvData, stack: 'mv', borderColor: T.text, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, pointStyle: 'line',
+        pointRadius: mvData.map((_, i) => showPeaks && (i === ex.hi || i === ex.lo) ? 5 : 0),
+        pointBackgroundColor: mvData.map((_, i) => i === ex.hi ? hiCol : i === ex.lo ? loCol : 'transparent'),
+        pointBorderColor: mvData.map((_, i) => i === ex.hi ? hiCol : i === ex.lo ? loCol : 'transparent'), pointHoverRadius: 5 }
+    ] },
+    options: baseOpts({
+      interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 20, right: 10, bottom: 2, left: 2 } },
+      scales: { x: axisX(T, { stacked: true }), y: axisY(T, tickWan, { stacked: true, beginAtZero: true, ticks: { maxTicksLimit: 6 } }) },
+      plugins: {
+        navPeaks: { showPeaks, hiIdx: ex.hi, loIdx: ex.lo, hiCol, loCol, mvData, chartFont: T.chartFont },
+        navSync: sync,
+        legend: legendBottom(T, 'rectRounded'),
+        tooltip: tooltipOpts(T, { displayColors: true, callbacks: { label: c => c.dataset.label === '總市值' ? ` 總市值：${fmt(c.parsed.y)}` : ` ${c.dataset.label}：${sign(c.parsed.y)}${fmt(c.parsed.y)}` } })
+      }
+    })
+  });
+
+}
+
+function drawNavChange(T, { el, wraps, show, hist, labels, mvData, hiCol, loCol, sync, drawn }) {
+  // 每日損益變動(較前一日總報酬 = 未實現 + 已實現 + 股息;賣股日獲利從未實現搬到已實現不會被算成虧損;紅賺綠賠,區間內賺最多 / 賠最多高亮)
+  const chgCanvas = el('navchg');
+  if (wraps.chg && chgCanvas && mvData.length >= 2) {
+    show(wraps.chg, true);
+    const chg = PfCalc.dailyChanges(hist.map(p => Number(p.ret) || 0));
+    let upIdx = -1, dnIdx = -1, upMax = 0, dnMin = 0;
+    chg.forEach((v, i) => { if (i === 0) return; if (v > upMax) { upMax = v; upIdx = i; } if (v < dnMin) { dnMin = v; dnIdx = i; } });
+    drawn.chg = true;
+    navChgChart = upsertChart(navChgChart, chgCanvas, {
+      plugins: [chgExtremesPlugin, navSyncPlugin],
+      type: 'bar',
+      data: { labels, datasets: [{ label: '損益變動', data: chg, backgroundColor: chg.map((v, i) => i === upIdx ? hiCol : i === dnIdx ? loCol : (v >= 0 ? T.up : T.down)), borderRadius: 3, borderSkipped: false, barPercentage: .9, categoryPercentage: .8 }] },
+      options: baseOpts({
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 18, right: 10, bottom: 14, left: 2 } },
+        scales: { x: axisX(T), y: axisY(T, tickWanSigned) },
+        plugins: {
+          chgExtremes: { upIdx, dnIdx, upHiC: hiCol, dnHiC: loCol, chartFont: T.chartFont },
+          navSync: sync, legend: { display: false },
+          tooltip: tooltipOpts(T, { displayColors: false, callbacks: { label: c => ` 損益變動：${sign(c.parsed.y)}${fmt(c.parsed.y)}` } })
+        }
+      })
+    });
+  } else show(wraps.chg, false);
+
+}
+
+function drawNavBench(T, { P, el, wraps, show, hist, labels, costData, mvData, sync, drawn }) {
+  // 報酬對比:我的組合 vs 加權指數 vs 台積電,以區間內第一個有大盤資料的點為 0%
+  const benchCanvas = el('navbench');
+  // 我的組合走 TWR(含息):加碼 / 減碼 / 除息都不失真;real / div 缺欄的舊點給 null,calc 會當該日 Δ=0
+  const nz = k => hist.map(p => p[k] == null ? null : Number(p[k]));
+  const B = PfCalc.benchLines(mvData, hist.map(p => Number(p.taiex) || 0), hist.map(p => Number(p.tsmc) || 0), costData, nz('real'), nz('div'));
+  if (wraps.bench && benchCanvas && B) {
+    show(wraps.bench, true);
+    const sets = [
+      { label: '我的組合', data: B.me, borderColor: P.slices[0], backgroundColor: withAlpha(P.slices[0], .13), borderWidth: 2.5, fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 },
+      { label: '加權指數', data: B.tw, borderColor: T.muted, borderWidth: 2, borderDash: [6, 4], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 }
+    ];
+    if (B.tsmc) sets.push({ label: '台積電', data: B.tsmc, borderColor: P.slices[1] || T.up, borderWidth: 2, borderDash: [2, 3], fill: false, tension: .3, spanGaps: true, pointRadius: 0, pointHoverRadius: 5 });
+    drawn.bench = true;
+    navBenchChart = upsertChart(navBenchChart, benchCanvas, {
+      plugins: [navSyncPlugin],
+      type: 'line',
+      data: { labels: labels.slice(B.firstT), datasets: sets },
+      options: baseOpts({
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 6, right: 10, bottom: 2, left: 2 } },
+        scales: { x: axisX(T), y: axisY(T, tickPct) },
+        plugins: {
+          navSync: sync,
+          legend: legendBottom(T, 'line', { labels: { usePointStyle: true, pointStyle: 'line', color: T.text, padding: 16, font: font(T, 12, 700) } }),
+          tooltip: tooltipOpts(T, { displayColors: true, callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}：${c.parsed.y > 0 ? '+' : ''}${c.parsed.y.toFixed(2)}%` } })
+        }
+      })
+    });
+  } else show(wraps.bench, false);
+
+}
+
+function drawNavDrawdown(T, { el, wraps, show, hist, histFull, off, labels, loCol, sync, drawn }) {
+  // 回撤:總報酬距「截至當日歷史最高」掉多少(佔成本 %);前高看全史、畫面只看區間
+  const ddCanvas = el('navdd'), ddSub = el('navdd-sub');
+  const W = PfCalc.worstDrawdown(PfCalc.drawdown(histFull.map(p => Number(p.ret) || 0), histFull.map(p => Number(p.cost) || 0)), off);
+  if (wraps.dd && ddCanvas && W && hist.length >= 2) {
+    show(wraps.dd, true);
+    const dd = W.dd, cur = dd[dd.length - 1];
+    const ddCol = T.down, ddHi = loCol;
+    if (ddSub) {
+      const peakDate = histFull[W.peakIdx] ? String(histFull[W.peakIdx].date).slice(5) : '';
+      const worstTxt = W.pct < 0 ? `最大回撤 ${W.pct.toFixed(1)}%(${peakDate} → ${labels[W.idx]},${W.days} 日,${fmt(W.amt)})` : '區間內沒有回撤';
+      const curTxt = cur.pct < 0 ? `目前 ${cur.pct.toFixed(1)}%,離新高差 ${fmt(-cur.amt)}` : '目前在新高 ●';
+      ddSub.textContent = `${worstTxt} · ${curTxt}`;
+    }
+    drawn.dd = true;
+    navDdChart = upsertChart(navDdChart, ddCanvas, {
+      plugins: [ddLabelPlugin, navSyncPlugin],
+      type: 'line',
+      data: { labels, datasets: [{
+        label: '回撤', data: dd.map(x => Math.round(x.pct * 100) / 100), borderColor: ddCol, borderWidth: 1.5, fill: 'origin',
+        backgroundColor: c => { const area = c.chart.chartArea; if (!area) return withAlpha(ddCol, .33); const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom); g.addColorStop(0, withAlpha(ddCol, .06)); g.addColorStop(1, withAlpha(ddCol, .53)); return g; },
+        tension: .3, pointRadius: dd.map((_, i) => i === W.idx && W.pct < 0 ? 4 : 0), pointBackgroundColor: ddHi, pointBorderColor: ddHi, pointHoverRadius: 5
+      }] },
+      options: baseOpts({
+        interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 16, right: 10, bottom: 2, left: 2 } },
+        scales: { x: axisX(T), y: axisY(T, v => v.toFixed(1) + '%', { max: 0, suggestedMin: -1 }) },
+        plugins: {
+          ddLabel: { idx: W.pct < 0 ? W.idx : -1, text: `▼ 最大回撤 ${W.pct.toFixed(1)}%`, color: ddHi, chartFont: T.chartFont },
+          navSync: sync, legend: { display: false },
+          tooltip: tooltipOpts(T, { displayColors: false, callbacks: { label: c => { const x = dd[c.dataIndex]; return x && x.amt < 0 ? [` 距前高 ${x.pct.toFixed(2)}%`, ` 回吐 ${fmt(x.amt)}`] : ' 位於前高'; } } })
+        }
+      })
+    });
+  } else show(wraps.dd, false);
 }
 
 // 4.6 每日損益月曆熱圖 + 統計卡:CSS grid(欄 = 週一起算的週、列 = 週一~週五),diverging 配色(賺 = gain、賠 = loss、0 = 底色),

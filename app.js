@@ -144,6 +144,27 @@ function render(opts) {
   for (let i = histArr.length - 1; i >= 0; i--) {
     if (histArr[i] && histArr[i].date && histArr[i].date !== today) { prevDay = histArr[i]; break; }
   }
+  const ctx = { d, rows, t, realized, dividend, totalPL, E, title, histArr, prevDay };   // 各區塊共用的資料,下面每一段各拿自己要的
+  renderMood(ctx);
+  renderFresh(ctx);
+  renderHero(ctx);
+  renderSummary(ctx);
+  renderHoldings(ctx);
+  renderYearly(ctx);
+
+  // 圖表延到下一幀:Hero / 卡片 / 表格先上畫面;#app 顯示後 canvas 才有真實尺寸,不會先畫 0×0 再 resize
+  if (withCharts) deferFrame(() => { if (DATA) drawCharts(rows.filter(r => r.mv > 0), d.yearly || []); });
+  updateFavicon(title);
+  updateMiniHero();
+  document.getElementById('loader').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  restoreActiveTab();
+  if (typeof hideSplash === 'function') hideSplash();
+}
+
+// ── render 的各區塊(拆自原本 260 行的 render;順序、內容都沒變,只是各自成函式)
+// 胖虎表情 + 標題:拿今天的未實現損益跟上一個交易日比 —— 變好→笑、變差→哭、持平→淡定;沒有昨天資料就看當前正負
+function renderMood({ d, t, E, title, prevDay }) {
   let moodVal;
   if (prevDay && typeof prevDay.un === 'number') moodVal = t.unrealized - prevDay.un;        // 跟昨日未實現損益比
   else if (prevDay && typeof prevDay.mv === 'number') moodVal = t.mv - prevDay.mv;            // 舊資料沒存 un,退而比市值
@@ -161,6 +182,9 @@ function render(opts) {
     if (m) { m.classList.add('happy'); m.addEventListener('animationend', () => { render._hopped = true; }, { once: true }); }
   }
 
+}
+
+function renderFresh({ d, E }) {
   // 更新時間 + 資料新鮮度提示(以台北時間判斷;週末/開盤前不算過期)
   const upEl = document.getElementById('updated');
   const pu = d.priceUpdated || d.updated || '';
@@ -183,6 +207,9 @@ function render(opts) {
   document.body.classList.toggle('editing', E);
   document.querySelectorAll('.edit-only').forEach(el => el.classList.toggle('hidden', !E));
 
+}
+
+function renderHero({ rows, t, prevDay, totalPL }) {
   // Hero:今日損益(各檔 prevClose 加總;缺 prevClose 退回 history 前一交易日市值差,都沒有就整塊隱藏)
   const TC = PfCalc.todayChange(rows, prevDay, t.mv, tpeNow().date);              // 各檔昨收加總;缺昨收退回 history 前一交易日市值差
   const heroChg = TC ? TC.chg : null, heroBase = TC ? TC.base : 0, heroMissing = TC ? TC.missing : 0;
@@ -203,6 +230,9 @@ function render(opts) {
     }
   }
 
+}
+
+function renderSummary({ d, t, E, realized, dividend, totalPL }) {
   // 摘要卡片(編輯模式下 已實現損益/股息收入 可改)
   const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
   // [label, 顯示值, 著色值, 副標, 原始數值, 是否帶正負號]
@@ -237,6 +267,11 @@ function render(opts) {
   }).join('') + accCardsHtml;
   animateCounts();
 
+}
+
+// 持股表 + 手機卡片:兩邊共用同一組欄位工具(隱藏零股 / 今日漲跌 / 小走勢),先算好再各自畫
+function renderHoldings(ctx) {
+  const { d, E, histArr } = ctx;
   // 持股表
   const hideZero = document.getElementById('hide-zero').checked && !E;
   const types = Object.keys(d.fees.taxRates);
@@ -270,6 +305,12 @@ function render(opts) {
       + (tw ? `<polyline class="spark-tw" points="${path(tw)}" fill="none" stroke-width="1" stroke-dasharray="2 2"/>` : '')
       + `<polyline points="${path(me)}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   };
+  const H = { hideZero, cols, headHtml, ptimeCell, todayChg, todayHtml, sparkSvg };
+  renderHoldingsTable(ctx, H);
+  renderHoldingsCards(ctx, H);
+}
+
+function renderHoldingsTable({ rows, t, E }, { hideZero, cols, headHtml, ptimeCell, todayHtml, sparkSvg }) {
   // 排序(編輯模式也可以:列上帶 _i 原始索引,抽屜靠它寫回)
   if (holdSort.key) {
     const k = holdSort.key, dir = holdSort.dir;
@@ -321,6 +362,9 @@ function render(opts) {
       <td class="${cls(t.unrealized)}">${pct(t.costAmt ? t.unrealized / t.costAmt : 0)}</td>
       <td class="col-opt">100.00%</td><td class="col-opt">100.00%</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
+}
+
+function renderHoldingsCards({ rows, t, E }, { hideZero, todayChg, sparkSvg }) {
   // 持股卡片(手機檢視模式)
   const stat = (k, v, c2) => `<div class="h-stat"><span class="k">${k}</span><span class="v ${c2 || ''}">${v}</span></div>`;
   document.getElementById('holdings-cards').innerHTML =
@@ -360,6 +404,9 @@ function render(opts) {
       </div>
     </div>`;
 
+}
+
+function renderYearly({ d, E }) {
   // 年度表
   const ys = d.yearly || [];
   document.getElementById('yearly').innerHTML =
@@ -377,14 +424,6 @@ function render(opts) {
       <td class="${cls(ys.reduce((s,y)=>s+y.capitalGain,0))}">${fmt(ys.reduce((s,y)=>s+y.capitalGain,0))}</td>
       <td>${fmt(ys.reduce((s,y)=>s+(y.dividend||0),0))}</td><td></td>${E ? '<td></td>' : ''}</tr>`;
 
-  // 圖表延到下一幀:Hero / 卡片 / 表格先上畫面;#app 顯示後 canvas 才有真實尺寸,不會先畫 0×0 再 resize
-  if (withCharts) deferFrame(() => { if (DATA) drawCharts(rows.filter(r => r.mv > 0), ys); });
-  updateFavicon(title);
-  updateMiniHero();
-  document.getElementById('loader').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  restoreActiveTab();
-  if (typeof hideSplash === 'function') hideSplash();
 }
 
 /* ==================== §6. 分頁切換 ==================== */
