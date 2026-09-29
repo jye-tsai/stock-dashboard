@@ -132,9 +132,17 @@ def main():
     print(text)
     if DRY: return
     import requests
+    msgs = [{"type": "text", "text": text[:4900]}]
+    card = os.path.join(DATA_DIR, f"card_post_{chip_date.replace('/', '')}.png") if chip_date else None
+    if card and site and os.path.exists(card):                   # 先圖後文字;圖要等 Pages 部署完才抓得到,逾時就只發文字
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from render_card import card_url_when_live, image_message
+        url = card_url_when_live(card, site, int(os.getenv("CARD_WAIT", "240")))
+        if url: msgs.insert(0, image_message(url)); print("notify: 圖卡", url)
+        else: print("notify: 圖卡還沒部署好,只發文字")
     r = requests.post("https://api.line.me/v2/bot/message/push",
                       headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
-                      json={"to": uid, "messages": [{"type": "text", "text": text[:4900]}]}, timeout=20)
+                      json={"to": uid, "messages": msgs}, timeout=20)
     print("notify:", r.status_code, r.text[:120])
     if r.status_code == 200 and chip_date:
         json.dump({"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}, open(MARK, "w", encoding="utf-8"))

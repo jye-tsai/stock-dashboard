@@ -21,8 +21,16 @@ if D.get("headline"):
 lines.append("｜".join(s(k) for k in ("dji", "sox", "tsm")))
 if n: lines.append(f"夜盤 {n['night_close']:,.0f}（{n['night_chg']:+,.0f}）")
 lines.append(os.getenv("SITE_URL", ""))
+msgs = [{"type": "text", "text": "\n".join(lines)}]
+card, site = os.path.join(d, f"card_pre_{t['date'].replace('/', '')}.png"), os.getenv("SITE_URL", "")
+if site and os.path.exists(card):                                 # 先圖後文字;等 Pages 部署完才傳圖,逾時只發文字
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from render_card import card_url_when_live, image_message
+    url = card_url_when_live(card, site, int(os.getenv("CARD_WAIT", "240")))
+    if url: msgs.insert(0, image_message(url)); print("notify: 圖卡", url)
+    else: print("notify: 圖卡還沒部署好,只發文字")
 r = requests.post("https://api.line.me/v2/bot/message/push", headers={"Authorization": f"Bearer {tok}"},
-                  json={"to": uid, "messages": [{"type": "text", "text": "\n".join(lines)}]}, timeout=20)
+                  json={"to": uid, "messages": msgs}, timeout=20)
 print("notify:", r.status_code, r.text[:100])
 if r.status_code == 200:
     import datetime as dt

@@ -165,14 +165,14 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 
   <!-- 盤前(07:30 那班寫的 data/premarket_latest.json):美股 / 債匯金油 / 台指期夜盤 / 台股前收;沒有檔就整張不顯示 -->
   <div class="card" id="pmCard" style="display:none;border-color:var(--gold)">
-    <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span></h2>
+    <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span><a id="pmImg" target="_blank" style="display:none;margin-left:auto;color:var(--gold);border:1px solid var(--gold);font-size:12px;text-decoration:none;border-radius:8px;padding:2px 8px" title="當天盤前圖卡(可長按存檔 / 轉發)">🖼 圖卡</a></h2>
     <div id="pmMissing" style="display:none;background:#C4282E;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:8px"></div>
     <div id="pmDesc"></div>
     <details id="pmMore"><summary>看完整數據表</summary><pre id="pmText">—</pre></details>
   </div>
 
   <div class="disc" id="disc" style="display:none">
-    <h2 style="display:flex;align-items:center;gap:8px">胖虎指標・市場狀態 <a href="backtest/" style="margin-left:auto;color:#FFD682;font-size:12px;text-decoration:none;border:1px solid #FFD68266;border-radius:8px;padding:2px 8px" title="10 年回測報告">📊 回測</a></h2>
+    <h2 style="display:flex;align-items:center;gap:8px">胖虎指標・市場狀態 <a id="discImg" target="_blank" style="display:none;margin-left:auto;color:#FFD682;border:1px solid #FFD68266;font-size:12px;text-decoration:none;border-radius:8px;padding:2px 8px" title="當天盤後圖卡(可長按存檔 / 轉發)">🖼 圖卡</a><a href="backtest/" style="color:#FFD682;font-size:12px;text-decoration:none;border:1px solid #FFD68266;border-radius:8px;padding:2px 8px" title="10 年回測報告">📊 回測</a></h2>
     <div class="sm" id="discCap"></div>
     <div id="discLines"></div>
     <div id="discPos"></div>
@@ -268,10 +268,16 @@ async function loadSeries(idx){
   const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
   series=rs.filter(Boolean);
 }
+// 圖卡連結:排程畫好的 data/card_{post|pre}_YYYYMMDD.png(留 30 天),檔案在才顯示
+async function setCardLink(id,kind,date){
+  const a=$('#'+id); if(!a)return; a.style.display='none';
+  if(!date)return; const url=`data/card_${kind}_${String(date).replace(/\//g,'')}.png`;
+  try{const r=await fetch(url,{method:'HEAD',cache:'no-cache'}); if(r.ok){a.href=url;a.style.display=''}}catch(e){}
+}
 let pm=null;   // 盤前資料(textContent 寫入,不用 esc)
 async function loadPremarket(){
   try{pm=await (await fetch('data/premarket_latest.json?'+Date.now())).json();
-    $('#pmCard').style.display=''; $('#btnCopyPm').style.display='';   // 有盤前資料才顯示卡片與複製鈕(是否解鎖另由 auth-only 管)
+    $('#pmCard').style.display=''; $('#btnCopyPm').style.display=''; setCardLink('pmImg','pre',pm.date);   // 有盤前資料才顯示卡片與複製鈕(是否解鎖另由 auth-only 管)
     $('#pmTime').textContent='　產生 '+(pm.generated_at||'').replace('T',' ');
     $('#pmText').textContent=pm.claude_text||'—';
     const D=pm.describe||{};   // 描述卡:一句話 + 5 格(美股 / 半導體 / 利率匯率 / 夜盤 / 昨收),點格子看明細
@@ -302,6 +308,7 @@ async function loadIndex(){
 async function loadDay(tag){
   const t=await (await fetch(`data/${tag}.json?`+Date.now())).json(); current=t; render(t);
   $('#btnCopy').style.display='';   // 有盤後資料才顯示複製鈕
+  setCardLink('discImg','post',t.date);
   $('#status').textContent='已載入 '+t.date;
 }
 function render(t){
