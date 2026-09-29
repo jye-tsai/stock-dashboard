@@ -171,6 +171,57 @@ class TestDescribe(unittest.TestCase):
         self.assertEqual(next(a for a in hist["aspects"] if a["k"] == "sentiment")["label"], "散戶中性・P/C 偏低")
 
 
+def us_item(name, pct, value=100.0, ok=True, p=None, **kw):
+    d = {"name": name, "value": value, "prev": value / (1 + pct / 100) if pct is not None else None, "chg": (value - value / (1 + pct / 100)) if pct is not None else None,
+         "pct": pct, "date": "09/28", "src": "yahoo", "ok": ok}
+    if p is not None: d["p"] = p
+    d.update(kw); return d
+
+class TestPremarket(unittest.TestCase):
+    def us_weak(self):
+        return {"dji": us_item("道瓊", -0.67), "spx": us_item("S&P 500", -0.77), "ixic": us_item("那斯達克", -0.92), "sox": us_item("費城半導體", -1.61, p=12),
+                "tsm": us_item("台積電ADR", 0.50, 452.88), "nvda": us_item("輝達", 1.68), "aapl": us_item("蘋果", -0.78), "tsla": us_item("特斯拉", -3.94),
+                "us10y": us_item("美債10Y", None, 5.24, chg=0.06), "dxy": us_item("美元指數", 0.34, 101.3), "twd": us_item("美元/台幣", 0.29, 31.87),
+                "vix": us_item("VIX", -0.31, 16.02), "gold": us_item("黃金期貨", -3.38, 4175, roll_warn=True)}
+    NIGHT = {"contract": "202610", "day_close": 48123.0, "night_close": 47909.0, "night_high": 48404.0, "night_low": 47783.0, "night_chg": -214.0, "night_pct": -0.44, "date": "09/24"}
+    PREV = {"date": "2026/09/29", "close": 47631.96, "chg": -392.64, "pct": -0.82, "amount_yi": 8247, "foreign": -632.0, "inst_total": -782.0,
+            "foreign_net_oi": -79029, "foreign_net_oi_prev": -77031, "basis": 135.04, "mtx": 16.83, "tmf": 24.16, "mtx_prev": 10.0, "tmf_prev": 9.54}   # 散戶平均 +10.7 點
+
+    def test_full_day(self):
+        d = P.describe_premarket(self.us_weak(), self.NIGHT, self.PREV, CFG)
+        A = {a["k"]: a for a in d["aspects"]}
+        self.assertEqual(list(A), ["us", "semi", "rates", "night", "prev"])
+        self.assertEqual(A["us"]["label"], "美股偏弱・費半領跌"); self.assertEqual(A["us"]["tone"], "bear")
+        self.assertIn("費城半導體 -1.61%(近 3 年 P12,偏弱的一天)", A["us"]["lines"][0])
+        self.assertEqual(A["semi"]["label"], "台積 ADR 逆勢強"); self.assertEqual(A["semi"]["tone"], "bull")
+        self.assertEqual(A["rates"]["label"], "利率升・美元強・台幣貶(外資偏出的環境)"); self.assertEqual(A["rates"]["tone"], "cold")
+        self.assertEqual(A["night"]["label"], "夜盤小跌"); self.assertEqual(A["night"]["short"], "夜盤小跌 -0.44%")
+        self.assertEqual(A["prev"]["label"], "外資現貨大賣・散戶接刀・正價差大")     # 期貨只加 1,998 口,不到 3,000 門檻
+        self.assertEqual(d["headline"], "今早:美股偏弱・費半領跌・台積 ADR 逆勢強・利率升・美元強・台幣貶;夜盤小跌 -0.44%;昨收 外資現貨大賣・散戶接刀・正價差大")
+
+    def test_night_missing_and_partial_us(self):
+        us = self.us_weak(); us["sox"]["ok"] = False; us["tsm"]["ok"] = False
+        d = P.describe_premarket(us, None, None, CFG); A = {a["k"]: a for a in d["aspects"]}
+        self.assertNotIn("semi", A); self.assertNotIn("prev", A)
+        self.assertEqual(A["us"]["label"], "美股偏弱")                               # 費半缺 → 不判領跌
+        self.assertEqual(A["night"]["label"], "夜盤【缺】")
+        self.assertTrue(d["headline"].endswith(";夜盤【缺】"))
+
+    def test_roll_warn_dxy_is_ignored_and_thresholds(self):
+        us = self.us_weak(); us["dxy"]["roll_warn"] = True; us["us10y"]["chg"] = 0.01
+        d = P.describe_premarket(us, self.NIGHT, self.PREV, CFG); A = {a["k"]: a for a in d["aspects"]}
+        self.assertEqual(A["rates"]["label"], "利率平・台幣貶")                        # 換月的美元指數不寫、1bps 算持平
+        big = dict(self.NIGHT, night_pct=1.2, night_chg=580.0, night_close=48703.0)
+        self.assertEqual(P.describe_premarket(us, big, None, CFG)["aspects"][-1]["label"], "夜盤大漲")   # prev=None → 夜盤是最後一個面向
+        pv = dict(self.PREV, foreign=20.0, foreign_net_oi=-82031, pct=0.3, mtx=10.0, tmf=10.0, mtx_prev=22.0, tmf_prev=20.0, basis=10.0)
+        self.assertEqual(P.describe_premarket(us, self.NIGHT, pv, CFG)["aspects"][-1]["label"], "外資中性・期貨加空・散戶翻空")
+
+    def test_quantiles(self):
+        self.assertIsNone(P.quantiles(list(range(100))))
+        q = P.quantiles(list(range(1000)))
+        self.assertEqual(len(q), 101); self.assertEqual((q[0], q[50], q[100]), (0, 500, 999))
+
+
 class TestEventHistoryText(unittest.TestCase):
     def test_text(self):
         self.assertEqual(P.event_history_text({}), "歷史上沒有同類事件紀錄")
