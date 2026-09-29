@@ -167,6 +167,14 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div class="evsum" id="evBox"></div>
   </div>
 
+  <!-- 盤前(07:30 那班寫的 data/premarket_latest.json):美股 / 債匯金油 / 台指期夜盤 / 台股前收;沒有檔就整張不顯示 -->
+  <div class="card" id="pmCard" style="display:none;border-color:var(--gold)">
+    <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span></h2>
+    <div id="pmMissing" style="display:none;background:#C4282E;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:8px"></div>
+    <pre id="pmText">—</pre>
+    <div class="row"><button class="btn-gold auth-only" id="btnCopyPm">📋 複製盤前給 Claude</button><span class="status" id="pmStatus"></span></div>
+  </div>
+
   <div class="card">
     <h2>加權指數 <span class="tag" id="dayTag" style="background:var(--navy)"></span></h2>
     <div class="row" style="align-items:baseline;gap:16px">
@@ -252,6 +260,20 @@ async function loadSeries(idx){
   const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
   series=rs.filter(Boolean);
 }
+let pm=null;   // 盤前資料(textContent 寫入,不用 esc)
+async function loadPremarket(){
+  try{pm=await (await fetch('data/premarket_latest.json?'+Date.now())).json();
+    $('#pmCard').style.display='';
+    $('#pmTime').textContent='　產生 '+(pm.generated_at||'').replace('T',' ');
+    $('#pmText').textContent=pm.claude_text||'—';
+    const m=$('#pmMissing');
+    if(pm.missing&&pm.missing.length){m.style.display='';m.textContent='⚠ 需手動補資料：'+pm.missing.join('、')+'（拍截圖給 Claude）'}
+    else m.style.display='none';
+  }catch(e){pm=null}
+}
+$('#btnCopyPm').onclick=async()=>{if(!pm)return;
+  try{await navigator.clipboard.writeText(pm.claude_text);$('#pmStatus').textContent='已複製'}
+  catch(e){$('#pmStatus').textContent='複製失敗，請手動選取'}};
 async function loadWeekly(){
   try{const wi=await (await fetch('data/weekly_index.json?'+Date.now())).json();
     if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${encodeURIComponent(f)}" target="_blank">${esc(f.replace('weekly_','').replace('.md',''))} 週報草稿</a></div>`).join('')}
@@ -261,7 +283,7 @@ async function loadIndex(){
   try{
     const idx=await (await fetch('data/index.json?'+Date.now())).json();
     $('#dateSel').innerHTML=idx.map(d=>`<option value="${d}">${d.slice(0,4)}/${d.slice(4,6)}/${d.slice(6)}</option>`).join('');
-    await loadSeries(idx); await loadEvents(); loadWeekly();
+    await loadSeries(idx); await loadEvents(); loadWeekly(); loadPremarket();
     if(idx.length)await loadDay(idx[0]);
     else $('#status').textContent='尚無資料，請先跑一次 Action';
   }catch(e){$('#status').textContent='讀不到 data/index.json：'+e.message}
