@@ -125,6 +125,13 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .kpi .l{font-size:12px;color:var(--gray)}.kpi .v{font:700 20px/1.2 ui-monospace,monospace}
 .kpi .d{font-size:12px}
 .status{font-size:13px;color:var(--gray);padding:6px 2px}
+#pmCard .hl1{font-size:15px;font-weight:700;line-height:1.5;margin:2px 0 8px}
+#pmCard .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:4px 0 10px}
+#pmCard .tile{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-width:0}
+#pmCard .tile .n{font-size:11.5px;color:var(--gray)}#pmCard .tile .v{font-size:14px;font-weight:700;line-height:1.35}
+#pmCard .tile .d{font-size:12px;color:var(--gray);margin-top:3px;line-height:1.5}
+#pmCard .t-bull{color:var(--red)}#pmCard .t-bear{color:var(--green)}#pmCard .t-cold{color:#2a6fd6}#pmCard .t-hot{color:var(--gold)}
+#pmCard details summary{cursor:pointer;font-size:12.5px;color:var(--gray);padding:4px 0}
 pre{background:var(--bg);border:1px dashed var(--line);border-radius:10px;padding:10px;white-space:pre-wrap;font-size:13px}
 .imgs img{max-width:100%;border-radius:8px;border:1px solid var(--line);margin-top:8px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -148,7 +155,8 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
 <main>
   <div class="row" style="margin-bottom:12px">
     <select id="dateSel"></select>
-    <button class="btn-gold auth-only" id="btnCopy">📋 複製給 Claude</button>
+    <button class="btn-gold auth-only" id="btnCopy" style="display:none">📋 複製盤後給 Claude</button>
+    <button class="btn-gold auth-only" id="btnCopyPm" style="display:none">📋 複製盤前給 Claude</button>
     <button class="btn-red auth-only" id="btnRun">▶ 立即抓取</button>
     <a class="btn-ghost lock-hint" href="../" style="text-decoration:none;color:var(--gray);border-color:var(--line);padding:9px 14px;border-radius:10px;font-weight:700;font-size:14px" title="到儀表板按「🔒 解鎖」輸入密碼，再回來這頁">🔒 到儀表板解鎖</a>
     <button class="btn-navy" id="btnReload">🔄 重新載入</button>
@@ -171,8 +179,8 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
   <div class="card" id="pmCard" style="display:none;border-color:var(--gold)">
     <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span></h2>
     <div id="pmMissing" style="display:none;background:#C4282E;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:8px"></div>
-    <pre id="pmText">—</pre>
-    <div class="row"><button class="btn-gold auth-only" id="btnCopyPm">📋 複製盤前給 Claude</button><span class="status" id="pmStatus"></span></div>
+    <div id="pmDesc"></div>
+    <details id="pmMore"><summary>看完整數據表</summary><pre id="pmText">—</pre></details>
   </div>
 
   <div class="card">
@@ -263,17 +271,20 @@ async function loadSeries(idx){
 let pm=null;   // 盤前資料(textContent 寫入,不用 esc)
 async function loadPremarket(){
   try{pm=await (await fetch('data/premarket_latest.json?'+Date.now())).json();
-    $('#pmCard').style.display='';
+    $('#pmCard').style.display=''; $('#btnCopyPm').style.display='';   // 有盤前資料才顯示卡片與複製鈕(是否解鎖另由 auth-only 管)
     $('#pmTime').textContent='　產生 '+(pm.generated_at||'').replace('T',' ');
     $('#pmText').textContent=pm.claude_text||'—';
+    const D=pm.describe||{};   // 描述卡:一句話 + 5 格(美股 / 半導體 / 利率匯率 / 夜盤 / 昨收),點格子看明細
+    $('#pmDesc').innerHTML=D.headline?`<div class="hl1">${esc(D.headline)}</div><div class="tiles">${(D.aspects||[]).map(a=>`<div class="tile"><div class="n">${esc(a.name)}</div><div class="v t-${esc(a.tone)}">${esc(a.label)}</div>${(a.lines||[]).map(l=>`<div class="d">${esc(l)}</div>`).join('')}</div>`).join('')}</div><div class="mut" style="font-size:12px">${esc(D.note||'')}</div>`:'';
+    $('#pmMore').open=!D.headline;   // 沒有描述卡(舊檔)就直接攤開數據表
     const m=$('#pmMissing');
     if(pm.missing&&pm.missing.length){m.style.display='';m.textContent='⚠ 需手動補資料：'+pm.missing.join('、')+'（拍截圖給 Claude）'}
     else m.style.display='none';
   }catch(e){pm=null}
 }
 $('#btnCopyPm').onclick=async()=>{if(!pm)return;
-  try{await navigator.clipboard.writeText(pm.claude_text);$('#pmStatus').textContent='已複製'}
-  catch(e){$('#pmStatus').textContent='複製失敗，請手動選取'}};
+  try{await navigator.clipboard.writeText(pm.claude_text);$('#status').textContent='已複製盤前，貼到 Claude 即可'}
+  catch(e){$('#status').textContent='複製失敗，請展開數據表手動選取'}};
 async function loadWeekly(){
   try{const wi=await (await fetch('data/weekly_index.json?'+Date.now())).json();
     if(wi.length){$('#weeklyCard').style.display='';$('#weeklyList').innerHTML=wi.slice(0,4).map(f=>`<div><a href="data/${encodeURIComponent(f)}" target="_blank">${esc(f.replace('weekly_','').replace('.md',''))} 週報草稿</a></div>`).join('')}
@@ -290,6 +301,7 @@ async function loadIndex(){
 }
 async function loadDay(tag){
   const t=await (await fetch(`data/${tag}.json?`+Date.now())).json(); current=t; render(t);
+  $('#btnCopy').style.display='';   // 有盤後資料才顯示複製鈕
   $('#status').textContent='已載入 '+t.date;
 }
 function render(t){

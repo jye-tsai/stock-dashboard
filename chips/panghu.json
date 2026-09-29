@@ -25,5 +25,12 @@
     "surge_down": { "name": "爆量長黑",  "ratio": 1.5, "chg_pct": -0.3, "avg_days": 20 },
     "pc_low":     { "name": "P/C 極低",  "pc": 70 }
   },
+  "premarket": {
+    "_說明": "盤前描述卡(07:30)的門檻,單位 %;百分位跟該標的近 3 年單日漲跌比。只描述、不預測。",
+    "us_flat_pct": 0.3, "us_big_pct": 1.0, "sox_lead_pct": 0.5, "adr_diverge_pct": 0.8,
+    "yield_bps": 5, "dxy_pct": 0.3, "twd_pct": 0.2,
+    "night_flat_pct": 0.3, "night_big_pct": 1.0,
+    "foreign_big_yi": 300, "foreign_flat_yi": 50, "fut_chg_big": 3000, "retail_jump": 5, "basis_big": 100
+  },
   "note": "胖虎指標只描述現況,不預測漲跌、不給倉位;極端事件附歷史紀錄僅供參考,不是買賣訊號。"
 }

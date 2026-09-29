@@ -11,8 +11,13 @@ except Exception: mark = {}
 if mark.get("last") == t["date"]: print(f"notify: {t['date']} 盤前已通知過，略過"); sys.exit(0)
 us, n = t["us"], t.get("night")
 def s(k): it = us[k]; return f"{it['name']} {it['pct']:+.2f}%" if it["ok"] else f"{it['name']} 缺"
-lines = [f"🐶 {t['date']} 盤前數據已更新"]
+lines = [f"🐶 {t['date']} 盤前"]
 if t["missing"]: lines.append("⚠ 需手動補：" + "、".join(t["missing"]))
+D = t.get("describe") or {}
+if D.get("headline"):
+    lines.append(D["headline"])
+    lines += [f"{a['name']}:{a['short']}" for a in D.get("aspects") or [] if a["k"] not in ("night",)]   # 夜盤已在一句話裡
+    lines.append("── 數據 ──")
 lines.append("｜".join(s(k) for k in ("dji", "sox", "tsm")))
 if n: lines.append(f"夜盤 {n['night_close']:,.0f}（{n['night_chg']:+,.0f}）")
 lines.append(os.getenv("SITE_URL", ""))

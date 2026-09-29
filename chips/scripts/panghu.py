@@ -521,3 +521,131 @@ def attach_position(pg, t, dist):
         ev = "、".join(e["name"] for e in pg.get("events") or [])
         pg["headline"] = "今天:" + (head + ";" if head else "") + tail + (f"・⚠ {ev}" if ev else "")
 
+
+
+# ─────────────── 盤前描述(07:30):美股 / 半導體 / 利率匯率 / 夜盤 / 昨收 ───────────────
+# 輸入是 premarket.py 抓好的 dict;只描述、不預測。標的的 p = 今天漲跌幅在該標的近 3 年單日漲跌中的百分位(premarket.py 算好放在 item["p"])。
+def quantiles(xs):
+    """把一串數字變成 101 個分位點(第 0~100 百分位),給 pctile 用;少於 250 筆回 None"""
+    xs = sorted(x for x in xs if x is not None)
+    if len(xs) < 250: return None
+    n = len(xs)
+    return [xs[int(round(i / 100 * (n - 1)))] for i in range(101)]
+
+def _pword(p, lo, hi):
+    """p ≤ 20 / ≥ 80 才附一句白話"""
+    if p is None: return ""
+    return f"(近 3 年 P{p},{lo})" if p <= 20 else f"(近 3 年 P{p},{hi})" if p >= 80 else f"(P{p})"
+
+def describe_premarket(us, night, prev, cfg):
+    K = (cfg or {}).get("premarket") or {}
+    g = lambda k, d: K.get(k, d)
+    aspects = []
+    def asp(k, name, label, tone, lines, short=None):
+        aspects.append({"k": k, "name": name, "label": label, "tone": tone, "lines": [x for x in lines if x], "short": short or label})
+    ok = lambda k: bool(us and us.get(k) and us[k].get("ok"))
+    pct = lambda k: us[k]["pct"] if ok(k) else None
+    fpct = lambda k: f"{us[k]['name']} {us[k]['pct']:+.2f}%" if ok(k) else None
+
+    # ── 美股:四大指數平均,費半是否領跌 / 領漲
+    idx = [k for k in ("dji", "spx", "ixic", "sox") if ok(k)]
+    if idx:
+        avg = sum(pct(k) for k in idx) / len(idx)
+        lab = "美股偏強" if avg >= g("us_flat_pct", .3) else "美股偏弱" if avg <= -g("us_flat_pct", .3) else "美股持平"
+        if abs(avg) >= g("us_big_pct", 1.0): lab = lab.replace("偏", "大") if "偏" in lab else lab
+        tone = "bull" if avg >= g("us_flat_pct", .3) else "bear" if avg <= -g("us_flat_pct", .3) else "neutral"
+        sox = pct("sox"); parts = [lab]
+        if sox is not None and len(idx) >= 2:
+            if sox - avg <= -g("sox_lead_pct", .5): parts.append("費半領跌")
+            elif sox - avg >= g("sox_lead_pct", .5): parts.append("費半領漲")
+        lines = ["、".join(fpct(k) + _pword(us[k].get("p"), "偏弱的一天", "偏強的一天") for k in idx) + f";四大平均 {avg:+.2f}%"]
+        if ok("vix"): lines.append(f"VIX {us['vix']['value']}({us['vix']['pct']:+.2f}%){'' if us['vix']['value'] < 20 else ',偏高' if us['vix']['value'] < 30 else ',恐慌區'}")
+        asp("us", "美股", "・".join(parts), tone, lines)
+
+    # ── 半導體:台積 ADR 跟費半同向還是逆勢
+    if ok("tsm") and ok("sox"):
+        t, s = pct("tsm"), pct("sox"); d = t - s
+        if (t > 0) != (s > 0) and abs(d) >= g("adr_diverge_pct", .8): lab, tone = ("台積 ADR 逆勢強", "bull") if t > 0 else ("台積 ADR 逆勢弱", "bear")
+        elif abs(d) >= g("adr_diverge_pct", .8): lab, tone = (f"台積 ADR 比費半{'強' if d > 0 else '弱'}", "bull" if d > 0 else "bear")
+        else: lab, tone = ("台積 ADR 與費半同向" + ("強" if t > 0 else "弱" if t < 0 else ""), "bull" if t > 0 else "bear" if t < 0 else "neutral")
+        lines = [f"台積 ADR {t:+.2f}%{_pword(us['tsm'].get('p'), '偏弱的一天', '偏強的一天')} vs 費半 {s:+.2f}%,差 {d:+.2f} 個百分點"]
+        others = [fpct(k) for k in ("nvda", "aapl", "tsla") if ok(k)]
+        if others: lines.append("、".join(others))
+        asp("semi", "半導體", lab, tone, lines)
+
+    # ── 利率匯率:美債 10Y 變化、美元指數、台幣
+    parts, lines, score = [], [], 0
+    if ok("us10y"):
+        bps = us["us10y"]["chg"] * 100
+        if bps >= g("yield_bps", 5): parts.append("利率升"); score += 1
+        elif bps <= -g("yield_bps", 5): parts.append("利率降"); score -= 1
+        else: parts.append("利率平")
+        lines.append(f"美債 10Y {us['us10y']['value']:.2f}%({bps:+.0f}bps){_pword(us['us10y'].get('p'), '大降的一天', '大升的一天')}")
+    if ok("dxy") and not us["dxy"].get("roll_warn"):
+        d = pct("dxy")
+        if d >= g("dxy_pct", .3): parts.append("美元強"); score += 1
+        elif d <= -g("dxy_pct", .3): parts.append("美元弱"); score -= 1
+        lines.append(f"美元指數 {us['dxy']['value']}({d:+.2f}%)")
+    if ok("twd"):
+        d = pct("twd")                                                    # 美元/台幣往上 = 台幣貶
+        if d >= g("twd_pct", .2): parts.append("台幣貶"); score += 1
+        elif d <= -g("twd_pct", .2): parts.append("台幣升"); score -= 1
+        lines.append(f"美元兌台幣 {us['twd']['value']}({d:+.2f}%,台幣{'貶' if d > 0 else '升' if d < 0 else '平'})")
+    if parts:
+        lab = "・".join(parts)
+        if score >= 2: lab += "(外資偏出的環境)"; tone = "cold"
+        elif score <= -2: lab += "(外資偏進的環境)"; tone = "hot"
+        else: tone = "neutral"
+        asp("rates", "利率匯率", lab, tone, lines, "・".join(parts))
+
+    # ── 夜盤:台指期盤後時段 vs 日盤收
+    if night and night.get("night_pct") is not None:
+        n = night["night_pct"]; f_, b_ = g("night_flat_pct", .3), g("night_big_pct", 1.0)
+        lab = "夜盤持平" if abs(n) < f_ else ("夜盤大漲" if n >= b_ else "夜盤小漲") if n > 0 else ("夜盤大跌" if n <= -b_ else "夜盤小跌")
+        rng = (night["night_high"] - night["night_low"]) / night["day_close"] * 100 if night.get("night_high") and night.get("day_close") else None
+        asp("night", "夜盤", lab, "bull" if n >= f_ else "bear" if n <= -f_ else "neutral",
+            [f"{night.get('date', '')} 夜盤收 {night['night_close']:,.0f}({night['night_chg']:+,.0f},{n:+.2f}%),日盤收 {night['day_close']:,.0f}",
+             f"夜盤高 {night['night_high']:,.0f} 低 {night['night_low']:,.0f}" + (f",震幅 {rng:.2f}%" if rng is not None else "")],
+            f"{lab} {n:+.2f}%")
+    else:
+        asp("night", "夜盤", "夜盤【缺】", "neutral", ["期交所盤後時段未取得,不猜"], "夜盤【缺】")
+
+    # ── 昨收(台股前一交易日):外資現貨、期貨增減、散戶跳動、正逆價差
+    if prev and prev.get("close") is not None:
+        parts, lines = [], []
+        fo = prev.get("foreign")
+        if fo is not None:
+            big, flat = g("foreign_big_yi", 300), g("foreign_flat_yi", 50)
+            parts.append("外資現貨大賣" if fo <= -big else "外資現貨大買" if fo >= big else "外資賣超" if fo <= -flat else "外資買超" if fo >= flat else "外資中性")
+            lines.append(f"外資現貨 {fo:+,.0f} 億、法人合計 {prev.get('inst_total', 0) or 0:+,.0f} 億")
+        net, net0 = prev.get("foreign_net_oi"), prev.get("foreign_net_oi_prev")
+        if net is not None and net0 is not None:
+            d = net - net0; big = g("fut_chg_big", 3000)
+            if d <= -big: parts.append("期貨加空")
+            elif d >= big: parts.append("期貨減空")
+            lines.append(f"外資台指期淨{'空' if net < 0 else '多'} {abs(net):,} 口(較前日 {d:+,} 口)")
+        r1 = [x for x in (prev.get("mtx"), prev.get("tmf")) if x is not None]; r0 = [x for x in (prev.get("mtx_prev"), prev.get("tmf_prev")) if x is not None]
+        ip = prev.get("pct")
+        if r1 and r0 and len(r1) == len(r0):
+            d = sum(r1) / len(r1) - sum(r0) / len(r0); jmp = g("retail_jump", 5)
+            if d >= jmp and (ip or 0) < 0: parts.append("散戶接刀")
+            elif d <= -jmp and (ip or 0) > 0: parts.append("散戶翻空")
+            elif d >= jmp: parts.append("散戶追多")
+            elif d <= -jmp: parts.append("散戶轉空")
+            lines.append(f"散戶多空比 小台 {prev.get('mtx')}%、微台 {prev.get('tmf')}%(平均較前日 {d:+.1f} 點)")
+        b = prev.get("basis")
+        if b is not None:
+            bb = g("basis_big", 100)
+            if b >= bb: parts.append("正價差大")
+            elif b <= -bb: parts.append("逆價差大")
+            lines.append(f"期現價差 {b:+.0f} 點")
+        head = f"{prev.get('date', '')} 加權 {prev['close']:,}({prev.get('chg', 0) or 0:+,}" + (f",{ip:+.2f}%" if ip is not None else "") + f"),量 {prev.get('amount_yi') or 0:,} 億"
+        tone = "bear" if (ip or 0) <= -0.5 else "bull" if (ip or 0) >= 0.5 else "neutral"
+        asp("prev", "昨收", "・".join(parts) or "無明顯訊號", tone, [head] + lines)
+
+    A = {a["k"]: a for a in aspects}
+    segs = [A[k]["short"] for k in ("us", "semi", "rates") if k in A]
+    head = "今早:" + "・".join(segs) if segs else "今早:美股資料【缺】"
+    if "night" in A: head += ";" + A["night"]["short"]
+    if "prev" in A: head += ";昨收 " + A["prev"]["label"]
+    return {"headline": head, "aspects": aspects, "note": "只描述盤前現況,不預測開盤方向、不給倉位;百分位跟各標的近 3 年單日漲跌比。"}

@@ -7,6 +7,8 @@ premarket.py ─ 盤前資料自動抓取（美股收盤＋債匯金油＋台指
 """
 import os, io, re, sys, json, datetime as dt
 import requests, pandas as pd
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from panghu import describe_premarket, quantiles, pctile, load_panghu_cfg   # 盤前描述卡(純計算,tests/test_panghu.py 有測)
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"); os.makedirs(DATA, exist_ok=True)
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
@@ -36,22 +38,24 @@ ITEMS = [
 
 def yahoo(sym):
     r = requests.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
-                     params={"range": "10d", "interval": "1d"}, headers=UA, timeout=20)
+                     params={"range": "3y", "interval": "1d"}, headers=UA, timeout=20)    # 3 年:算「今天的漲跌在近 3 年排第幾」
     j = r.json()["chart"]["result"][0]
     ts = j["timestamp"]; cl = j["indicators"]["quote"][0]["close"]
     rows = [(t, c) for t, c in zip(ts, cl) if c is not None]
     if len(rows) < 2: raise ValueError("rows<2")
     (t1, c1), (t0, c0) = rows[-1], rows[-2]
     d = dt.datetime.fromtimestamp(t1, dt.timezone.utc) - dt.timedelta(hours=4)      # 美東(粗略,只拿來標日期)
-    return {"close": c1, "prev": c0, "date": d.strftime("%m/%d")}
+    hist = [(rows[i][1] / rows[i - 1][1] - 1) * 100 for i in range(1, len(rows) - 1) if rows[i - 1][1]]   # 歷史單日漲跌(不含今天)
+    return {"close": c1, "prev": c0, "date": d.strftime("%m/%d"), "hist": hist}
 
 def stooq(sym):
     r = requests.get("https://stooq.com/q/d/l/", params={"s": sym, "i": "d"}, headers=UA, timeout=20)
     df = pd.read_csv(io.StringIO(r.text))
     if "Close" not in df.columns or len(df) < 2: raise ValueError("no data")
-    df = df.dropna(subset=["Close"]).tail(2)
-    return {"close": float(df["Close"].iloc[-1]), "prev": float(df["Close"].iloc[-2]),
-            "date": str(df["Date"].iloc[-1])[5:].replace("-", "/")}
+    df = df.dropna(subset=["Close"]).tail(760)                                       # 約 3 年
+    cl = df["Close"].astype(float).tolist()
+    return {"close": cl[-1], "prev": cl[-2], "date": str(df["Date"].iloc[-1])[5:].replace("-", "/"),
+            "hist": [(cl[i] / cl[i - 1] - 1) * 100 for i in range(1, len(cl) - 1) if cl[i - 1]]}
 
 def fetch_item(key, name, ysym, ssym, nd, kind):
     for src, fn, sym in (("yahoo", yahoo, ysym), ("stooq", stooq, ssym)):
@@ -61,6 +65,8 @@ def fetch_item(key, name, ysym, ssym, nd, kind):
             out = {"name": name, "value": round(v["close"], nd), "prev": round(v["prev"], nd),
                    "chg": round(chg, 4), "pct": round(pct, 2), "date": v["date"], "src": src, "ok": True}
             if kind == "fut" and abs(pct) >= 3: out["roll_warn"] = True      # 期貨連續合約換月日會出現假跳動(例:布蘭特一天 -5.9%、WTI 卻 +1.2%)
+            qq = quantiles(v.get("hist") or [])                                # 今天的漲跌在近 3 年排第幾(0 最跌、100 最漲)
+            if qq: out["p"] = int(round(pctile(pct, qq))); out["years"] = round(len(v["hist"]) / 250, 1)
             return out
         except Exception as e:
             log(f"  {name} {src} 失敗：{e.__class__.__name__}")
@@ -125,6 +131,9 @@ def main():
                 "basis": lj.get("basis"), "mtx": (lj.get("mtx_retail") or {}).get("ratio_pct"), "tmf": (lj.get("tmf_retail") or {}).get("ratio_pct")}
         pc = (lj.get("prev") or {}).get("index") or {}
         prev["pct"] = round(ix["chg"] / pc["close"] * 100, 2) if ix.get("chg") is not None and pc.get("close") else None
+        pp = lj.get("prev") or {}                                                    # 前前一日:給描述卡算期貨增減、散戶跳動
+        prev["foreign_net_oi_prev"] = ((pp.get("txf") or {}).get("外資") or {}).get("net")
+        prev["mtx_prev"] = (pp.get("mtx_retail") or {}).get("ratio_pct"); prev["tmf_prev"] = (pp.get("tmf_retail") or {}).get("ratio_pct")
         if any(v is None for v in (prev["close"], prev["foreign"])): missing.append("台股前收（latest.json 不完整）")
     except Exception as e:
         log(f"  台股前收失敗：{e}"); missing.append("台股前收")
@@ -154,7 +163,12 @@ def main():
              "夜盤高低含整段盤後（含美股盤中）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌幅不準。")
     if missing: L.append(f"⚠ 缺：{'、'.join(missing)}")
 
-    out = {"date": today, "generated_at": now.isoformat(timespec="seconds"), "us": us, "night": night, "prev": prev,
+    # ── 描述卡(純規則,只描述):一句話 + 5 個面向;放在文字表最前面
+    try: desc = describe_premarket(us, night, prev, load_panghu_cfg())
+    except Exception as e: log(f"  描述卡失敗:{e.__class__.__name__}: {e}"); desc = None
+    if desc:
+        L.insert(1, desc["headline"] + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in desc["aspects"]))
+    out = {"date": today, "generated_at": now.isoformat(timespec="seconds"), "us": us, "night": night, "prev": prev, "describe": desc,
            "missing": missing, "log": LOG, "claude_text": "\n".join(L)}
     json.dump(out, open(os.path.join(DATA, f"premarket_{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     json.dump(out, open(os.path.join(DATA, "premarket_latest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
