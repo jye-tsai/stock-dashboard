@@ -51,6 +51,9 @@ GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資�
 ## 盤後資料還沒公布時
 期交所三大法人約 15:00 才算好；在那之前查得到當天，但多空未平倉全是 0。程式把這種情況視為「尚未公布」，自動改用前一交易日，不會把 0 當真算出假的增減。
 
+## 盤前資料（07:30）
+`scripts/premarket.py` 抓美股四大指數、台積電 ADR 等個股、美債 10Y、美元指數、黃金、油、美元兌台幣、VIX（Yahoo，失敗退 Stooq），加上期交所台指期夜盤與前一交易日台股收盤（讀 `data/latest.json`），寫成 `data/premarket_YYYYMMDD.json`、`data/premarket_latest.json`、`data/premarket_YYYYMMDD_claude.txt`。抓不到的欄位一律寫「【缺】」並列在 `missing`，不猜數字。頁面最上面的金框卡片顯示它，`notify_premarket.py` 早上推一則 LINE（同一天只發一次）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌會標「可能是換月」。每天 07:30 由 Cloudflare Worker 觸發（cron `30 23 * * 1-5`，dispatch `chips.yml` 帶 `premarket=true`），GitHub 本身不排程。手動跑：Actions → chips → Run workflow → `premarket` 填 true。
+
 ## LINE 通知
 只在 **15:40 排程或 Cloudflare cron 那班**推一則（免費方案每月 200 則；手動 Run workflow 與頁面「立即抓取」不通知），同一交易日不重發（`data/notified.json`）。
 內容 = 盤後數據摘要 ＋ **庫存段**（每檔 代號 名稱 收盤 今日% 未實現，加 今日損益 / 總市值 / 總報酬；讀 repo 根目錄 `data.json`，同前端金鑰解密）。
