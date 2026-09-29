@@ -43,29 +43,22 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install requests pandas beautifulsoup4 pymupdf cryptography
+      - run: pip install requests pandas beautifulsoup4 pymupdf cryptography pillow
+      # 圖卡要中文字型(週報那班不畫圖,不裝)
+      - name: 中文字型(圖卡用)
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
+        run: sudo apt-get install -y -qq fonts-noto-cjk >/dev/null
 
       - name: 抓資料（盤後）
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && github.event.inputs.premarket != 'true' }}
         # backfill > 0 → 只回補歷史(不抓永豐圖、不動 latest.json、不通知),之後再照常跑一次當日即可
         run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }} ${{ github.event.inputs.backfill && github.event.inputs.backfill != '0' && format('--backfill {0}', github.event.inputs.backfill) || '' }} ${{ github.event.inputs.force == 'true' && '--force' || '' }}
-
-      # 通知時機:GitHub 15:40 排程,或 Cloudflare Worker 準時打進來的 dispatch(inputs.source=cron;跟收盤價更新同一套機制,
-      # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
-      # 想手動試訊息:本機 python chips/scripts/notify.py --dry-run
-      - name: LINE 通知（排程 / Cloudflare cron）
-        if: ${{ (github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron') && github.event.inputs.premarket != 'true' }}
-        env:
-          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
-        run: python chips/scripts/notify.py || true
 
       - name: 週報草稿
         if: ${{ github.event.schedule == '0 1 * * 0' || github.event.inputs.weekly == 'true' }}
@@ -77,13 +70,16 @@ jobs:
         if: ${{ github.event.inputs.premarket == 'true' }}
         run: python chips/scripts/premarket.py
 
-      - name: LINE 通知（盤前）
+      # 圖卡(1080 寬 PNG,data/card_post|pre_YYYYMMDD.png,留 30 天):LINE 傳圖要公開網址,所以先畫、先 commit,等 Pages 部署完才發 LINE
+      - name: 畫圖卡（盤後）
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && github.event.inputs.premarket != 'true' && (github.event.inputs.backfill == '' || github.event.inputs.backfill == '0' || github.event.inputs.backfill == null) }}
+        continue-on-error: true
+        run: python chips/scripts/render_card.py post
+
+      - name: 畫圖卡（盤前）
         if: ${{ github.event.inputs.premarket == 'true' }}
-        env:
-          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
-        run: python chips/scripts/notify_premarket.py || true
+        continue-on-error: true
+        run: python chips/scripts/render_card.py pre
 
       - name: Commit
         run: |
@@ -92,6 +88,42 @@ jobs:
           git add chips/data
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
+          # 收盤價排程每 10 分鐘會 push data.json,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次(同 update-prices.yml)
+          pushed=0
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then pushed=1; break; fi
+            git rebase --abort 2>/dev/null || true
+            echo "push 失敗,重試 $i"; sleep 5
+          done
+          [ "$pushed" = 1 ] || { echo "::error::push 三次都失敗"; exit 1; }
+
+      # 通知時機:GitHub 15:40 排程,或 Cloudflare Worker 準時打進來的 dispatch(inputs.source=cron;跟收盤價更新同一套機制,
+      # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
+      # 想手動試訊息:本機 python chips/scripts/notify.py --dry-run
+      # 在 Commit 之後:notify 會等 Pages 上的圖卡跟剛畫的一樣(最多 4 分鐘)才傳圖,逾時就只發文字
+      - name: LINE 通知（排程 / Cloudflare cron）
+        if: ${{ (github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron') && github.event.inputs.premarket != 'true' }}
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
+        run: python chips/scripts/notify.py || true
+
+      - name: LINE 通知（盤前）
+        if: ${{ github.event.inputs.premarket == 'true' }}
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
+        run: python chips/scripts/notify_premarket.py || true
+
+      - name: Commit（通知標記）
+        run: |
+          git config user.name  "panghu-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add chips/data
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chips: notified $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
           # 收盤價排程每 10 分鐘會 push data.json,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次(同 update-prices.yml)
           pushed=0
           for i in 1 2 3; do
