@@ -30,6 +30,9 @@ Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回�
 **極端事件**(趨勢超跌、深逆價差、爆量長黑、P/C 極低)出現時只標出,並附上歷史每一次**獨立事件**(同一波只算一次)的後續,包含 20 日內最深再跌幅度,以及發生在空頭排列時的結果;不是買賣訊號。歷史來自回測產生的 `chips/backtest/events.json`。
 門檻與文字在 `chips/panghu.json`。v2 評分版設定封存在 `chips/panghu_v2.json`、v3 在 `chips/panghu_v3.json`,只給回測當對照組。
 
+## 程式結構
+`scripts/fetch_all.py` 抓資料、找交易日、寫檔;`scripts/panghu.py` 是胖虎指標的純計算(v2 對照 / v4 描述 / 位置百分位 / 一句話總結),不碰網路,盤後與回測共用;`tests/test_panghu.py` 用假資料測它,`tests/alerts.test.mjs` 測停損 / 目標價提醒,兩者都在 check.yml 自動跑。`data/series.json` 是近 20 日的精簡資料,籌碼站的 20 日走勢圖只抓這一支。
+
 ## 回測（驗證胖虎指標）
 **自動**：每週六 11:00 自動補上新交易日並重算報告與 `events.json`；改到 `chips/panghu*.json`、`fetch_all.py`、`backtest.py`、`panghu_v3.py` 時也會自動重算（不抓資料）。以下是手動用法。
 GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資料（約 40～80 分鐘，抓不完會存進度，再跑一次接著抓），依目前的 `chips/panghu.json` 重算每一天的胖虎指標，報告頁在 `chips/backtest/`（籌碼站胖虎指標卡的「📊 回測」）。
