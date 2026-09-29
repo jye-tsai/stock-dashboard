@@ -28,6 +28,10 @@ on:
         description: "回補時連已存在的日子也重寫（補 VIX / 今日解讀等新欄位）"
         required: false
         default: "false"
+      premarket:
+        description: "只跑盤前資料（美股 / 夜盤 / 台股前收；true/false）。07:30 由 Cloudflare Worker 打進來,GitHub 不排程"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -47,8 +51,8 @@ jobs:
           python-version: "3.11"
       - run: pip install requests pandas beautifulsoup4 pymupdf cryptography
 
-      - name: 抓資料
-        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
+      - name: 抓資料（盤後）
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && github.event.inputs.premarket != 'true' }}
         # backfill > 0 → 只回補歷史(不抓永豐圖、不動 latest.json、不通知),之後再照常跑一次當日即可
         run: python chips/scripts/fetch_all.py ${{ github.event.inputs.date }} ${{ github.event.inputs.backfill && github.event.inputs.backfill != '0' && format('--backfill {0}', github.event.inputs.backfill) || '' }} ${{ github.event.inputs.force == 'true' && '--force' || '' }}
 
@@ -56,7 +60,7 @@ jobs:
       # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
       # 想手動試訊息:本機 python chips/scripts/notify.py --dry-run
       - name: LINE 通知（排程 / Cloudflare cron）
-        if: ${{ github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron' }}
+        if: ${{ (github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron') && github.event.inputs.premarket != 'true' }}
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
@@ -66,6 +70,20 @@ jobs:
       - name: 週報草稿
         if: ${{ github.event.schedule == '0 1 * * 0' || github.event.inputs.weekly == 'true' }}
         run: python chips/scripts/weekly_report.py
+
+      # 盤前(07:30,只由 Cloudflare Worker dispatch premarket=true;GitHub cron 太會遲到所以不排):美股收盤 / 債匯金油 / 台指期夜盤 / 台股前收
+      # → data/premarket_*.json;抓不到的欄位標【缺】,不亂猜。這一班不跑盤後抓資料、不發盤後 LINE;盤前 LINE 同一天只發一次(premarket_notified.json)。
+      - name: 盤前資料（美股 / 夜盤 / 台股前收）
+        if: ${{ github.event.inputs.premarket == 'true' }}
+        run: python chips/scripts/premarket.py
+
+      - name: LINE 通知（盤前）
+        if: ${{ github.event.inputs.premarket == 'true' }}
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
+        run: python chips/scripts/notify_premarket.py || true
 
       - name: Commit
         run: |
