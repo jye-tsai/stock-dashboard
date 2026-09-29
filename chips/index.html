@@ -163,6 +163,14 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <span class="status" id="status"></span>
   </div>
 
+  <!-- 盤前(07:30 那班寫的 data/premarket_latest.json):美股 / 債匯金油 / 台指期夜盤 / 台股前收;沒有檔就整張不顯示 -->
+  <div class="card" id="pmCard" style="display:none;border-color:var(--gold)">
+    <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span></h2>
+    <div id="pmMissing" style="display:none;background:#C4282E;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:8px"></div>
+    <div id="pmDesc"></div>
+    <details id="pmMore"><summary>看完整數據表</summary><pre id="pmText">—</pre></details>
+  </div>
+
   <div class="disc" id="disc" style="display:none">
     <h2 style="display:flex;align-items:center;gap:8px">胖虎指標・市場狀態 <a href="backtest/" style="margin-left:auto;color:#FFD682;font-size:12px;text-decoration:none;border:1px solid #FFD68266;border-radius:8px;padding:2px 8px" title="10 年回測報告">📊 回測</a></h2>
     <div class="sm" id="discCap"></div>
@@ -173,14 +181,6 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
   <div class="card" id="phCard" style="display:none">
     <h2>極端事件紀錄 <span class="mut" style="font-weight:400;font-size:12px">10 年回測,同一波只算一次;只列歷史後續,不是買賣訊號</span></h2>
     <div class="evsum" id="evBox"></div>
-  </div>
-
-  <!-- 盤前(07:30 那班寫的 data/premarket_latest.json):美股 / 債匯金油 / 台指期夜盤 / 台股前收;沒有檔就整張不顯示 -->
-  <div class="card" id="pmCard" style="display:none;border-color:var(--gold)">
-    <h2>盤前數據（07:30 自動）<span class="mut" id="pmTime" style="font-weight:400;font-size:12px"></span></h2>
-    <div id="pmMissing" style="display:none;background:#C4282E;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:8px"></div>
-    <div id="pmDesc"></div>
-    <details id="pmMore"><summary>看完整數據表</summary><pre id="pmText">—</pre></details>
   </div>
 
   <div class="card">
