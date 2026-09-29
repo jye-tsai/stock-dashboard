@@ -565,7 +565,9 @@ def finish_day(t, p):
     """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
     if t.get("margin") is None and p.get("margin") is not None:
         t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {p['date']} 值"; log("  融資：" + t["margin_note"])
-    t["prev"] = p; t["log"] = LOG
+    # 前一日只留 collect() 抓到的原始欄位:回補時 p 是已經寫過的前一天,若整份塞進去會連它的 prev 一起帶著,一天疊一天(曾疊到 18 層、檔案 400 KB)
+    t["prev"] = {k: v for k, v in p.items() if k not in ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at")}
+    t["log"] = LOG
     hist = recent_days(20, ymd(t["date"]))
     try: t["insight"] = build_insight(t, p, hist)
     except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
