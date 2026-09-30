@@ -123,7 +123,7 @@ Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
         │                              scripts/update-prices.mjs
         │                      (Yahoo 即時 → MIS → 證交所/櫃買收盤補新標的)
         ▼                                        │
-  台北 09:00–13:45 每 15 分            寫回 data.json + commit
+  台北 09:00–13:50 每 10 分            寫回 data.json + commit
                                                  │
                                          GitHub Pages 重新部署
                                                  │
@@ -150,10 +150,14 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 
 | cron(UTC) | 台北時間 | 用途 |
 |---|---|---|
-| `*/15 1-5 * * *` | 09:00–13:45 每 15 分 | 交易時段更新(Cloudflare) |
-| `0 6 * * *` | 14:00 | 收盤結算(Cloudflare) |
+| `*/10 1-5 * * *` | 09:00–13:50 每 10 分 | 交易時段更新(Cloudflare → `update-prices.yml`) |
+| `30 23 * * 1-5` | 週一~五 07:30 | 籌碼站盤前(Cloudflare → `chips.yml`,`premarket=true`) |
+| `40 7 * * 2-6` | 週一~五 15:40 | 籌碼站盤後(Cloudflare → `chips.yml`,`source=cron`) |
+| `40 8 * * 2-6` | 週一~五 16:40 | 籌碼站補永豐(同上) |
 
-> Cloudflare「星期幾」編號易混淆,所以排成「每天」(`*`),由腳本擋掉週末。
+> 收盤價排成「每天」(`*`),由腳本擋掉週末。**Cloudflare 星期欄 1=日 … 7=六**:盤前 UTC 是前一天 23:30,台北週一~五 = UTC 週日~四 = `1-5`;盤後同一天,週一~五 = `2-6`。
+>
+> **Worker 依 `event.cron` 字串分流**,對不到的一律打 `update-prices.yml`。新增 Cron Trigger 時一定要在 `cloudflare-worker.js` 補一個分支,字串要跟 Cloudflare 上填的一字不差;否則會準時觸發但打錯 workflow(2026-09-30 盤前 07:30 就是這樣漏跑)。
 
 ---
 
@@ -191,7 +195,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 1. **GitHub Pages**:repo → Settings → Pages,來源設 `main` 分支根目錄。
 2. **GitHub Token**(fine-grained PAT,只給此 repo):`Contents: Read and write`(存檔)+ `Actions: Read and write`(觸發 workflow_dispatch)。用於儀表板「⚙️ 設定 → GitHub 同步」與 Cloudflare 的 `GH_TOKEN`。
 3. **GitHub Action 權限**:repo → Settings → Actions → Workflow permissions → **Read and write**。
-4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/15 1-5 * * *`、`0 6 * * *`(收盤價)+ `40 7 * * 2-6`、`40 8 * * 2-6`(籌碼站)。**Cloudflare 的星期欄是 1=日 … 7=六**(GitHub 是 0=日),週一~五要寫 `2-6`,寫 `1-5` 會變成週日到週四。
+4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/10 1-5 * * *`(收盤價)+ `30 23 * * 1-5`(籌碼站盤前)、`40 7 * * 2-6`、`40 8 * * 2-6`(籌碼站盤後),字串與分流見上方「排程時間」。**Cloudflare 的星期欄是 1=日 … 7=六**(GitHub 是 0=日),同一天的週一~五要寫 `2-6`;盤前 23:30 UTC 是台北隔天,所以寫 `1-5`。
 5. **PWA 安裝**:手機開 Pages 網址 → 加入主畫面(需 https)。
 
 ---
