@@ -195,8 +195,14 @@ def taifex_vix(date):
     return _VIX_CACHE[ym].get(tag)
 
 # ─────────────── 證交所：加權指數／成交金額 ───────────────
-def twse_index(date):
-    r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": ymd(date), "response": "json"}, headers=H, timeout=30)
+def twse_index(date, tries=3):
+    # 證交所短時間連打(今日 + 前一交易日各一次)會回空白 / HTML → 先看是不是 JSON,不是就等 4 秒重試,最多 tries 次
+    for a in range(tries):
+        r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": ymd(date), "response": "json"}, headers=H, timeout=30)
+        if r.text.strip().startswith("{"): break
+        log(f"  加權指數 {date}:非 JSON 回應 {r.text[:60]!r},第 {a + 1} 次")
+        if a < tries - 1: time.sleep(4)
+    else: return None
     j = r.json()
     if j.get("stat") != "OK": return None
     y, m, d = date.split("/"); roc = f"{int(y)-1911}/{m}/{d}"
@@ -328,6 +334,18 @@ def collect(date, df):
         print(f"::warning title=欄位缺漏 {date}::{', '.join(missing)}")
     out["missing"] = missing
     return out
+
+def fill_index_from_saved(t):
+    """加權指數抓不到時,退回讀已存檔的 data/{tag}.json(前一交易日通常前一天就存好了;16:40 重跑時當日也有 15:40 的檔),
+    免得前收是空的、漲跌 % 變問號。檔裡也沒有就維持 None。"""
+    if t.get("index"): return
+    try: old = json.load(open(os.path.join(DATA, f"{ymd(t['date'])}.json"), encoding="utf-8")).get("index")
+    except Exception: return
+    if old and old.get("close"):
+        t["index"] = old
+        if "index" in t.get("missing", []): t["missing"].remove("index")
+        if (t.get("tx") or {}).get("close"): t["basis"] = round(t["tx"]["close"] - old["close"], 2)   # collect 當時沒指數算不出基差,補算
+        log(f"  {t['date']} 加權指數改用已存檔的值(收盤 {old['close']:,})")
 
 def s(n): return f"{n:+,}" if isinstance(n, int) else ("—" if n is None else str(n))
 
@@ -657,6 +675,7 @@ def backfill(n, start=None, force=False):
                 old = json.load(open(old_path, encoding="utf-8"))
                 if old.get("spf"): t["spf"] = old["spf"]
             except Exception: pass
+        fill_index_from_saved(t); fill_index_from_saved(p)
         finish_day(t, p); write_day(t, idx, latest=False); save_index(idx); written.append(tag)   # 每天寫完就存 index,下一天的解讀才讀得到前面幾天
     save_index(idx)
     print(f"\n回補完成：寫入 {len(written)} 天 {written[:1]}…{written[-1:] if written else ''}；略過 {len(cols) - 1 - len(written)} 天")
@@ -680,6 +699,7 @@ def main():
     prev, df_p = prev_trading_day(today)
     log(f"今日 {today}｜前一交易日 {prev}")
     t = collect(today, df_t); p = collect(prev, df_p)
+    fill_index_from_saved(t); fill_index_from_saved(p)
     t["spf"] = spf_fetch(today)
     cleanup_pngs(ymd(today), {fn for v in t["spf"].values() for fn in v})
     finish_day(t, p)
