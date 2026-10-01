@@ -47,15 +47,15 @@
   })();
 </script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script defer src="scripts/calc.js?v=20260929a"></script>
-<script defer src="charts.js?v=20260929a"></script>
-<script defer src="app.js?v=20260929a"></script>
+<script defer src="scripts/calc.js?v=20261001a"></script>
+<script defer src="charts.js?v=20261001a"></script>
+<script defer src="app.js?v=20261001a"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20260929a">
+<link rel="stylesheet" href="styles.css?v=20261001a">
 </head>
 <body>
 <div id="splash">
@@ -238,9 +238,10 @@
       <button class="btn hidden auth-only" id="gh-btn" data-action="seq" data-args='["closeSettingsModal", "openGhModal"]'>⚙️ GitHub 同步</button>
       <button class="btn hidden auth-only" id="load-btn" data-action="seq" data-args='["closeSettingsModal", "pickFile"]'>📂 載入 JSON</button>
       <button class="btn hidden auth-only" id="pwd-btn" data-action="seq" data-args='["closeSettingsModal", "setPassword"]'>🔑 設定密碼</button>
+      <button class="btn hidden auth-only" id="bio-btn" data-action="toggleBio">🙂 啟用 Face ID 解鎖</button>
     </div>
     <div class="settings-actions"><button class="btn" data-action="healApp" title="解除 Service Worker、清空所有快取後重新載入;畫面怪怪的或看不到新版時按這個">🧹 清快取重新載入</button></div>
-    <p class="modal-hint" id="settings-locked-hint">🔒 解鎖後這裡會多出 GitHub 同步、載入 JSON 與設定密碼。</p>
+    <p class="modal-hint" id="settings-locked-hint">🔒 解鎖後這裡會多出 GitHub 同步、載入 JSON、設定密碼與 Face ID 解鎖。</p>
     <div class="modal-actions">
       <button class="btn primary" data-action="closeSettingsModal">完成</button>
     </div>
@@ -287,6 +288,7 @@
     <div id="pwd-err" class="form-err"></div>
     <div class="modal-actions">
       <button class="btn" data-action="closePwdModal" data-args='[false]'>取消</button>
+      <button class="btn hidden" id="pwd-bio-btn" data-action="bioFromModal">🙂 Face ID</button>
       <button class="btn primary" data-action="submitPwd">解鎖</button>
     </div>
   </div>

@@ -567,6 +567,8 @@ async function verifyEditPassword() {
     const unlockedUntil = Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0);
     if (Date.now() < unlockedUntil) return true;
   } catch (e) { console.debug('[pf]', e); }
+  // 這台裝置啟用過 Face ID → 先跳 Face ID;取消或失敗才退回密碼視窗(視窗裡也有 Face ID 鈕可重試)
+  if (bioEnabled() && await bioAuth()) { markUnlocked(); updateAuthUI(); return true; }
   return new Promise(resolve => {
     _pwdResolve = resolve;
     const inp = document.getElementById('pwd-input');
@@ -590,7 +592,7 @@ function pinKey(k, id) {
 async function submitPwd() {
   const pwd = document.getElementById('pwd-input').value;
   if (await verifyPassword(pwd)) {
-    try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) { console.debug('[pf]', e); }
+    markUnlocked();
     closePwdModal(true);
   } else {
     const err = document.getElementById('pwd-err');
@@ -605,6 +607,86 @@ function closePwdModal(ok) {
   if (ok) updateAuthUI();
   if (r) r(!!ok);
 }
+function markUnlocked() {
+  try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) { console.debug('[pf]', e); }
+}
+
+// Face ID / 指紋解鎖(WebAuthn 平台驗證器,iPhone 就是 Face ID)
+// 密碼本來就是在瀏覽器裡比對,這裡只是用裝置生物辨識取代「輸入密碼」這一步,安全等級不變。
+// 憑證 id 只存在這台裝置的 localStorage;必須先用密碼解鎖才能啟用,密碼永遠保留當備援(也用來設定新密碼)。
+const BIO_KEY = 'pf-bio-cred';
+let BIO_AVAILABLE = false;
+async function bioDetect() {
+  try { BIO_AVAILABLE = !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch (e) { BIO_AVAILABLE = false; }
+  updateBioUI();
+}
+function bioEnabled() { return BIO_AVAILABLE && !!store.get(BIO_KEY); }
+function updateBioUI() {
+  const on = bioEnabled();
+  const btn = document.getElementById('bio-btn');
+  if (btn) {
+    btn.textContent = on ? '🙂 停用 Face ID 解鎖' : '🙂 啟用 Face ID 解鎖';
+    if (!BIO_AVAILABLE) btn.classList.add('hidden');      // 裝置不支援就整個藏起來(auth-only 解鎖時會先打開它)
+  }
+  const mb = document.getElementById('pwd-bio-btn');
+  if (mb) mb.classList.toggle('hidden', !on);
+}
+async function enableBio() {
+  try {
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name: '胖虎的小財庫' },
+      user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'panghu', displayName: '胖虎的小財庫' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      attestation: 'none',
+      timeout: 60000
+    } });
+    if (!cred) return;
+    store.set(BIO_KEY, b64enc(cred.rawId));
+    updateBioUI();
+    toast('✅ 已啟用 Face ID 解鎖(只限這台裝置)');
+  } catch (e) {
+    console.debug('[pf] bio create', e);
+    toast(e && e.name === 'NotAllowedError' ? '已取消' : '⚠ 無法啟用 Face ID:' + ((e && e.message) || e));
+  }
+}
+async function bioAuth() {
+  const id = store.get(BIO_KEY);
+  if (!id) return false;
+  try {
+    const a = await navigator.credentials.get({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      allowCredentials: [{ type: 'public-key', id: b64dec(id), transports: ['internal', 'hybrid'] }],
+      userVerification: 'required',
+      timeout: 60000
+    } });
+    if (!a || b64enc(a.rawId) !== id) return false;
+    // authenticatorData 第 32 byte 是 flags;0x04 = UV(使用者已通過生物辨識/裝置密碼)
+    return (new Uint8Array(a.response.authenticatorData)[32] & 0x04) !== 0;
+  } catch (e) {
+    console.debug('[pf] bio get', e);
+    // 憑證在系統裡被刪了(iOS 設定 → 密碼)就清掉本機紀錄,回到純密碼
+    if (e && e.name === 'InvalidStateError') { store.del(BIO_KEY); updateBioUI(); }
+    return false;
+  }
+}
+// 密碼視窗裡的「Face ID」按鈕:取消後想再試一次用
+async function bioFromModal() {
+  if (await bioAuth()) { markUnlocked(); closePwdModal(true); }
+  else { const err = document.getElementById('pwd-err'); if (err) err.textContent = 'Face ID 未通過,可改輸入密碼'; }
+}
+async function toggleBio() {
+  if (!isUnlocked()) return;
+  if (bioEnabled()) {
+    if (!(await uiConfirm('停用這台裝置的 Face ID 解鎖?之後改回輸入密碼。'))) return;
+    store.del(BIO_KEY); updateBioUI();
+    toast('已停用 Face ID 解鎖(iPhone 的「設定 → 密碼」裡可順手刪掉這把通行密鑰)');
+    return;
+  }
+  await enableBio();
+}
 
 /* ==================== §9. 解鎖 / 權限 UI(解鎖後才顯示 編輯/載入/GitHub) ==================== */
 function isUnlocked() {
@@ -618,6 +700,7 @@ function updateAuthUI() {
   const wasLocked = document.body.classList.contains('locked');
   document.body.classList.toggle('locked', !ok);
   // 解鎖瞬間,隱藏的圖表(年度損益)需要重畫一次才能正確顯示尺寸
+  updateBioUI();
   if (wasLocked && ok && DATA) render();
 }
 async function unlockUI() {
@@ -1338,7 +1421,7 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
   'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
-  'closePwdModal', 'pinKey', 'submitPwd', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
+  'closePwdModal', 'pinKey', 'submitPwd', 'bioFromModal', 'toggleBio', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
   'openHolding', 'closeHoldModal', 'saveHolding', 'delHoldingCur', 'pickStock']);
 const callAction = (name, args) => {
   if (!ACTIONS.has(name) || typeof window[name] !== 'function') { console.debug('[pf] 未知 data-action', name); return; }
@@ -1383,6 +1466,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
    4. 都不通 → 停在快取並提示;沒快取請使用者選檔 */
 (async function init() {
   updateAuthUI();
+  bioDetect();
   updateGhBtn();
   const showPickHint = () => {
     const hint = document.getElementById('loader-hint');
