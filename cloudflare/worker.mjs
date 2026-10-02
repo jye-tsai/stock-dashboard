@@ -5,6 +5,7 @@
 // 一支 Worker 管兩個 workflow,依觸發的 cron 字串分流(Cloudflare Triggers 全用 UTC):
 //   */10 1-5 * * *   台北 09:00–13:50 每 10 分       → update-prices.yml(盤中股價)
 //   30 23 * * 1-5    台北 07:30 盤前(週一~五)        → chips.yml(premarket=true,source=cron → 盤前 LINE)
+//   0 4 * * 1        台北週日 12:00 先發週一盤前      → chips.yml(同上;premarket.py 週末跑會標成下週一,週一 07:30 同日已發 → 略過)
 //   40 7 * * 2-6     台北 15:40 盤後(週一~五)        → chips.yml(source=cron → 盤後 LINE)
 //   40 8 * * 2-6     台北 16:40 補永豐 PDF            → chips.yml(source=cron;同日已通知過 notify.py 會略過)
 //   ※ Cloudflare 星期欄 1=日 … 7=六(GitHub 是 0=日)。盤後同一天,週一~五寫 2-6;
@@ -15,7 +16,7 @@
 //   /premarket 觸發盤前(chips.yml 盤前不看 source,一律發 LINE,同日只發一次)。
 // cron-job.org 用(有時段限制,網址公開也不怕被亂打;同一天 LINE 只發一次,跟 Cloudflare cron 兩邊都打也只收一則):
 //   /chips-cron      籌碼站盤後 source=cron,台北週一~五 15:30–17:59 有效
-//   /premarket-cron  籌碼站盤前,台北週一~五 07:00–08:59 有效
+//   /premarket-cron  籌碼站盤前,台北週一~五 07:00–08:59、週日 11:30–13:59(週一盤前提早發)有效
 // 來源標記 via:Cloudflare cron = cloudflare;網址觸發看 ?src=(cron-job.org 的 URL 都加 ?src=cronjob),沒帶 = url。
 //   GitHub 執行紀錄標題會顯示它,tools/trigger-report.mjs 據此統計各來源準不準。
 // 其他路徑(favicon.ico)忽略。
@@ -26,6 +27,7 @@ const REPO = 'jye-tsai/stock-dashboard';
 const ROUTES = [
   { re: /^\*\/10 1-5 /, workflow: 'update-prices.yml', inputs: {} },                             // 09:00–13:50 盤中股價
   { re: /^30 23 /,      workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 07:30 盤前
+  { re: /^0 4 /,        workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 週日 12:00 先發週一盤前
   { re: /^40 (7|8) /,   workflow: 'chips.yml', inputs: { source: 'cron' } },                      // 15:40 / 16:40 盤後
 ];
 const DEFAULT_ROUTE = { workflow: 'update-prices.yml', inputs: {} };                              // 對不到 → 至少保住股價
@@ -36,20 +38,23 @@ export function route(cron) {
   return r || DEFAULT_ROUTE;
 }
 
-// cron-job.org 路徑的有效時段(台北週一~五,分鐘數 [from, to)):網址是公開的,擋掉其他時間被亂打
+// cron-job.org 路徑的有效時段(台北;days 0=日 … 6=六,分鐘數 [from, to)):網址是公開的,擋掉其他時間被亂打
 // (盤中打盤後會拿到前一天的籌碼;半夜打盤前會用舊資料發掉當天那一則)
+const WEEKDAYS = [1, 2, 3, 4, 5];
 export const WINDOWS = {
-  '/chips-cron':     [15 * 60 + 30, 18 * 60],   // 15:30–17:59
-  '/premarket-cron': [7 * 60, 9 * 60],          // 07:00–08:59
+  '/chips-cron':     [{ days: WEEKDAYS, from: 15 * 60 + 30, to: 18 * 60 }],   // 週一~五 15:30–17:59
+  '/premarket-cron': [{ days: WEEKDAYS, from: 7 * 60, to: 9 * 60 },          // 週一~五 07:00–08:59
+                      { days: [0], from: 11 * 60 + 30, to: 14 * 60 }],       // 週日 11:30–13:59(週一盤前提早發)
 };
 export function cronWindow(path, now = new Date()) {
-  const w = WINDOWS[path]; if (!w) return false;
+  const ws = WINDOWS[path]; if (!ws) return false;
   const t = new Date(now.getTime() + 8 * 3600 * 1000);
   const dow = t.getUTCDay(), m = t.getUTCHours() * 60 + t.getUTCMinutes();
-  return dow >= 1 && dow <= 5 && m >= w[0] && m < w[1];
+  return ws.some(w => w.days.includes(dow) && m >= w.from && m < w.to);
 }
 const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-const notInWindow = path => new Response(`⏸ 不在時段(${path}:台北週一~五 ${hhmm(WINDOWS[path][0])}–${hhmm(WINDOWS[path][1] - 1)}),沒有觸發`, { status: 200 });
+const DAYNAME = d => d.length === 5 && d[0] === 1 && d[4] === 5 ? '週一~五' : d.map(x => '週' + '日一二三四五六'[x]).join('、');
+const notInWindow = path => new Response(`⏸ 不在時段(${path}:台北 ${WINDOWS[path].map(w => `${DAYNAME(w.days)} ${hhmm(w.from)}–${hhmm(w.to - 1)}`).join(' / ')}),沒有觸發`, { status: 200 });
 
 export default {
   async scheduled(event, env, ctx) {

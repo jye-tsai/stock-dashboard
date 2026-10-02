@@ -11,6 +11,7 @@ runs.push(run('籌碼 盤後 cloudflare', '2026-10-05T15:40:18'), run('籌碼 �
 runs.push(run('籌碼 盤後 cronjob', '2026-10-05T15:51:00'));              // 晚 6 分 → 不算 15:45 那格
 runs.push(run('股價 web', '2026-10-05T10:33:00'), run('股價 button', '2026-10-05T11:00:00'), run('update-prices・股價更新', '2026-10-05T11:00:00'));
 runs.push(run('股價 cloudflare', '2026-10-04T09:00:00'));                // 週日:不在平日內,不計
+runs.push(run('籌碼 盤前 cronjob', '2026-10-04T12:00:05'));              // 週日 12:00 先發週一盤前
 
 const st = triggerStats(runs, '2026-10-04', '2026-10-05');
 const R = Object.fromEntries(st.rows.map(r => [r.label, r]));
@@ -26,4 +27,7 @@ assert.deepEqual(st.others, { '股價 web': 1, '股價 button': 1 });  // 舊標
 const md = statsMarkdown(st, '2026-10-05 17:00');
 assert.match(md, /\| 盤中股價・Cloudflare \| 30 \| 2 \| 6\.7% \| 35 秒 \| 50 秒 \|/);
 assert.match(md, /盤後・cron-job\.org\*\*\(1\):10-05 15:45/);
-console.log('trigger-stats.test: 11 項通過');
+assert.deepEqual([R['週日先發週一盤前・cron-job.org'].expected, R['週日先發週一盤前・cron-job.org'].hit], [1, 1]);
+assert.deepEqual([R['週日先發週一盤前・Cloudflare'].expected, R['週日先發週一盤前・Cloudflare'].missed], [1, ['10-04 12:00']]);
+assert.equal(R['盤前推播・cron-job.org'].expected, 1);                     // 平日項目不算週日
+console.log('trigger-stats.test: 14 項通過');

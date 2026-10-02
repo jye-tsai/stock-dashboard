@@ -11,7 +11,8 @@ except Exception: mark = {}
 if mark.get("last") == t["date"]: print(f"notify: {t['date']} 盤前已通知過，略過"); sys.exit(0)
 us, n = t["us"], t.get("night")
 def s(k): it = us[k]; return f"{it['name']} {it['pct']:+.2f}%" if it["ok"] else f"{it['name']} 缺"
-lines = [f"🐶 {t['date']} 盤前"]
+gen = (t.get("generated_at") or "")[:10].replace("-", "/")              # 週日中午先發週一盤前 → 標明哪天抓的
+lines = [f"🐶 {t['date']} 盤前" + (f"（{gen[5:]} 先發,週一早上不再重發）" if gen and gen != t["date"] else "")]
 if t["missing"]: lines.append("⚠ 需手動補：" + "、".join(t["missing"]))
 D = t.get("describe") or {}
 if D.get("headline"):

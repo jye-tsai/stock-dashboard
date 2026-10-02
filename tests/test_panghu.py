@@ -222,6 +222,15 @@ class TestPremarket(unittest.TestCase):
         self.assertEqual(len(q), 101); self.assertEqual((q[0], q[50], q[100]), (0, 500, 999))
 
 
+class TestPremarketTargetDay(unittest.TestCase):       # 週末跑的盤前 = 下週一(週日中午先發)
+    def test_days(self):
+        import datetime as dt
+        D = lambda s: dt.datetime.strptime(s, "%Y-%m-%d %H:%M")
+        self.assertEqual(P.premarket_target_day(D("2026-10-04 12:00")).strftime("%Y/%m/%d"), "2026/10/05")   # 週日 → 週一
+        self.assertEqual(P.premarket_target_day(D("2026-10-03 09:00")).strftime("%Y/%m/%d"), "2026/10/05")   # 週六 → 週一
+        self.assertEqual(P.premarket_target_day(D("2026-10-05 07:30")).strftime("%Y/%m/%d"), "2026/10/05")   # 週一 → 當天(同日已發就略過)
+        self.assertEqual(P.premarket_target_day(D("2026-10-02 07:30")).strftime("%Y/%m/%d"), "2026/10/02")   # 平日 → 當天
+
 class TestEventHistoryText(unittest.TestCase):
     def test_text(self):
         self.assertEqual(P.event_history_text({}), "歷史上沒有同類事件紀錄")

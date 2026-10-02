@@ -8,7 +8,7 @@ premarket.py ─ 盤前資料自動抓取（美股收盤＋債匯金油＋台指
 import os, io, re, sys, json, datetime as dt
 import requests, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from panghu import describe_premarket, quantiles, pctile, load_panghu_cfg   # 盤前描述卡(純計算,tests/test_panghu.py 有測)
+from panghu import describe_premarket, quantiles, pctile, load_panghu_cfg, premarket_target_day   # 盤前描述卡 / 標哪一天(純計算,tests/test_panghu.py 有測)
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"); os.makedirs(DATA, exist_ok=True)
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
@@ -108,8 +108,9 @@ def prev_trading_day(d):
     return d
 
 def main():
-    now = tw_now(); today = now.strftime("%Y/%m/%d"); tag = now.strftime("%Y%m%d")
-    log(f"盤前抓取 {today} {now.strftime('%H:%M')}")
+    now = tw_now(); target = premarket_target_day(now)                 # 週末跑 = 下週一的盤前(週日中午先發)
+    today = target.strftime("%Y/%m/%d"); tag = target.strftime("%Y%m%d")
+    log(f"盤前抓取 {today}(實際 {now.strftime('%m/%d %H:%M')})")
     us = {k: fetch_item(k, n, y, s, nd, kind) for k, n, y, s, nd, kind in ITEMS}
 
     # 夜盤：前一交易日的盤後時段（凌晨 05:00 收盤）
@@ -144,7 +145,7 @@ def main():
         v = it["value"]; s = f"{v:,.2f}" if isinstance(v, float) and v % 1 else f"{v:,.0f}" if isinstance(v, (int, float)) else v
         if it["name"] == "美債10Y": return f"美債10Y {it['value']:.2f}%（{it['chg']*100:+.0f}bps）"
         return f"{it['name']} {s}（{it['pct']:+.2f}%{'，可能是換月' if it.get('roll_warn') else ''}）"
-    L = [f"【盤前數據】{today}（抓取 {now.strftime('%H:%M')}）"]
+    L = [f"【盤前數據】{today}（抓取 {now.strftime('%H:%M') if target.date() == now.date() else now.strftime('%m/%d %H:%M')}）"]
     if missing: L.append(f"⚠⚠ 需手動補資料：{'、'.join(missing)} ⚠⚠（請 Claude 提醒使用者上傳截圖補齊，不要自行猜測）")
     us_date = next((us[k]["date"] for k in ("dji", "spx", "sox") if us[k]["ok"]), "?")
     L.append(f"美股 {us_date}：" + "｜".join(fmt(us[k]) for k in ("dji", "spx", "ixic", "sox")))
