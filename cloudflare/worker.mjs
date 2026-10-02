@@ -16,17 +16,19 @@
 // cron-job.org 用(有時段限制,網址公開也不怕被亂打;同一天 LINE 只發一次,跟 Cloudflare cron 兩邊都打也只收一則):
 //   /chips-cron      籌碼站盤後 source=cron,台北週一~五 15:30–17:59 有效
 //   /premarket-cron  籌碼站盤前,台北週一~五 07:00–08:59 有效
+// 來源標記 via:Cloudflare cron = cloudflare;網址觸發看 ?src=(cron-job.org 的 URL 都加 ?src=cronjob),沒帶 = url。
+//   GitHub 執行紀錄標題會顯示它,tools/trigger-report.mjs 據此統計各來源準不準。
 // 其他路徑(favicon.ico)忽略。
 
 const REPO = 'jye-tsai/stock-dashboard';
 
 // 依「分 時」比對(不比星期欄,星期編號兩邊不同、容易寫錯),由上往下第一個符合的生效
 const ROUTES = [
-  { re: /^\*\/10 1-5 /, workflow: 'update-prices.yml', inputs: null },                           // 09:00–13:50 盤中股價
+  { re: /^\*\/10 1-5 /, workflow: 'update-prices.yml', inputs: {} },                             // 09:00–13:50 盤中股價
   { re: /^30 23 /,      workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 07:30 盤前
   { re: /^40 (7|8) /,   workflow: 'chips.yml', inputs: { source: 'cron' } },                      // 15:40 / 16:40 盤後
 ];
-const DEFAULT_ROUTE = { workflow: 'update-prices.yml', inputs: null };                            // 對不到 → 至少保住股價
+const DEFAULT_ROUTE = { workflow: 'update-prices.yml', inputs: {} };                              // 對不到 → 至少保住股價
 
 export function route(cron) {
   const r = ROUTES.find(x => x.re.test(cron));
@@ -51,35 +53,41 @@ const notInWindow = path => new Response(`⏸ 不在時段(${path}:台北週一~
 
 export default {
   async scheduled(event, env, ctx) {
-    const r = route(event.cron);
-    console.log('cron', event.cron, '→', r.workflow, JSON.stringify(r.inputs));
-    ctx.waitUntil(dispatch(env, r.workflow, r.inputs));
+    const r = route(event.cron), inputs = { ...r.inputs, via: 'cloudflare' };
+    console.log('cron', event.cron, '→', r.workflow, JSON.stringify(inputs));
+    ctx.waitUntil(dispatch(env, r.workflow, inputs));
   },
   async fetch(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === '/') { const r = await dispatch(env, 'update-prices.yml', null); return reply(r, '股價 update-prices'); }
-    if (url.pathname === '/chips') { const r = await dispatch(env, 'chips.yml', { source: 'manual' }); return reply(r, '籌碼站 chips 盤後(手動,不通知)'); }
+    const url = new URL(request.url), via = viaOf(url);
+    if (url.pathname === '/') { const r = await dispatch(env, 'update-prices.yml', { via }); return reply(r, '股價 update-prices'); }
+    if (url.pathname === '/chips') { const r = await dispatch(env, 'chips.yml', { source: 'manual', via }); return reply(r, '籌碼站 chips 盤後(手動,不通知)'); }
     if (url.pathname === '/chips-cron') {
       if (!cronWindow(url.pathname)) return notInWindow(url.pathname);
-      const r = await dispatch(env, 'chips.yml', { source: 'cron' }); return reply(r, '籌碼站 chips 盤後(cron,會發 LINE)');
+      const r = await dispatch(env, 'chips.yml', { source: 'cron', via }); return reply(r, '籌碼站 chips 盤後(cron,會發 LINE)');
     }
     if (url.pathname === '/premarket-cron') {
       if (!cronWindow(url.pathname)) return notInWindow(url.pathname);
-      const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'cron' }); return reply(r, '籌碼站 chips 盤前(cron,會發 LINE)');
+      const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'cron', via }); return reply(r, '籌碼站 chips 盤前(cron,會發 LINE)');
     }
-    if (url.pathname === '/premarket') { const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'manual' }); return reply(r, '籌碼站 chips 盤前(手動,同日沒發過會發 LINE)'); }
+    if (url.pathname === '/premarket') { const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'manual', via }); return reply(r, '籌碼站 chips 盤前(手動,同日沒發過會發 LINE)'); }
     return new Response('ok');
   }
 };
+
+// ?src=cronjob → 'cronjob';沒帶或怪字元 → 'url'(瀏覽器手動開)
+export function viaOf(url) {
+  const s = url.searchParams.get('src') || '';
+  return /^[A-Za-z0-9_-]{1,20}$/.test(s) ? s : 'url';
+}
 
 function reply(r, label) {
   return new Response(r.ok ? `✅ 已觸發 ${label}` : `❌ 失敗 ${r.status} ${r.body}`, { status: r.ok ? 200 : 500 });
 }
 
-// inputs 為 null 時不帶(update-prices.yml 沒宣告 inputs,帶了會 422)
+// 帶的 inputs 必須是 workflow 有宣告的,否則 GitHub 回 422(update-prices.yml / chips.yml 都有宣告 via)
 async function dispatch(env, workflow, inputs) {
   const body = { ref: 'main' };
-  if (inputs) body.inputs = inputs;
+  if (inputs && Object.keys(inputs).length) body.inputs = inputs;
   const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
     method: 'POST',
     headers: {

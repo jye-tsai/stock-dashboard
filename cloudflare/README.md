@@ -47,6 +47,16 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 
 注意:Worker 網址是公開的,打 `/` 就會觸發一次 Action(無害,只是多跑);瀏覽器網址列預先載入也會算一次,所以手動測試時常見「同一秒兩次」。
 
+## 來源標記與可靠度報表
+
+每次觸發都帶 `via`(觸發來源),GitHub 執行紀錄標題會寫成「股價 cloudflare」「籌碼 盤後 cronjob」:
+- Cloudflare cron → `cloudflare`(Worker 自動帶)
+- cron-job.org → **每個 job 的 URL 結尾都要加 `?src=cronjob`**(例:`…workers.dev/?src=cronjob`、`…/chips-cron?src=cronjob`、`…/premarket-cron?src=cronjob`)
+- 網頁補觸發 `web`、「📈 更新市價」`button`、瀏覽器開 Worker 網址 `url`、GitHub 內建排程 `schedule`
+
+`trigger-report.yml` 每週六 10:00 統計近 14 天 → `reports/triggers.md`:各來源應到 / 實到 / 到達率 / 平均與最大延遲、漏掉哪些時段。
+預期時段寫在 `scripts/trigger-stats.mjs` 的 `EXPECT`,**改 Cloudflare 或 cron-job.org 的時間要同步改那裡**。想立刻看:Actions → trigger-report → Run workflow。
+
 ## 改程式
 
 1. 改 `worker.mjs` → commit

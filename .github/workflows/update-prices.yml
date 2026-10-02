@@ -1,4 +1,6 @@
 name: update-prices・股價更新
+# 執行紀錄標題帶觸發來源(cloudflare / cronjob / web / button / schedule…),tools/trigger-report.mjs 靠它統計排程可靠度
+run-name: 股價 ${{ inputs.via || github.event_name }}
  
 on:
   # 備援排程:與 Cloudflare Worker 雙保險,任一邊漏跑另一邊補。
@@ -6,6 +8,11 @@ on:
   schedule:
     - cron: "5,20,35,50 1-6 * * *"
   workflow_dispatch:
+    inputs:
+      via:
+        description: "觸發來源(cloudflare / cronjob / web / button;統計排程可靠度用,不影響執行)"
+        required: false
+        default: "manual"
  
 permissions:
   contents: write

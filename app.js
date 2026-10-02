@@ -735,7 +735,7 @@ async function updatePrices() {
     const r = await fetch(url, {
       method: 'POST',
       headers: ghHeaders(c),
-      body: JSON.stringify({ ref: c.branch || 'main' })
+      body: JSON.stringify({ ref: c.branch || 'main', inputs: { via: 'button' } })
     });
     if (r.status === 204) {
       toast('✅ 已觸發更新,約 1 分鐘後重新整理即可看到新價');
@@ -763,7 +763,7 @@ async function autoTriggerPrices(c) {
     if (!slot) return;
     store.set('pf-autoprice-slot', slot);
     const url = `https://api.github.com/repos/${c.owner}/${c.repo}/actions/workflows/update-prices.yml/dispatches`;
-    const r = await fetch(url, { method: 'POST', headers: ghHeaders(c), body: JSON.stringify({ ref: c.branch || 'main' }) });
+    const r = await fetch(url, { method: 'POST', headers: ghHeaders(c), body: JSON.stringify({ ref: c.branch || 'main', inputs: { via: 'web' } }) });
     if (r.status === 204) toast(`📈 股價已 ${DATA.priceUpdated ? '超過 15 分鐘' : '很久'}沒更新,已補觸發(約 1 分鐘後再刷新)`);
     else if (r.status === 403) toast('自動更新需 Token 有 Actions 寫入權限');
   } catch (e) { console.debug('[pf]', e); }

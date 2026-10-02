@@ -15,7 +15,7 @@ const run = (args, label) => {
 };
 
 let ok = true;
-for (const f of ['app.js', 'charts.js', 'sw.js', 'scripts/calc.js', 'scripts/alerts.mjs', 'scripts/update-prices.mjs', 'cloudflare/worker.mjs']) ok = run(['--check', f], `syntax ${f}`) && ok;
-for (const t of ['tests/calc.test.mjs', 'tests/sw.test.mjs', 'tests/alerts.test.mjs', 'tests/worker.test.mjs']) ok = run([t], t) && ok;
+for (const f of ['app.js', 'charts.js', 'sw.js', 'scripts/calc.js', 'scripts/alerts.mjs', 'scripts/update-prices.mjs', 'cloudflare/worker.mjs', 'scripts/trigger-stats.mjs', 'tools/trigger-report.mjs']) ok = run(['--check', f], `syntax ${f}`) && ok;
+for (const t of ['tests/calc.test.mjs', 'tests/sw.test.mjs', 'tests/alerts.test.mjs', 'tests/worker.test.mjs', 'tests/trigger-stats.test.mjs']) ok = run([t], t) && ok;
 console.log(ok ? '\n全部通過' : '\n有東西壞了,看上面 FAIL');
 process.exit(ok ? 0 : 1);

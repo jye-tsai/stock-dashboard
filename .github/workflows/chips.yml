@@ -1,4 +1,6 @@
 name: chips・盤後籌碼
+# 執行紀錄標題帶盤前 / 盤後與觸發來源,tools/trigger-report.mjs 靠它統計排程可靠度
+run-name: 籌碼 ${{ inputs.premarket == 'true' && '盤前' || '盤後' }} ${{ inputs.via || github.event_name }}
 
 on:
   schedule:
@@ -28,6 +30,10 @@ on:
         description: "回補時連已存在的日子也重寫（補 VIX / 今日解讀等新欄位）"
         required: false
         default: "false"
+      via:
+        description: "觸發來源(cloudflare / cronjob;統計排程可靠度用,不影響執行)"
+        required: false
+        default: "manual"
       premarket:
         description: "只跑盤前資料（美股 / 夜盤 / 台股前收；true/false）。07:30 由 Cloudflare Worker 打進來,GitHub 不排程"
         required: false

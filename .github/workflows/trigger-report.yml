@@ -1,0 +1,42 @@
+name: trigger-report・排程可靠度
+
+# 每週六 10:00(台北)統計近 14 天 Cloudflare / cron-job.org 各自準不準 → reports/triggers.md(也顯示在這次 run 的 Summary)。
+# 想立刻看:Actions → trigger-report → Run workflow(可填天數)。
+on:
+  schedule:
+    - cron: "0 2 * * 6"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "統計幾天(預設 14)"
+        required: false
+        default: "14"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: 統計
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/trigger-report.mjs "${{ github.event.inputs.days || '14' }}"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/triggers.md
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "report: 排程可靠度 $(TZ=Asia/Taipei date '+%Y-%m-%d')"
+          for i in 1 2 3; do git pull --rebase origin main && git push && exit 0; git rebase --abort 2>/dev/null || true; sleep 5; done
+          exit 1
