@@ -45,7 +45,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # ref: main = 開跑當下的最新版,不是觸發當下的 commit。Cloudflare 與 cron-job.org 15:40 都會打,第二個 run 排隊等第一個跑完;
+      # 不指定的話它拿到的是舊版(沒有第一個 run 的資料與 notified.json)→ push 衝突失敗,或更糟:再發一次 LINE(2026-10-02 15:40)
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"

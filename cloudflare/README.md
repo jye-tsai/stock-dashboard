@@ -37,6 +37,10 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤前(cron,會發 LINE)`
 - 注意:`/premarket`(手動)也會發 LINE —— chips.yml 盤前那步不看 source,同日沒發過就發
 
+**兩邊同時打不會重複推播**:chips.yml / update-prices.yml 的 checkout 指定 `ref: main`,排在後面的 run 拿到的是最新版
+(含前一個 run 的資料與 `chips/data/notified.json`),notify 看到「今天已通知」就略過。2026-10-02 15:40 第一次兩邊都打時,
+第二個 run 拿到舊版 → push 衝突失敗(剛好沒重發),之後才加 `ref: main`。
+
 注意:Worker 網址是公開的,打 `/` 就會觸發一次 Action(無害,只是多跑);瀏覽器網址列預先載入也會算一次,所以手動測試時常見「同一秒兩次」。
 
 ## 改程式

@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: main          # 開跑當下的最新版(排隊等前一個 run 時,不用拿舊版再衝突重跑)
  
       - name: Setup Node
         uses: actions/setup-node@v5
