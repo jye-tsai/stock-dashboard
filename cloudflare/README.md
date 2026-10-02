@@ -22,7 +22,8 @@ Cloudflare 星期欄 **1=日 … 7=六**(跟 GitHub 不同)。
 Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job.org 每 10 分打 Worker 根網址 `/`,跟 Cloudflare cron 並行:
 
 - URL:Worker 根網址(結尾 `/`)
-- Schedule:Custom,Minutes `0,10,20,30,40,50`、Hours `9-13`、週一~五,Time zone `Asia/Taipei`
+- Schedule:Custom,Minutes `5,15,25,35,45,55`、Hours `9-13`、週一~五,Time zone `Asia/Taipei`
+  (故意跟 Cloudflare 的 `*/10` 錯開 5 分:兩邊都正常 = 股價每 5 分更新;任一邊掛 = 每 10 分;不會同一分鐘重複觸發)
 - 預期回應:`✅ 已觸發 股價 update-prices`(cron-job.org 的 History 看得到每次的回應與狀態碼)
 
 **15:40 盤後推播也有第二條路**:cron-job.org 另建一個 job 打 `Worker網址/chips-cron`
