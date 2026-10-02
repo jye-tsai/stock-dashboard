@@ -16,7 +16,7 @@
 - **HTML 不寫 `onclick`**:按鈕用 `data-action="fn" data-args='[...]'`,由 `app.js` §16b 的委派 listener 查允許清單(`ACTIONS`)呼叫;Enter 送出用 `data-enter="fn"`。新增按鈕記得把函式名加進 `ACTIONS`。
 - **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
-- **改完用 GitHub Desktop push**(本機資料夾已是 git repo,接著 `origin/main`):開 GitHub Desktop → 看 Changes 清單 → 寫一行摘要 → Commit → Push。子資料夾、隱藏資料夾、刪檔全部一次同步,不會再漏。`cloudflare-worker.js` 已在 `.git/info/exclude`,不會被推上去;`data.json` 不要勾(排程會自己 commit,你本機那份永遠比較舊)。
+- **改完用 GitHub Desktop push**(本機資料夾已是 git repo,接著 `origin/main`):開 GitHub Desktop → 看 Changes 清單 → 寫一行摘要 → Commit → Push。子資料夾、隱藏資料夾、刪檔全部一次同步,不會再漏。Cloudflare Worker 正本在 `cloudflare/worker.mjs`(沒有 token,可以放 repo);`data.json` 不要勾(排程會自己 commit,你本機那份永遠比較舊)。
 - **上傳前一鍵**:`node tools/bump.mjs` → 先跑測試,綠燈才把 `index.html` 四處 `?v=` 與 `sw.js` 的 `ASSET_VER` / `CACHE` 換成新值(台北日期 + 序號字母),並印出要上傳哪些檔。**不要再手改版號**。
 - **一鍵檢查**:`node tests/run.mjs`(語法 + `tests/calc.test.mjs` + `tests/sw.test.mjs`);push 到 repo 會由 `.github/workflows/check.yml` 自動跑,紅燈 = 上錯 / 漏檔。改 `calc.js` 順手補測。
 - **畫面卡住 / 看不到新版**:⚙️ 設定 →「🧹 清快取重新載入」(unregister SW + 清 caches + reload)。render 炸掉或 12 秒載不完時頂部也會自動出這條紅色橫幅(`index.html` head 內嵌,不依賴 app.js)。
@@ -71,7 +71,7 @@
 | `panghu-icon.png`(192px,iOS apple-touch-icon)/ `panghu-icon.webp`(512px,manifest + splash + intro)/ `favicon.png`(64px) | PWA App 圖示 / 網頁小圖示 |
 | `panghu.webp` / `panghu-sad.webp` / `panghu-flat.webp` | 吉祥物表情(笑 / 哭 / 淡定),512px WebP。**`panghu-flat.webp` 目前是笑臉去飽和的佔位圖**,有真的淡定圖直接同名覆蓋即可 |
 | (repo 外)`../股票庫存儀表版_原圖備份/` | 原始 1254px PNG 大圖 + 改圖前的 sw.js / manifest.json 備份,不上傳 |
-| `cloudflare-worker.js` | **不在 repo**,是貼到 Cloudflare 的外部排程器 |
+| `cloudflare/worker.mjs` + `cloudflare/README.md` | 貼到 Cloudflare 的外部排程器正本 + Cron Triggers 清單 / 出事怎麼查 |
 
 ---
 
@@ -158,7 +158,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 
 > 收盤價排成「每天」(`*`),由腳本擋掉週末。**Cloudflare 星期欄 1=日 … 7=六**:盤前 UTC 是前一天 23:30,台北週一~五 = UTC 週日~四 = `1-5`;盤後同一天,週一~五 = `2-6`。
 >
-> **Worker 依 `event.cron` 字串分流**,對不到的一律打 `update-prices.yml`。新增 Cron Trigger 時一定要在 `cloudflare-worker.js` 補一個分支,字串要跟 Cloudflare 上填的一字不差;否則會準時觸發但打錯 workflow(2026-09-30 盤前 07:30 就是這樣漏跑)。
+> **Worker 依 `event.cron` 字串分流**,對不到的一律打 `update-prices.yml`。新增 Cron Trigger 時一定要在 `cloudflare/worker.mjs` 的 `ROUTES` 補一條,字串要跟 Cloudflare 上填的一字不差;否則會準時觸發但打錯 workflow(2026-09-30 盤前 07:30 就是這樣漏跑)。
 
 ---
 
@@ -196,7 +196,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 1. **GitHub Pages**:repo → Settings → Pages,來源設 `main` 分支根目錄。
 2. **GitHub Token**(fine-grained PAT,只給此 repo):`Contents: Read and write`(存檔)+ `Actions: Read and write`(觸發 workflow_dispatch)。用於儀表板「⚙️ 設定 → GitHub 同步」與 Cloudflare 的 `GH_TOKEN`。
 3. **GitHub Action 權限**:repo → Settings → Actions → Workflow permissions → **Read and write**。
-4. **Cloudflare Worker**:貼上 `cloudflare-worker.js`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/10 1-5 * * *`(收盤價)+ `30 23 * * 1-5`(籌碼站盤前)、`40 7 * * 2-6`、`40 8 * * 2-6`(籌碼站盤後),字串與分流見上方「排程時間」。**Cloudflare 的星期欄是 1=日 … 7=六**(GitHub 是 0=日),同一天的週一~五要寫 `2-6`;盤前 23:30 UTC 是台北隔天,所以寫 `1-5`。
+4. **Cloudflare Worker**:貼上 `cloudflare/worker.mjs`(一支管收盤價與籌碼站兩個 workflow,依 cron 字串分流);Secret `GH_TOKEN` = 上面的 token;Cron Triggers `*/10 1-5 * * *`(收盤價)+ `30 23 * * 1-5`(籌碼站盤前)、`40 7 * * 2-6`、`40 8 * * 2-6`(籌碼站盤後),字串與分流見上方「排程時間」。**Cloudflare 的星期欄是 1=日 … 7=六**(GitHub 是 0=日),同一天的週一~五要寫 `2-6`;盤前 23:30 UTC 是台北隔天,所以寫 `1-5`。
 5. **PWA 安裝**:手機開 Pages 網址 → 加入主畫面(需 https)。
 
 ---

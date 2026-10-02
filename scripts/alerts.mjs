@@ -70,6 +70,6 @@ export function scheduleGapAlert(data, prev, stamp, trigger) {
     `⚠ 股價排程可能停了 ${stamp.slice(11, 16)}`,
     `上次更新 ${g.last},中間 ${g.gap} 分鐘沒有自動更新`,
     `這次由「${by}」補上`,
-    '請檢查 Cloudflare Worker 的 Cron Triggers 是否還有 */10 1-5 * * *(README「排程時間」)',
+    '請檢查 Cloudflare Worker 的 Cron Triggers 是否還有 */10 1-5 * * *(cloudflare/README.md)',
   ].join('\n');
 }
