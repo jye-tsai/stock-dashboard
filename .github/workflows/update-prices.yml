@@ -27,29 +27,25 @@ jobs:
         with:
           node-version: "24"
  
-      - name: Fetch prices and write data.json
-        run: node scripts/update-prices.mjs
+      # 抓價 → commit → push;push 被拒(儀表板剛好「儲存」,data.json 是單行加密檔,rebase 必衝突)
+      # → 丟掉這輪,重抓 repo 最新的 data.json 再跑一次腳本,最多 3 輪。使用者的編輯永遠保留,價格用重跑後的新值。
+      - name: Fetch prices, commit and push
         env:
-          # 停損 / 目標價盤中提醒用(沒設就只寫 log)
+          # 停損 / 目標價 / 排程斷線提醒用(沒設就只寫 log)
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
- 
-      - name: Commit if changed
         run: |
-          if [ -n "$(git status --porcelain data.json stocks.json)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3; do
+            node scripts/update-prices.mjs
+            if [ -z "$(git status --porcelain data.json stocks.json)" ]; then echo "no change"; exit 0; fi
             git add data.json stocks.json
-            git commit -m "auto update prices $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
-            # 儀表板手動「儲存」會直接 PUT 到 repo,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次
-            pushed=0
-            for i in 1 2 3; do
-              if git pull --rebase origin main && git push; then pushed=1; break; fi
-              git rebase --abort 2>/dev/null || true
-              echo "push 失敗,重試 $i"; sleep 5
-            done
-            [ "$pushed" = 1 ] || { echo "push 失敗三次,放棄"; exit 1; }
-            echo "pushed data.json"
-          else
-            echo "no change"
-          fi
+            git commit -q -m "auto update prices $(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')"
+            if git push origin HEAD:main; then echo "pushed data.json"; exit 0; fi
+            echo "push 被拒(repo 剛有新 commit),重抓最新版重跑 $i"
+            sleep 3
+            git fetch -q origin main && git reset -q --hard origin/main
+            export LINE_RETRY=1                     # 第一輪已推過 LINE,重跑只記狀態不重送
+          done
+          echo "::error::push 三次都失敗"; exit 1

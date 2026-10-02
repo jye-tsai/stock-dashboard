@@ -141,6 +141,7 @@ Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
 - **週末防呆**:腳本在台北週六 / 日直接跳過;平日休市由上面「只認今日」的檢查擋。
 - **時間戳**:`priceUpdated` 與各檔 `priceTime` 用台北時間(`taipeiStamp()`,`Date.now()+8h` 手算,不依賴 runner 時區)。
 - **寫檔條件**:`liveHit>0 || changed>0` 才寫(抓不到即時價就不動,時間戳不前進 = 即時來源不通)。
+- **排程斷線警報**(`alerts.mjs` 的 `scheduleGap`):平日 09:00–14:00,這次寫檔時發現上次 `priceUpdated` 已超過 30 分鐘(或今天 09:30 後才第一筆)= 主排程漏跑、這次是別的來源補上的 → 推 LINE 一次(一天一次,狀態 `alerts['sched:日期']`)。另外 15:40 籌碼站推播的庫存段,若市價不是今天 13:30 以後的,會加一行 ⚠ 提醒。2026-10-02 Cloudflare 的 `*/10 1-5 * * *` 被換成 `*/30 * * * *`、整個早上沒觸發,就是靠開網頁才發現,所以補了這兩道。
 
 ### 為什麼用 Cloudflare Worker?
 
@@ -217,7 +218,7 @@ GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在�
 - **看不到更新(圖示 / 靜態檔)**:`sw.js` 對圖片走 stale-while-revalidate:第一次 F5 回舊快取、背景抓新版,**再按一次 F5 就是新的**;PWA 關 App 重開兩次同理。.js / .css 有 `?v=` 版本 query,`index.html` 換了 v 就一定抓新檔,不受這條影響。
   改了圖或 `sw.js` 本身,順手把 `sw.js` 的 `CACHE = 'panghu-vN'` 版號 +1,activate 會整包清掉舊快取,一次到位。
   (`Ctrl + F5` 是繞過 Service Worker 直接打網路,所以看得到新圖,但不會寫回 SW 快取,下次 F5 又舊——這是舊版 cache-first 的症狀,v2 起已改。)
-- **Action push 被 reject**:儀表板手動「儲存」直接 PUT 到 repo,若剛好落在 Action checkout 與 push 之間,push 會被拒。workflow 已加 `git pull --rebase` + 重試 3 次;若三次都失敗(同檔衝突)才會紅,下一輪排程會重抓。
+- **Action push 被 reject**:儀表板手動「儲存」直接 PUT 到 repo,若剛好落在 Action checkout 與 push 之間,push 會被拒。data.json 是單行加密檔,rebase 必衝突,所以 workflow 改成「丟掉這輪 → 重抓 repo 最新版 → 重跑腳本」最多 3 輪(重跑輪 `LINE_RETRY=1` 不重送 LINE)。前端儲存那邊也會先合併 Action 寫的市價欄位(`PfCalc.mergeServerFields`),兩邊互不覆蓋。
 - **`raw.githubusercontent.com` 有 CDN 快取**(數分鐘),剛 push 完可能抓到舊版,別誤判成「沒上傳成功」。
 - **GitHub Actions 清單時間是 UTC**,+8 才是台北;最準看自動更新 commit 訊息(台北時間)。
 - **盤後 / 假日**:抓到的是收盤價,`價格變動 0` 屬正常;假日無 taiex → 走勢圖該日不畫。

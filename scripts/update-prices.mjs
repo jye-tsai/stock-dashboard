@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 // 與前端共用的損益計算模組(scripts/calc.js,UMD):改費率 / 稅率只改那一份,history 的 un / ret 才會跟畫面一致
 const PfCalc = createRequire(import.meta.url)('./calc.js');
-import { scanAlerts, alertText } from './alerts.mjs';   // 停損 / 目標價判斷(純函式,tests/alerts.test.mjs 直接測)
+import { scanAlerts, alertText, scheduleGapAlert } from './alerts.mjs';   // 停損 / 目標價 / 排程斷線判斷(純函式,tests/alerts.test.mjs 直接測)
 
 const FILE = process.env.DATA_FILE || 'data.json';
 // 混淆金鑰（與前端 index.html 相同；AES-256-GCM，防君子不防小人）
@@ -215,23 +215,26 @@ async function fromTpex() {
   return map;
 }
 
-// ─── 停損 / 目標價盤中提醒(LINE):判斷在 alerts.mjs,這裡只負責送出與記狀態
-async function sendAlerts(data, fire, stamp) {
-  if (!fire.length) return;
-  const text = alertText(fire, stamp);
+// ─── LINE 推播:判斷在 alerts.mjs,這裡只負責送出。回傳是否送達(沒 secrets / 失敗 → false)
+async function pushLine(text) {
   console.log('提醒:\n' + text);
   const tok = process.env.LINE_CHANNEL_TOKEN, uid = process.env.LINE_USER_ID;
-  let ok = false;
-  if (tok && uid) {
-    try {
-      const r = await fetch('https://api.line.me/v2/bot/message/push', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: uid, messages: [{ type: 'text', text: text.slice(0, 4900) }] }),
-      });
-      ok = r.ok; console.log('LINE 提醒:', r.status);
-    } catch (e) { console.log('LINE 提醒失敗:', e.message); }
-  } else console.log('沒有 LINE secrets,提醒只寫 log');
-  if (!ok) fire.forEach(f => delete data.alerts[f.key]);            // 沒送出去 → 不記狀態,下一輪再試
+  if (!tok || !uid) { console.log('沒有 LINE secrets,提醒只寫 log'); return false; }
+  if (process.env.LINE_RETRY) { console.log('push 衝突重跑輪:上一輪已送過,不重送'); return true; }
+  try {
+    const r = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: uid, messages: [{ type: 'text', text: text.slice(0, 4900) }] }),
+    });
+    console.log('LINE 提醒:', r.status);
+    return r.ok;
+  } catch (e) { console.log('LINE 提醒失敗:', e.message); return false; }
+}
+
+// 停損 / 目標價盤中提醒:沒送出去 → 不記狀態,下一輪再試
+async function sendAlerts(data, fire, stamp) {
+  if (!fire.length) return;
+  if (!await pushLine(alertText(fire, stamp))) fire.forEach(f => delete data.alerts[f.key]);
 }
 
 async function main() {
@@ -299,6 +302,9 @@ async function main() {
   if (noLive.length) console.log('即時抓不到:', noLive.join('、'));
 
   if (liveHit > 0 || changed > 0) {
+    // 排程斷線:上次 priceUpdated 離現在太久 = 主排程漏跑,這次是別的來源補上的 → 一天喊一次(先算,下面就會蓋掉 priceUpdated)
+    const gapText = scheduleGapAlert(data, data.priceUpdated, stamp, process.env.GITHUB_EVENT_NAME);
+    if (gapText && !await pushLine(gapText)) delete data.alerts['sched:' + today];   // 沒送出去 → 下一輪再試
     data.updated = stamp.slice(0, 10);
     data.priceUpdated = stamp;     // 最後成功抓到即時價的時間 → 判斷是否真的在即時更新
 

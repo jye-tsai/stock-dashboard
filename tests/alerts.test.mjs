@@ -1,6 +1,6 @@
 // 停損 / 目標價提醒(scripts/alerts.mjs):跨過去只發一次、回到安全區才重新起算、改價位重算、資料異常不發、賣光清狀態
 import assert from 'node:assert/strict';
-import { scanAlerts, alertText } from '../scripts/alerts.mjs';
+import { scanAlerts, alertText, scheduleGap, scheduleGapAlert } from '../scripts/alerts.mjs';
 
 const H = (price, o = {}) => ({ code: '2330', name: '台積電', lots: 2, cost: 1850, prevClose: 2475, stop: 2400, target: 3000, price, ...o });
 const data = { holdings: [H(2475)] };
@@ -36,3 +36,17 @@ assert.match(txt, /🎯 目標價提醒 13:35\n0050 元大台灣50 現價 3,010 
 // 單檔的文字(跟 update-prices 實際送 LINE 的一樣)
 assert.equal(alertText(fired, '2026-09-25 13:35').split('\n').length, 4);
 console.log('alerts.test: 15 個情境通過');
+
+// ─── 排程斷線偵測
+const G = (prev, now) => scheduleGap(prev, now);
+assert.equal(G('2026-10-02 10:00', '2026-10-02 10:20'), null);                         // 正常 10 分一班
+assert.deepEqual(G('2026-10-02 10:14', '2026-10-02 10:45'), { gap: 31, last: '10:14' }); // 同一天斷 31 分
+assert.equal(G('2026-10-01 13:50', '2026-10-02 09:20'), null);                         // 早上第一筆前,還在寬限內
+assert.deepEqual(G('2026-10-01 13:50', '2026-10-02 10:02'), { gap: 62, last: '2026-10-01 13:50' }); // 今天(10/02)的實況
+assert.equal(G('2026-10-01 13:50', '2026-10-02 15:08'), null);                         // 盤後不喊
+assert.equal(G('2026-10-02 09:00', '2026-10-03 11:00'), null);                         // 週六不喊
+const gd = { alerts: { 'sched:2026-10-01': {}, '2330:stop': {} } };
+assert.match(scheduleGapAlert(gd, '2026-10-01 13:50', '2026-10-02 10:02', 'workflow_dispatch'), /^⚠ 股價排程可能停了 10:02\n上次更新 2026-10-01 13:50,中間 62 分鐘/);
+assert.deepEqual(Object.keys(gd.alerts).sort(), ['2330:stop', 'sched:2026-10-02']);   // 舊日期清掉、停損狀態不動
+assert.equal(scheduleGapAlert(gd, '2026-10-02 10:02', '2026-10-02 10:50', 'schedule'), '');  // 同一天只喊一次
+console.log('alerts.test: 排程斷線 9 個情境通過');

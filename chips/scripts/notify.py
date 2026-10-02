@@ -109,8 +109,11 @@ def holdings_lines(d):
     if day_base: L.append(f"今日損益 {fmt(day_chg)}（{day_chg / day_base * 100:+.2f}%）" + (f"　※{ex_cnt} 檔除息已調整" if ex_cnt else ""))
     L.append(f"總市值 {t_mv:,}｜未實現 {fmt(t_un)}")
     L.append(f"總報酬 {fmt(total_ret)}（{(total_ret / t_cost * 100) if t_cost else 0:+.2f}%）")
-    pu = d.get("priceUpdated")
+    pu = d.get("priceUpdated") or ""
     if pu: L.append(f"市價時間 {pu}")
+    # 盤後才發這則:市價不是今天 13:30 以後的 = 盤中排程今天沒跑完(2026-10-02 Cloudflare cron 被換掉就是這樣)
+    if pu[:10] != today or pu[11:16] < "13:30":
+        L.append(f"⚠ 今日股價沒更新到收盤（最後 {pu or '無'}），上面是舊價；請檢查 Cloudflare 排程")
     return L
 
 def main():
