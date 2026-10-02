@@ -128,6 +128,27 @@ ok('非今日的 exDiv 不調整', exOld.chg === -4000 && exOld.exDivCount === 0
   ok('補觸發:從沒更新過 → 送', S('', '2026-10-02 09:12', null) === '2026-10-02 09:1');
 }
 
+/* ---------- 今日損益:當天新買的用買進成本 ---------- */
+{
+  const T = '2026-10-02';
+  // 2026-10-02 實況:00904 今天新買 5 張 @44,現價 44.04、昨收 43.43;前一天快照沒 lots、prices 沒 00904
+  const rows = [{ code: '00904', price: 44.04, prevClose: 43.43, lots: 5, cost: 44 }, { code: '0050', price: 112.85, prevClose: 112.9, lots: 1, cost: 102.91 }];
+  const old = { date: '2026-10-01', mv: 1, prices: { '0050': 112.9 } };
+  const r1 = PfCalc.todayChange(rows, old, 0, T);
+  ok('新買整檔:用買進價 44 不用昨收 → +200 −50', r1.chg === 200 - 50 && r1.newCount === 1 && r1.base === 220000 + 112900);
+  // 有 lots 快照:0050 1 張 @100 加碼 1 張 → 均價 105 → 買進價 110;現價 112
+  const add = PfCalc.todayChange([{ code: '0050', price: 112, prevClose: 111, lots: 2, cost: 105 }], { date: '2026-10-01', lots: { '0050': 1 }, costs: { '0050': 100 } }, 0, T);
+  ok('加碼:舊 1 張用昨收(+1000)、新 1 張用推回買進價 110(+2000)', add.chg === 3000 && add.base === 111000 + 110000);
+  // 減碼不影響:快照 10 張、今天 5 張 → 5 張全用昨收
+  const sell = PfCalc.todayChange([{ code: '00891', price: 37.95, prevClose: 37.82, lots: 5, cost: 34.29 }], { lots: { '00891': 10 } }, 0, T);
+  ok('減碼:剩下的張數照昨收', sell.chg === 650 && sell.newCount === 0);
+  // 沒快照、prices 也沒有(很舊的 history)→ 照舊全用昨收
+  ok('沒任何快照 → 照舊', PfCalc.todayChange(rows, { mv: 1 }, 0, T).chg === Math.round(0.61 * 5000) - 50);
+  // 新買但 Yahoo 還沒給昨收 → 仍可用買進價算
+  const noPc = PfCalc.todayChange([{ code: 'X', price: 10.5, lots: 1, cost: 10 }], { lots: {} }, 0, T);
+  ok('新買沒昨收也算得出', noPc && noPc.chg === 500 && noPc.missing === 0);
+}
+
 let fail = 0;
 for (const [n, c, info] of R) { console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (c || !info ? '' : '  → ' + info)); if (!c) fail++; }
 process.exit(fail ? 1 : 0);

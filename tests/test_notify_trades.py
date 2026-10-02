@@ -31,4 +31,19 @@ class Trades(unittest.TestCase):
         self.assertEqual(notify.trades_lines({"holdings": [], "history": [{"date": "2026-10-01"}]}), [])
         self.assertEqual(notify.trades_lines(data({"A": 1}, [{"code": "A", "lots": 1}])), [])
 
+class DayPL(unittest.TestCase):           # 今日損益:當天新買用買進價(同 calc.js todayChange)
+    def setUp(self): notify.today_tpe = lambda: TODAY
+    def line(self, d):
+        return next(l for l in notify.holdings_lines(d) if l.startswith("今日損益"))
+    def test_new_buy_uses_cost(self):      # 實況:00904 新買 5 張 @44、現價 44.04、昨收 43.43 → +200;0050 −50
+        d = {"fees": {}, "holdings": [
+            {"code": "00904", "name": "X", "price": 44.04, "prevClose": 43.43, "lots": 5, "cost": 44},
+            {"code": "0050", "name": "Y", "price": 112.85, "prevClose": 112.9, "lots": 1, "cost": 102.91}],
+            "history": [{"date": "2026-10-01", "prices": {"0050": 112.9}}]}
+        self.assertTrue(self.line(d).startswith("今日損益 +150（"), self.line(d))
+    def test_add_lots(self):               # 1 張 @100 加碼 1 張 → 均價 105 → 買進 110;現價 112、昨收 111 → +3000
+        d = {"fees": {}, "holdings": [{"code": "A", "name": "A", "price": 112, "prevClose": 111, "lots": 2, "cost": 105}],
+             "history": [{"date": "2026-10-01", "lots": {"A": 1}, "costs": {"A": 100}}]}
+        self.assertTrue(self.line(d).startswith("今日損益 +3,000（"), self.line(d))
+
 if __name__ == "__main__": unittest.main()

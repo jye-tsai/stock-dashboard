@@ -159,23 +159,41 @@
 
   // 今日損益(Hero):各檔 prevClose 加總;沒有任何昨收就退回「總市值 − history 前一交易日市值」;都沒有 → null
   // 除息:holdings[].exDiv = { date, amount }(Action 寫入),date 是今天就把昨收扣掉股息 —— 除息造成的價差不是虧損
+  // 當天新買:前一交易日就有的張數用昨收,今天新增的張數用買進成本(newLots);賣出的部分算在已實現,不在這裡
   function todayChange(rows, prevDay, totalMv, todayYmd) {
     var exOf = function (r) { return r.exDiv && String(r.exDiv.date) === String(todayYmd) && r.exDiv.amount > 0 ? r.exDiv.amount : 0; };
-    var pc = rows.filter(function (r) { return r.prevClose > 0 && r.price > 0 && r.lots > 0; });
+    var pc = rows.filter(function (r) { return r.price > 0 && r.lots > 0 && (r.prevClose > 0 || newLots(r, prevDay).add >= r.lots); });
     if (pc.length) {
-      var chg = 0, base = 0, exCount = 0;
+      var chg = 0, base = 0, exCount = 0, newCount = 0;
       pc.forEach(function (r) {
-        var ex = exOf(r), ref = r.prevClose - ex;
-        if (ex) exCount++;
-        chg += Math.round((r.price - ref) * 1000 * r.lots); base += Math.round(ref * 1000 * r.lots);
+        var ex = exOf(r), ref = r.prevClose - ex, n = newLots(r, prevDay), old = r.lots - n.add;
+        if (ex && old > 0) exCount++;
+        if (n.add > 0) newCount++;
+        if (old > 0) { chg += Math.round((r.price - ref) * 1000 * old); base += Math.round(ref * 1000 * old); }
+        if (n.add > 0) { chg += Math.round((r.price - n.px) * 1000 * n.add); base += Math.round(n.px * 1000 * n.add); }
       });
       var held = rows.filter(function (r) { return r.price > 0 && r.lots > 0; }).length;
-      return { chg: chg, base: base, pct: base ? chg / base : 0, missing: held - pc.length, exDivCount: exCount };
+      return { chg: chg, base: base, pct: base ? chg / base : 0, missing: held - pc.length, exDivCount: exCount, newCount: newCount };
     }
     if (prevDay && typeof prevDay.mv === 'number' && prevDay.mv > 0) {
-      return { chg: totalMv - prevDay.mv, base: prevDay.mv, pct: (totalMv - prevDay.mv) / prevDay.mv, missing: 0, exDivCount: 0 };
+      return { chg: totalMv - prevDay.mv, base: prevDay.mv, pct: (totalMv - prevDay.mv) / prevDay.mv, missing: 0, exDivCount: 0, newCount: 0 };
     }
     return null;
+  }
+
+  // 今天新增的張數與買進價:比 prevDay.lots(Action 每次寫 history 記的張數快照);舊快照沒 lots 時,
+  // prevDay.prices 沒這檔 = 前一天沒持有 → 整檔算新買;都沒資料 → 當作沒新增。
+  // 新買用均價;加碼由均價推回 (新均價×新張數 − 舊均價×舊張數) ÷ 加碼張數,推不出來(沒舊均價 / 算出 ≤ 0)就用均價
+  function newLots(r, prevDay) {
+    var lots = +r.lots || 0, a = lots;
+    if (prevDay && prevDay.lots && typeof prevDay.lots === 'object') a = +prevDay.lots[r.code] || 0;
+    else if (prevDay && prevDay.prices && typeof prevDay.prices === 'object' && !(prevDay.prices[r.code] > 0)) a = 0;
+    var add = lots > a ? lots - a : 0;
+    if (!add) return { add: 0, px: 0 };
+    var px = +r.cost || 0, c0 = prevDay && prevDay.costs ? +prevDay.costs[r.code] || 0 : 0;
+    if (a > 0 && c0 > 0) { var p = (px * lots - c0 * a) / add; if (p > 0) px = p; }
+    if (!(px > 0)) px = r.prevClose > 0 ? r.prevClose : r.price;
+    return { add: add, px: px };
   }
 
   // 股票池搜尋(持股表單代號欄):代號「前綴」優先(2 → 所有 2 開頭;23 → 23 開頭),其次名稱「包含」(台積 → 2330)
@@ -259,7 +277,7 @@
     holdingAmounts: holdingAmounts, compute: compute, totals: totals,
     isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
     drawdown: drawdown, worstDrawdown: worstDrawdown, twrIndex: twrIndex, benchLines: benchLines, dailyStats: dailyStats,
-    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch,
+    todayChange: todayChange, newLots: newLots, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch,
     mergeServerFields: mergeServerFields, autoTriggerSlot: autoTriggerSlot
   };
 });

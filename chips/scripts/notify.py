@@ -83,22 +83,49 @@ def holding_amounts(h, fees):
     sell = js_round(mv * (tax_rate + fee_rate * fee_disc))
     return cost, mv, mv - cost - sell
 
+def prev_snapshot(d, today):
+    """前一交易日的 history(今天之前最後一筆)"""
+    return next((h for h in reversed(d.get("history") or []) if str(h.get("date", "")) < today), None)
+
+def new_lots(h, prev):
+    """今天新增的張數與買進價(同 scripts/calc.js newLots):比前一交易日 lots 快照;舊快照沒 lots 時,
+    prices 沒這檔 = 前一天沒持有 → 整檔算新買;都沒資料 → 當作沒新增。加碼由均價推回買進價。"""
+    lots = float(h.get("lots") or 0); a = lots
+    if prev and isinstance(prev.get("lots"), dict): a = float(prev["lots"].get(h.get("code")) or 0)
+    elif prev and isinstance(prev.get("prices"), dict) and not (prev["prices"].get(h.get("code")) or 0) > 0: a = 0
+    add = lots - a if lots > a else 0
+    if not add: return 0, 0
+    px = float(h.get("cost") or 0)
+    c0 = float((prev.get("costs") or {}).get(h.get("code")) or 0) if prev else 0
+    if a > 0 and c0 > 0:
+        p = (px * lots - c0 * a) / add
+        if p > 0: px = p
+    if not px > 0: px = h.get("prevClose") or h.get("price") or 0
+    return add, px
+
 def holdings_lines(d):
     today = today_tpe()
     hs = [h for h in (d.get("holdings") or []) if (h.get("lots") or 0) > 0 and (h.get("price") or 0) > 0]
     if not hs: return []
     L = ["── 庫存 ──"]
+    prev = prev_snapshot(d, today)
     t_cost = t_mv = t_un = 0; day_chg = day_base = 0; ex_cnt = 0
     for h in hs:
         cost, mv, un = holding_amounts(h, d.get("fees"))
         t_cost += cost; t_mv += mv; t_un += un
         pc = h.get("prevClose") or 0
         ex = h.get("exDiv") or {}
-        if ex and str(ex.get("date")) == today and (ex.get("amount") or 0) > 0: pc -= ex["amount"]; ex_cnt += 1
+        add, px = new_lots(h, prev)                                   # 今天新增的張數用買進價,其餘用昨收(同 calc.js newLots)
+        old = h["lots"] - add
+        if ex and str(ex.get("date")) == today and (ex.get("amount") or 0) > 0:
+            pc -= ex["amount"]
+            if old > 0: ex_cnt += 1
         day = ""
-        if pc > 0:
-            day_chg += js_round((h["price"] - pc) * 1000 * h["lots"]); day_base += js_round(pc * 1000 * h["lots"])
-            day = f" {((h['price'] / pc) - 1) * 100:+.2f}%"
+        if pc > 0 and old > 0:
+            day_chg += js_round((h["price"] - pc) * 1000 * old); day_base += js_round(pc * 1000 * old)
+        if add > 0:
+            day_chg += js_round((h["price"] - px) * 1000 * add); day_base += js_round(px * 1000 * add)
+        if pc > 0: day = f" {((h['price'] / pc) - 1) * 100:+.2f}%"     # 個股今日漲跌%:照市場(相對昨收)
         name = (h.get("name") or "")[:6]
         st, tg = h.get("stop") or 0, h.get("target") or 0                  # 自己設的停損 / 目標價:觸到就標出來(盤中另有即時提醒)
         mk = f"　⚠ 低於停損 {fmt2(st)}" if st > 0 and h["price"] <= st else f"　🎯 達目標 {fmt2(tg)}" if tg > 0 and h["price"] >= tg else ""
@@ -136,11 +163,9 @@ def trades_lines(d):
         if b < a:
             sells.append(f"賣 {code} {nm} {fl(a - b)} 張" + ("（全部）" if b == 0 else f"（剩 {fl(b)} 張）"))
         else:
-            px = h.get("cost") or 0
-            if a > 0 and isinstance(prev.get("costs"), dict) and prev["costs"].get(code):
-                px = (px * b - prev["costs"][code] * a) / (b - a)
+            _, px = new_lots(h, prev)
             add = f"買 {code} {nm} {fl(b - a)} 張"
-            if px > 0 and (a == 0 or isinstance(prev.get("costs"), dict) and prev["costs"].get(code)):
+            if px > 0 and (a == 0 or (prev.get("costs") or {}).get(code)):
                 add += f" @{fl(px)}（{js_round(px * 1000 * (b - a)):,}）"
             if a > 0: add += f"（共 {fl(b)} 張）"
             buys.append(add)

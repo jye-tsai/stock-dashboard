@@ -151,6 +151,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 - **時間戳**:`priceUpdated` 與各檔 `priceTime` 用台北時間(`taipeiStamp()`,`Date.now()+8h` 手算,不依賴 runner 時區)。
 - **寫檔條件**:`liveHit>0 || changed>0` 才寫(抓不到即時價就不動,時間戳不前進 = 即時來源不通)。
 - **網頁補觸發**(`PfCalc.autoTriggerSlot`):開網頁 / 下拉刷新時,交易時段內股價超過 15 分鐘沒更新(= 排程漏跑)才自動送一次 dispatch,同一個 10 分鐘區段最多一次;排程正常時不送。要立刻更新按「📈 更新市價」。
+- **今日損益的基準**(`PfCalc.todayChange` / `newLots`,15:40 推播 `notify.py` 同算法):前一交易日就有的張數用昨收(除息日扣股息),**今天新增的張數用買進成本**(新買用均價;加碼由前後均價推回買進價);舊快照沒 `lots` 時,前一天 `prices` 沒這檔就整檔算新買。賣出的部分不算在今日損益(在已實現)。個股的「今日 %」照舊相對昨收。
 - **張數 / 均價快照**:每次寫 history 也記 `lots: {code: 張數}`、`costs: {code: 均價}`(2026-10-02 起)。15:40 籌碼站推播的「今日進出」拿今天持股比對前一交易日快照:張數少 = 賣、多 = 買(新買顯示 @均價,加碼由均價推回買進價),有賣出才加一行「今日已實現」= `已實現損益` − 前一交易日 `history.real`(`chips/scripts/notify.py` `trades_lines`,測試 `tests/test_notify_trades.py`)。同一檔同日又買又賣只看得到淨變化。
 - **排程斷線警報**(`alerts.mjs` 的 `scheduleGap`):平日 09:00–14:00,這次寫檔時發現上次 `priceUpdated` 已超過 30 分鐘(或今天 09:30 後才第一筆)= 主排程漏跑、這次是別的來源補上的 → 推 LINE 一次(一天一次,狀態 `alerts['sched:日期']`)。另外 15:40 籌碼站推播的庫存段,若市價不是今天 13:30 以後的,會加一行 ⚠ 提醒。2026-10-02 Cloudflare 的 `*/10 1-5 * * *` 被換成 `*/30 * * * *`、整個早上沒觸發,就是靠開網頁才發現,所以補了這兩道。
 
