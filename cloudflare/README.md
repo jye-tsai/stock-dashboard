@@ -27,12 +27,13 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 預期回應:`✅ 已觸發 股價 update-prices`(cron-job.org 的 History 看得到每次的回應與狀態碼)
 
 **15:40 盤後推播也有第二條路**:cron-job.org 另建一個 job 打 `Worker網址/chips-cron`
-- Schedule:Minutes `40`、Hours `15`、週一~五,Time zone `Asia/Taipei`(想 16:40 補永豐也一起,Hours 填 `15,16`)
+- Schedule:Minutes `45`、Hours `15`、週一~五,Time zone `Asia/Taipei`(想 16:45 補永豐也一起,Hours 填 `15,16`)
+  (比 Cloudflare 的 15:40 晚 5 分:Cloudflare 那次約 2 分跑完、記好「今天已通知」,這次開跑就直接略過;Cloudflare 掛了才由這次發,晚 5 分)
 - 只在台北週一~五 15:30–17:59 有效,其他時間回「⏸ 不在時段」不觸發;同一交易日 LINE 只發一次,兩邊都打也只收一則
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤後(cron,會發 LINE)`
 
 **07:30 盤前推播也一樣**:cron-job.org 再建一個 job 打 `Worker網址/premarket-cron`
-- Schedule:Minutes `30`、Hours `7`、週一~五,Time zone `Asia/Taipei`
+- Schedule:Minutes `35`、Hours `7`、週一~五,Time zone `Asia/Taipei`(比 Cloudflare 的 07:30 晚 5 分,理由同上)
 - 只在台北週一~五 07:00–08:59 有效;盤前 LINE 同一天只發一次
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤前(cron,會發 LINE)`
 - 注意:`/premarket`(手動)也會發 LINE —— chips.yml 盤前那步不看 source,同日沒發過就發
