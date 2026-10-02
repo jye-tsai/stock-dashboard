@@ -218,6 +218,18 @@
     return { chg: chg, pct: cost ? chg / cost : 0, from: String(base.date), to: String(end.date), series: full.slice(baseIdx) };
   }
 
+  // 網頁自動補觸發股價更新(開網頁 / 下拉刷新):排程正常時股價最舊約 10 分多,超過 staleMin(15)分 = 排程漏跑才補。
+  // 同一個 10 分鐘區段(例:11:30–11:39)只送一次,下拉幾次都一樣。now / priceUpdated 皆台北 'YYYY-MM-DD HH:MM'。
+  // 回傳要記住的區段字串(呼叫端存起來、下次當 lastSlot 傳回);不該送 → null。交易時段由呼叫端判斷。
+  function autoTriggerSlot(priceUpdated, now, lastSlot, staleMin) {
+    var lim = staleMin > 0 ? staleMin : 15;
+    var mins = function (s) { return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13), +s.slice(14, 16)) / 60000; };
+    var pu = String(priceUpdated || '');
+    if (pu.length >= 16 && mins(String(now)) - mins(pu) <= lim) return null;
+    var slot = String(now).slice(0, 15);                 // 'YYYY-MM-DD HH:M' = 10 分鐘區段
+    return slot === lastSlot ? null : slot;
+  }
+
   // 儲存前合併伺服器端(Action)寫的欄位:前端存檔會整份 PUT data.json,若畫面是 Action 更新前載入的,
   // 會把剛抓到的市價蓋回舊值(2026-10-02 10:03 就這樣把 10:02 的即時價蓋掉)。
   // remote 的 priceUpdated 較新 → 以 remote 為準:priceUpdated、history、alerts,與同代號持股的
@@ -248,6 +260,6 @@
     isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
     drawdown: drawdown, worstDrawdown: worstDrawdown, twrIndex: twrIndex, benchLines: benchLines, dailyStats: dailyStats,
     todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch,
-    mergeServerFields: mergeServerFields
+    mergeServerFields: mergeServerFields, autoTriggerSlot: autoTriggerSlot
   };
 });

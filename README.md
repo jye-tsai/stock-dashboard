@@ -141,6 +141,7 @@ Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
 - **週末防呆**:腳本在台北週六 / 日直接跳過;平日休市由上面「只認今日」的檢查擋。
 - **時間戳**:`priceUpdated` 與各檔 `priceTime` 用台北時間(`taipeiStamp()`,`Date.now()+8h` 手算,不依賴 runner 時區)。
 - **寫檔條件**:`liveHit>0 || changed>0` 才寫(抓不到即時價就不動,時間戳不前進 = 即時來源不通)。
+- **網頁補觸發**(`PfCalc.autoTriggerSlot`):開網頁 / 下拉刷新時,交易時段內股價超過 15 分鐘沒更新(= 排程漏跑)才自動送一次 dispatch,同一個 10 分鐘區段最多一次;排程正常時不送。要立刻更新按「📈 更新市價」。
 - **排程斷線警報**(`alerts.mjs` 的 `scheduleGap`):平日 09:00–14:00,這次寫檔時發現上次 `priceUpdated` 已超過 30 分鐘(或今天 09:30 後才第一筆)= 主排程漏跑、這次是別的來源補上的 → 推 LINE 一次(一天一次,狀態 `alerts['sched:日期']`)。另外 15:40 籌碼站推播的庫存段,若市價不是今天 13:30 以後的,會加一行 ⚠ 提醒。2026-10-02 Cloudflare 的 `*/10 1-5 * * *` 被換成 `*/30 * * * *`、整個早上沒觸發,就是靠開網頁才發現,所以補了這兩道。
 
 ### 為什麼用 Cloudflare Worker?

@@ -751,17 +751,20 @@ async function updatePrices() {
   }
 }
 
-// 刷新時自動觸發更新市價（靜默、不跳確認；60 秒內不重複觸發）
+// 開網頁 / 下拉刷新時自動補觸發更新市價(靜默、不跳確認):排程正常就不送,只在股價超過 15 分鐘沒更新(排程漏跑)時補一次,
+// 同一個 10 分鐘區段最多送一次(PfCalc.autoTriggerSlot)。要立刻更新就按「📈 更新市價」。
 async function autoTriggerPrices(c) {
   try {
-    if (!ghReady(c)) return;
-    if (!isTradingWindow(tpeNow())) return;      // 盤後 / 週末 / 09:10 前不浪費 Action(腳本本身也會擋,這裡省掉 dispatch)
-    const last = +(store.get('pf-autoprice-ts') || 0);
-    if (Date.now() - last < 60000) return;
-    store.set('pf-autoprice-ts', String(Date.now()));
+    if (!ghReady(c) || !DATA) return;
+    const n = tpeNow();
+    if (!isTradingWindow(n)) return;             // 盤後 / 週末 / 09:10 前不浪費 Action(腳本本身也會擋,這裡省掉 dispatch)
+    const z = x => String(x).padStart(2, '0');
+    const slot = PfCalc.autoTriggerSlot(DATA.priceUpdated, `${n.date} ${z(n.hh)}:${z(n.mm)}`, store.get('pf-autoprice-slot'));
+    if (!slot) return;
+    store.set('pf-autoprice-slot', slot);
     const url = `https://api.github.com/repos/${c.owner}/${c.repo}/actions/workflows/update-prices.yml/dispatches`;
     const r = await fetch(url, { method: 'POST', headers: ghHeaders(c), body: JSON.stringify({ ref: c.branch || 'main' }) });
-    if (r.status === 204) toast('📈 已自動觸發更新市價（約 1 分鐘後再整理看最新）');
+    if (r.status === 204) toast(`📈 股價已 ${DATA.priceUpdated ? '超過 15 分鐘' : '很久'}沒更新,已補觸發(約 1 分鐘後再刷新)`);
     else if (r.status === 403) toast('自動更新需 Token 有 Actions 寫入權限');
   } catch (e) { console.debug('[pf]', e); }
 }
@@ -1351,6 +1354,7 @@ async function softRefresh() {
     const before = JSON.stringify(DATA);
     load(await decodeMaybe(json));
     toast(before === JSON.stringify(DATA) ? '已是最新資料' : '已更新為最新資料');
+    autoTriggerPrices(ghc);                       // 下拉刷新也套同一規則:股價太舊才補觸發,同 10 分區段只一次
     return true;
   } catch (e) { console.debug('[pf] softRefresh', e); return false; }
 }
@@ -1493,8 +1497,7 @@ setTimeout(hideSplash, 4000);        // 備援上限(資料載不出來時)
   // 1. 已設定 GitHub → 優先讀 repo 最新版(不受 Pages 部署延遲影響)
   const ghc = ghCfg();
   if (ghReady(ghc)) {
-    autoTriggerPrices(ghc);            // 交易時段內自動送出更新市價(不等待,不影響載入)
-    try { load(await decodeMaybe(await ghLoad(ghc))); afterFresh(); return; }
+    try { load(await decodeMaybe(await ghLoad(ghc))); afterFresh(); autoTriggerPrices(ghc); return; }   // 讀到最新版才知道股價舊不舊
     catch (e) { toast('GitHub 讀取失敗,改用其他來源'); }
   }
   // 2. 同站 data.json(GitHub Pages);最多等 8 秒,弱網也給它機會
