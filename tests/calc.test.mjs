@@ -100,6 +100,22 @@ ok('除息日:昨收扣股息,96 vs 95 = +1000', ex.chg === 1000 && ex.exDivCoun
 const exOld = PfCalc.todayChange([{ code: 'a', price: 96, prevClose: 100, lots: 1, exDiv: { date: '2026-09-21', amount: 5 } }], null, 0, '2026-09-22');
 ok('非今日的 exDiv 不調整', exOld.chg === -4000 && exOld.exDivCount === 0);
 
+/* ---------- 存檔前合併 Action 寫的市價(防止前端用舊資料蓋掉) ---------- */
+{
+  const local = { priceUpdated: '2026-10-01 15:08', title: '新標題', history: [{ date: '2026-10-01' }],
+    holdings: [{ code: '2330', price: 2510, lots: 3, priceTime: '2026-10-01 15:08' }, { code: '0050', price: 0, lots: 1 }] };
+  const remote = { priceUpdated: '2026-10-02 10:02', title: '舊標題', history: [{ date: '2026-10-01' }, { date: '2026-10-02' }], alerts: { x: 1 },
+    holdings: [{ code: '2330', price: 2500, lots: 2, priceTime: '2026-10-02 10:02', prevClose: 2510, exDiv: { date: '2026-10-02', amount: 5 } }, { code: '00878', price: 20 }] };
+  const n = PfCalc.mergeServerFields(local, remote);
+  const h = local.holdings[0];
+  ok('合併:較新的市價 / 時間 / 昨收 / 除息帶進來', n === 1 && h.price === 2500 && h.priceTime === '2026-10-02 10:02' && h.prevClose === 2510 && h.exDiv.amount === 5);
+  ok('合併:使用者編輯(張數 / 標題)保留', h.lots === 3 && local.title === '新標題');
+  ok('合併:priceUpdated / history / alerts 用 remote', local.priceUpdated === '2026-10-02 10:02' && local.history.length === 2 && local.alerts.x === 1);
+  ok('合併:代號對不上的持股不動', local.holdings[1].price === 0 && local.holdings.length === 2);
+  const l2 = { priceUpdated: '2026-10-02 10:05', holdings: [{ code: '2330', price: 2520 }] };
+  ok('合併:remote 沒比較新 → 不動', PfCalc.mergeServerFields(l2, remote) === 0 && l2.holdings[0].price === 2520);
+}
+
 let fail = 0;
 for (const [n, c, info] of R) { console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (c || !info ? '' : '  → ' + info)); if (!c) fail++; }
 process.exit(fail ? 1 : 0);
