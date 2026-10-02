@@ -923,12 +923,22 @@ function ghErr(status, j) {
   };
   return new Error((map[status] || ('GitHub 錯誤 ' + status)) + detail);
 }
-async function ghSave(c, json) {
+// 每次 PUT 前都重抓 repo 上的版本:拿 sha,並把 Action 在你載入畫面後寫進去的市價合併進來(PfCalc.mergeServerFields),
+// 否則整份覆蓋會把剛抓到的即時價蓋回舊值。sha 衝突重試時也會再合併一次。
+async function ghSave(c, data) {
   const commit = async () => {
     let sha;
     const g = await fetch(`${ghUrl(c)}?ref=${c.branch || 'main'}&_=${Date.now()}`, { headers: ghHeaders(c), cache: 'no-store' });
-    if (g.ok) sha = (await g.json()).sha;
+    if (g.ok) {
+      const meta = await g.json();
+      sha = meta.sha;
+      try {
+        const remote = await decodeMaybe(JSON.parse(new TextDecoder().decode(b64dec(String(meta.content || '').replace(/\s/g, '')))));
+        if (PfCalc.mergeServerFields(data, remote)) cache();
+      } catch (e) { console.warn('合併遠端市價失敗,照原樣存', e); }
+    }
     else if (g.status !== 404) throw ghErr(g.status, await g.json().catch(() => ({})));
+    const json = JSON.stringify(await encData(data));
     const body = {
       message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
       content: b64utf8(json),
@@ -987,14 +997,13 @@ function updateGhBtn() {
 async function saveFile() {
   DATA.updated = new Date().toISOString().slice(0, 10);
   cache();
-  const json = JSON.stringify(await encData(DATA));
 
   // 已設定 GitHub → 直接 commit 回 repo
   const c = ghCfg();
   if (ghReady(c)) {
     try {
       toast('上傳到 GitHub 中…');
-      await ghSave(c, json);
+      await ghSave(c, DATA);
       render();
       toast(`✅ 已 commit 到 ${c.owner}/${c.repo}`);
       return;
@@ -1008,6 +1017,7 @@ async function saveFile() {
       return;
     }
   }
+  const json = JSON.stringify(await encData(DATA));
   try {
     let h = fsHandle || await idb.get('handle');
     if (!h && window.showSaveFilePicker) {

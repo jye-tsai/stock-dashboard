@@ -218,11 +218,36 @@
     return { chg: chg, pct: cost ? chg / cost : 0, from: String(base.date), to: String(end.date), series: full.slice(baseIdx) };
   }
 
+  // 儲存前合併伺服器端(Action)寫的欄位:前端存檔會整份 PUT data.json,若畫面是 Action 更新前載入的,
+  // 會把剛抓到的市價蓋回舊值(2026-10-02 10:03 就這樣把 10:02 的即時價蓋掉)。
+  // remote 的 priceUpdated 較新 → 以 remote 為準:priceUpdated、history、alerts,與同代號持股的
+  // price / priceTime / prevClose / yahooSym / exDiv。前端不改這些欄位,所以不會吃掉使用者的編輯。
+  // 換了代號的持股(code 對不上)不動,讓 Action 下次重抓。回傳合併了幾檔。
+  var SERVER_FIELDS = ['price', 'priceTime', 'prevClose', 'yahooSym', 'exDiv'];
+  function mergeServerFields(local, remote) {
+    if (!local || !remote || !remote.priceUpdated) return 0;
+    if (local.priceUpdated && String(remote.priceUpdated) <= String(local.priceUpdated)) return 0;
+    local.priceUpdated = remote.priceUpdated;
+    if (Array.isArray(remote.history)) local.history = remote.history;
+    if (remote.alerts) local.alerts = remote.alerts; else delete local.alerts;
+    var byCode = {};
+    (remote.holdings || []).forEach(function (h) { if (h && h.code) byCode[h.code] = h; });
+    var n = 0;
+    (local.holdings || []).forEach(function (h) {
+      var r = h && h.code && byCode[h.code];
+      if (!r) return;
+      SERVER_FIELDS.forEach(function (k) { if (r[k] !== undefined) h[k] = r[k]; else delete h[k]; });
+      n++;
+    });
+    return n;
+  }
+
   return {
     DEFAULT_TAX: DEFAULT_TAX,
     holdingAmounts: holdingAmounts, compute: compute, totals: totals,
     isWeekendYmd: isWeekendYmd, histSlices: histSlices, dailyChanges: dailyChanges, extremes: extremes,
     drawdown: drawdown, worstDrawdown: worstDrawdown, twrIndex: twrIndex, benchLines: benchLines, dailyStats: dailyStats,
-    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch
+    todayChange: todayChange, sparkSeries: sparkSeries, periodChange: periodChange, stockSearch: stockSearch,
+    mergeServerFields: mergeServerFields
   };
 });
