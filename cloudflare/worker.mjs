@@ -11,9 +11,11 @@
 //     盤前 23:30 UTC 是台北隔天,台北週一~五 = UTC 週日~四 = 1-5。
 //   ※ 新增 Cron Trigger 一定要在下面 ROUTES 補一條。對不到的仍會打 update-prices(保住股價),但 log 會標「未知 cron」
 //     (2026-09-30 盤前漏跑、2026-10-02 股價那條被換成 */30 * * * * 整早沒觸發,都是 Cron Triggers 與這裡對不上)。
-// 瀏覽器手動:開 Worker 根網址 / 觸發股價;/chips 觸發籌碼站盤後;/premarket 觸發盤前(都是 source=manual,不通知)。
-// cron-job.org 用:/chips-cron = 籌碼站盤後 source=cron(會發 LINE),只在台北週一~五 15:30–17:59 有效(見 cronWindow);
-//   同一交易日 notify.py 只送一次,所以跟 Cloudflare cron 兩邊都打也只會收到一則。
+// 瀏覽器手動:開 Worker 根網址 / 觸發股價;/chips 觸發籌碼站盤後(source=manual,不發 LINE);
+//   /premarket 觸發盤前(chips.yml 盤前不看 source,一律發 LINE,同日只發一次)。
+// cron-job.org 用(有時段限制,網址公開也不怕被亂打;同一天 LINE 只發一次,跟 Cloudflare cron 兩邊都打也只收一則):
+//   /chips-cron      籌碼站盤後 source=cron,台北週一~五 15:30–17:59 有效
+//   /premarket-cron  籌碼站盤前,台北週一~五 07:00–08:59 有效
 // 其他路徑(favicon.ico)忽略。
 
 const REPO = 'jye-tsai/stock-dashboard';
@@ -32,12 +34,20 @@ export function route(cron) {
   return r || DEFAULT_ROUTE;
 }
 
-// /chips-cron 的有效時段:台北週一~五 15:30–17:59。網址是公開的,擋掉盤中 / 半夜被亂打(盤中打進來會拿到前一天的籌碼)
-export function cronWindow(now = new Date()) {
+// cron-job.org 路徑的有效時段(台北週一~五,分鐘數 [from, to)):網址是公開的,擋掉其他時間被亂打
+// (盤中打盤後會拿到前一天的籌碼;半夜打盤前會用舊資料發掉當天那一則)
+export const WINDOWS = {
+  '/chips-cron':     [15 * 60 + 30, 18 * 60],   // 15:30–17:59
+  '/premarket-cron': [7 * 60, 9 * 60],          // 07:00–08:59
+};
+export function cronWindow(path, now = new Date()) {
+  const w = WINDOWS[path]; if (!w) return false;
   const t = new Date(now.getTime() + 8 * 3600 * 1000);
   const dow = t.getUTCDay(), m = t.getUTCHours() * 60 + t.getUTCMinutes();
-  return dow >= 1 && dow <= 5 && m >= 15 * 60 + 30 && m < 18 * 60;
+  return dow >= 1 && dow <= 5 && m >= w[0] && m < w[1];
 }
+const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const notInWindow = path => new Response(`⏸ 不在時段(${path}:台北週一~五 ${hhmm(WINDOWS[path][0])}–${hhmm(WINDOWS[path][1] - 1)}),沒有觸發`, { status: 200 });
 
 export default {
   async scheduled(event, env, ctx) {
@@ -50,10 +60,14 @@ export default {
     if (url.pathname === '/') { const r = await dispatch(env, 'update-prices.yml', null); return reply(r, '股價 update-prices'); }
     if (url.pathname === '/chips') { const r = await dispatch(env, 'chips.yml', { source: 'manual' }); return reply(r, '籌碼站 chips 盤後(手動,不通知)'); }
     if (url.pathname === '/chips-cron') {
-      if (!cronWindow()) return new Response('⏸ 不在時段(台北週一~五 15:30–17:59),沒有觸發', { status: 200 });
+      if (!cronWindow(url.pathname)) return notInWindow(url.pathname);
       const r = await dispatch(env, 'chips.yml', { source: 'cron' }); return reply(r, '籌碼站 chips 盤後(cron,會發 LINE)');
     }
-    if (url.pathname === '/premarket') { const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'manual' }); return reply(r, '籌碼站 chips 盤前(手動)'); }
+    if (url.pathname === '/premarket-cron') {
+      if (!cronWindow(url.pathname)) return notInWindow(url.pathname);
+      const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'cron' }); return reply(r, '籌碼站 chips 盤前(cron,會發 LINE)');
+    }
+    if (url.pathname === '/premarket') { const r = await dispatch(env, 'chips.yml', { premarket: 'true', source: 'manual' }); return reply(r, '籌碼站 chips 盤前(手動,同日沒發過會發 LINE)'); }
     return new Response('ok');
   }
 };

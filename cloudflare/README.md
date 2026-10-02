@@ -30,6 +30,12 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 只在台北週一~五 15:30–17:59 有效,其他時間回「⏸ 不在時段」不觸發;同一交易日 LINE 只發一次,兩邊都打也只收一則
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤後(cron,會發 LINE)`
 
+**07:30 盤前推播也一樣**:cron-job.org 再建一個 job 打 `Worker網址/premarket-cron`
+- Schedule:Minutes `30`、Hours `7`、週一~五,Time zone `Asia/Taipei`
+- 只在台北週一~五 07:00–08:59 有效;盤前 LINE 同一天只發一次
+- 預期回應:`✅ 已觸發 籌碼站 chips 盤前(cron,會發 LINE)`
+- 注意:`/premarket`(手動)也會發 LINE —— chips.yml 盤前那步不看 source,同日沒發過就發
+
 注意:Worker 網址是公開的,打 `/` 就會觸發一次 Action(無害,只是多跑);瀏覽器網址列預先載入也會算一次,所以手動測試時常見「同一秒兩次」。
 
 ## 改程式
@@ -45,5 +51,5 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
   - 有紀錄但 `dispatch failed 401` → `GH_TOKEN` 過期,重產 PAT 更新 Secret
   - Cloudflare 那邊沒紀錄,但 cron-job.org History 有 200 → 正常,cron-job.org 頂著;有空再修 Cloudflare
   - cron-job.org History 是 5xx / 逾時 → Worker 掛了或 `GH_TOKEN` 過期(回應內容會寫 GitHub 的錯誤)
-- **手動補一次**:瀏覽器開 Worker 根網址 `/`(股價)、`/chips`(不發 LINE)、`/chips-cron`(15:30–17:59 才有效,會發 LINE)、`/premarket`
+- **手動補一次**:瀏覽器開 Worker 根網址 `/`(股價)、`/chips`(不發 LINE)、`/chips-cron`(15:30–17:59 才有效,會發 LINE)、`/premarket`(會發 LINE)、`/premarket-cron`(07:00–08:59 才有效)
 - 盤中斷線超過 30 分鐘,`update-prices.mjs` 下一次有跑到時會推 LINE「⚠ 股價排程可能停了」;15:40 籌碼站推播也會標出「今日股價沒更新到收盤」。
