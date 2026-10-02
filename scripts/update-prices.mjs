@@ -322,6 +322,9 @@ async function main() {
     if (tsmcH && tsmcH.price > 0) entry.tsmc = tsmcH.price;
     entry.prices = {};                                             // 各檔當日價(前端持股表 sparkline 用)
     for (const h of holdings) if (h.code && h.price > 0) entry.prices[h.code] = h.price;
+    entry.lots = {};                                               // 各檔當日張數(15:40 推播比對前一交易日 → 今日進出)
+    entry.costs = {};                                              // 各檔當日均價(加碼時推回買進價)
+    for (const h of holdings) if (h.code) { entry.lots[h.code] = +h.lots || 0; if (h.cost > 0) entry.costs[h.code] = h.cost; }
     const last = data.history[data.history.length - 1];
     if (last && last.date === day) data.history[data.history.length - 1] = entry;
     else data.history.push(entry);

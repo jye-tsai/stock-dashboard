@@ -116,6 +116,41 @@ def holdings_lines(d):
         L.append(f"⚠ 今日股價沒更新到收盤（最後 {pu or '無'}），上面是舊價；請檢查 Cloudflare 排程")
     return L
 
+def trades_lines(d):
+    """今日進出:比對前一交易日 history 的張數快照(update-prices.mjs 寫入 history[].lots)。
+    張數減少 = 賣、增加 = 買;已實現只在有賣出時顯示(今日 已實現損益 − 前一交易日 history.real)。
+    買進價由均價推回:(新均價×新張數 − 舊均價×舊張數) ÷ 加碼張數(要使用者有更新均價才準)。沒快照或沒進出 → []"""
+    today = today_tpe()
+    prev = next((h for h in reversed(d.get("history") or []) if str(h.get("date", "")) < today and isinstance(h.get("lots"), dict)), None)
+    if not prev: return []
+    old_lots = prev["lots"]
+    fl = lambda x: f"{x:,.3f}".rstrip("0").rstrip(".")                # 張數:5 / 2.33 / 0.5(零股)
+    names = {h.get("code"): (h.get("name") or "")[:10] for h in (d.get("holdings") or [])}
+    buys, sells = [], []
+    cur = {h.get("code"): h for h in (d.get("holdings") or []) if h.get("code")}
+    for code in sorted(set(old_lots) | set(cur)):
+        h = cur.get(code) or {}
+        a, b = float(old_lots.get(code) or 0), float(h.get("lots") or 0)
+        if abs(b - a) < 1e-9: continue
+        nm = names.get(code, "")
+        if b < a:
+            sells.append(f"賣 {code} {nm} {fl(a - b)} 張" + ("（全部）" if b == 0 else f"（剩 {fl(b)} 張）"))
+        else:
+            px = h.get("cost") or 0
+            if a > 0 and isinstance(prev.get("costs"), dict) and prev["costs"].get(code):
+                px = (px * b - prev["costs"][code] * a) / (b - a)
+            add = f"買 {code} {nm} {fl(b - a)} 張"
+            if px > 0 and (a == 0 or isinstance(prev.get("costs"), dict) and prev["costs"].get(code)):
+                add += f" @{fl(px)}（{js_round(px * 1000 * (b - a)):,}）"
+            if a > 0: add += f"（共 {fl(b)} 張）"
+            buys.append(add)
+    if not buys and not sells: return []
+    L = ["── 今日進出 ──"] + sells + buys
+    if sells:
+        real = (d.get("已實現損益") or 0) - (prev.get("real") or 0)
+        L.append(f"今日已實現 {fmt(real)}")
+    return L
+
 def main():
     tok, uid = os.getenv("LINE_CHANNEL_TOKEN"), os.getenv("LINE_USER_ID")
     if not DRY and (not tok or not uid):
@@ -126,7 +161,7 @@ def main():
         print(f"notify: {chip_date} 已通知過，略過"); return
     try:
         d = load_data_json()
-        if d: lines += holdings_lines(d)
+        if d: lines += holdings_lines(d) + trades_lines(d)
     except Exception as e:
         lines.append(f"（庫存段讀取失敗：{e.__class__.__name__}）"); print("notify: holdings error", repr(e))
     site = os.getenv("SITE_URL", "")
