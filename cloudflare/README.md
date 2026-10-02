@@ -17,6 +17,16 @@ Cloudflare 星期欄 **1=日 … 7=六**(跟 GitHub 不同)。
 **新增 / 修改 cron 時,三個地方要一起改**:Cloudflare 後台的 Cron Triggers、`worker.mjs` 的 `ROUTES`、這張表。
 對不上時 Worker log 會出現「⚠ 未知 cron」。
 
+## cron-job.org(第二條觸發路,2026-10-02 加)
+
+Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job.org 每 10 分打 Worker 根網址 `/`,跟 Cloudflare cron 並行:
+
+- URL:Worker 根網址(結尾 `/`)
+- Schedule:Custom,Minutes `0,10,20,30,40,50`、Hours `9-13`、週一~五,Time zone `Asia/Taipei`
+- 預期回應:`✅ 已觸發 股價 update-prices`(cron-job.org 的 History 看得到每次的回應與狀態碼)
+
+注意:Worker 網址是公開的,打 `/` 就會觸發一次 Action(無害,只是多跑);瀏覽器網址列預先載入也會算一次,所以手動測試時常見「同一秒兩次」。
+
 ## 改程式
 
 1. 改 `worker.mjs` → commit
@@ -28,5 +38,7 @@ Cloudflare 星期欄 **1=日 … 7=六**(跟 GitHub 不同)。
 - **股價沒自動更新**:Worker → Logs 看有沒有 `cron */10 1-5 * * * → update-prices.yml`
   - 完全沒有紀錄 → Cron Triggers 那條不見 / 被改(2026-10-02 就是被換成 `*/30 * * * *`)
   - 有紀錄但 `dispatch failed 401` → `GH_TOKEN` 過期,重產 PAT 更新 Secret
+  - Cloudflare 那邊沒紀錄,但 cron-job.org History 有 200 → 正常,cron-job.org 頂著;有空再修 Cloudflare
+  - cron-job.org History 是 5xx / 逾時 → Worker 掛了或 `GH_TOKEN` 過期(回應內容會寫 GitHub 的錯誤)
 - **手動補一次**:瀏覽器開 Worker 根網址 `/`(股價)、`/chips`、`/premarket`
 - 盤中斷線超過 30 分鐘,`update-prices.mjs` 下一次有跑到時會推 LINE「⚠ 股價排程可能停了」;15:40 籌碼站推播也會標出「今日股價沒更新到收盤」。

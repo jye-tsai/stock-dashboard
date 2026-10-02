@@ -14,7 +14,7 @@
 
 - **前端四個檔**:`index.html`(純結構,約 290 行)、`styles.css`(主題 + 版面)、`app.js`(主程式,§ 分段,Ctrl+F 搜 `§` 跳段)、`charts.js`(八張圖 + 熱圖,每圖一支 `drawXxx(T)`);純計算在 `scripts/calc.js`(前端與 Action 共用)。載入順序:calc.js → Chart.js → charts.js → app.js。
 - **HTML 不寫 `onclick`**:按鈕用 `data-action="fn" data-args='[...]'`,由 `app.js` §16b 的委派 listener 查允許清單(`ACTIONS`)呼叫;Enter 送出用 `data-enter="fn"`。新增按鈕記得把函式名加進 `ACTIONS`。
-- **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker 的 cron** 準時觸發(GitHub 自己的 schedule 當備援)。
+- **市價不是前端抓的**——瀏覽器受 CORS 限制抓不到證交所/Yahoo。市價由 **GitHub Action 跑 `scripts/update-prices.mjs`** 在伺服器端抓,寫回 `data.json` 並 commit;由 **Cloudflare Worker** 觸發:Worker 自己的 cron + **cron-job.org 每 10 分打 Worker 網址** 兩路並行,GitHub 自己的 schedule 與「開網頁補觸發」再當兩層備援。細節與出事怎麼查:`cloudflare/README.md`。
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完用 GitHub Desktop push**(本機資料夾已是 git repo,接著 `origin/main`):開 GitHub Desktop → 看 Changes 清單 → 寫一行摘要 → Commit → Push。子資料夾、隱藏資料夾、刪檔全部一次同步,不會再漏。Cloudflare Worker 正本在 `cloudflare/worker.mjs`(沒有 token,可以放 repo);`data.json` 不要勾(排程會自己 commit,你本機那份永遠比較舊)。
 - **上傳前一鍵**:`node tools/bump.mjs` → 先跑測試,綠燈才把 `index.html` 四處 `?v=` 與 `sw.js` 的 `ASSET_VER` / `CACHE` 換成新值(台北日期 + 序號字母),並印出要上傳哪些檔。**不要再手改版號**。
@@ -117,18 +117,27 @@
 ## 自動更新市價:運作架構
 
 ```
-Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
-        │                                        │
-        │                                  GitHub Action 執行
-        │                              scripts/update-prices.mjs
-        │                      (Yahoo 即時 → MIS → 證交所/櫃買收盤補新標的)
-        ▼                                        │
-  台北 09:00–13:50 每 10 分            寫回 data.json + commit
-                                                 │
-                                         GitHub Pages 重新部署
-                                                 │
-                                          儀表板讀到最新價
+Cloudflare cron(*/10 1-5)──┐
+cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workflow_dispatch
+  台北 09:00–13:50 每 10 分                                   │
+                                                       GitHub Action 執行
+備援:GitHub schedule(:05/:20/:35/:50,常延遲)      scripts/update-prices.mjs
+      開網頁 / 下拉刷新(股價 >15 分沒更新才補)   (Yahoo 即時 → MIS → 證交所/櫃買收盤補新標的)
+                                                              │
+                                                 寫回 data.json + commit
+                                                              │
+                                         儀表板讀 GitHub API(有 token)/ Pages
 ```
+
+**觸發來源一覽**(誰都可能打 `update-prices.yml`,同一時間只會有一個 Action 在跑,重複觸發無害):
+
+| 來源 | 時間 | 角色 |
+|---|---|---|
+| Cloudflare Worker cron `*/10 1-5 * * *` | 09:00–13:50 每 10 分 | 主力 |
+| cron-job.org → Worker 根網址 `/` | 週一~五 09:00–13:50 每 10 分(Asia/Taipei) | 主力(2026-10-02 加,Cloudflare cron 整段不觸發時頂上) |
+| GitHub `schedule` | `:05/:20/:35/:50`,常延遲數小時或漏跑 | 最後備援 |
+| 網頁(開啟 / 下拉刷新) | 股價超過 15 分沒更新才送,同 10 分區段一次 | 備援 |
+| 「📈 更新市價」按鈕 / 瀏覽器開 Worker `/` | 手動 | 立刻更新 |
 
 `update-prices.mjs` 行為重點:
 
@@ -147,6 +156,8 @@ Cloudflare Worker(cron,準時) ──呼叫──▶ GitHub workflow_dispatch
 ### 為什麼用 Cloudflare Worker?
 
 GitHub 內建 `schedule` 排程**不可靠**(常延遲數小時、漏跑、在奇怪時間跑)。所以改用 **Cloudflare Worker cron** 準時觸發 GitHub Action;GitHub Action 自己的 `schedule` 保留當備援(`.yml` 內 `5,20,35,50 1-6 * * *`)。
+
+**但 Cloudflare cron 也會掛**:2026-10-02 股價那條先是被換成 `*/30 * * * *`(原因不明,Edit code 裡沒有 wrangler 設定檔),改回 `*/10 1-5 * * *` 後 11:20、11:30 正常,接著又整段不觸發(Worker log 無紀錄、無錯誤)。Worker 程式與 token 都正常(手動開網址可觸發),壞的只有 Cloudflare 的排程本身。所以加 **cron-job.org** 每 10 分直接打 Worker 根網址,兩路並行;任一邊活著就有價。
 
 ### 排程時間(都用 UTC,台北 = UTC + 8)
 
