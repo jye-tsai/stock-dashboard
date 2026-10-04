@@ -1,0 +1,7 @@
+# 籌碼站(chips.yml)用的套件;改這裡 GitHub Actions 的 pip 快取會自動失效重裝
+requests
+pandas
+beautifulsoup4
+pymupdf
+cryptography
+pillow

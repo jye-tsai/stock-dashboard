@@ -11,6 +11,8 @@ LINE Notify 已於 2025 年停止服務，故改用 Messaging API。免費方案
 data.json 是前端同一把 AES-256-GCM 金鑰混淆的（防君子不防小人，金鑰本來就在公開的 app.js 裡），這裡用 cryptography 解開。
 損益公式與 scripts/calc.js 對齊：成本 / 市值四捨五入到元、賣出成本 = 市值 ×（證交稅率 + 手續費率 × 折數）、未實現 = 市值 − 成本 − 賣出成本。"""
 import os, sys, json, math, base64, datetime as dt
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import read_json, write_json, tw_now                    # 共用小工具(見 common.py)
 try: sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # Windows 主控台 cp950 印不出 emoji，本機 --dry-run 預覽用
 except Exception: pass
 
@@ -31,13 +33,13 @@ def fmt2(n):
     return f"{n:,.2f}"
 
 def today_tpe():
-    return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=8)).strftime("%Y-%m-%d")
+    return tw_now().strftime("%Y-%m-%d")
 
 # ── 盤後數據段 ──
 def chips_lines():
     p = os.path.join(DATA_DIR, "latest.json")
     if not os.path.exists(p): return ["🐶 盤後數據尚未產生"], None
-    t = json.load(open(p, encoding="utf-8"))
+    t = read_json(p) or {}
     ix, i, f = t.get("index") or {}, t.get("inst") or {}, (t.get("txf") or {}).get("外資") or {}
     mr, tr = t.get("mtx_retail") or {}, t.get("tmf_retail") or {}
     L = [f"🐶 {t['date']} 盤後"]
@@ -67,7 +69,7 @@ def chips_lines():
 def load_data_json():
     p = os.path.join(ROOT, "data.json")
     if not os.path.exists(p): return None
-    raw = json.load(open(p, encoding="utf-8"))
+    raw = read_json(p)
     if not (isinstance(raw, dict) and raw.get("enc")): return raw
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     iv, ct = base64.b64decode(raw["iv"]), base64.b64decode(raw["ct"])   # ct 尾 16 bytes 是 tag，AESGCM.decrypt 吃的正是這格式
@@ -181,7 +183,7 @@ def main():
     if not DRY and (not tok or not uid):
         print("notify: 無 LINE secrets，略過"); return
     lines, chip_date = chips_lines()
-    mark = json.load(open(MARK, encoding="utf-8")) if os.path.exists(MARK) else {}
+    mark = read_json(MARK, {})
     if not DRY and chip_date and mark.get("last") == chip_date:
         print(f"notify: {chip_date} 已通知過，略過"); return
     try:
@@ -198,7 +200,6 @@ def main():
     msgs = [{"type": "text", "text": text[:4900]}]
     card = os.path.join(DATA_DIR, f"card_post_{chip_date.replace('/', '')}.png") if chip_date else None
     if card and site and os.path.exists(card):                   # 先圖後文字;圖要等 Pages 部署完才抓得到,逾時就只發文字
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from render_card import card_url_when_live, image_message
         url = card_url_when_live(card, site, int(os.getenv("CARD_WAIT", "240")))
         if url: msgs.insert(0, image_message(url)); print("notify: 圖卡", url)
@@ -208,7 +209,7 @@ def main():
                       json={"to": uid, "messages": msgs}, timeout=20)
     print("notify:", r.status_code, r.text[:120])
     if r.status_code == 200 and chip_date:
-        json.dump({"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}, open(MARK, "w", encoding="utf-8"))
+        write_json(MARK, {"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")})   # 原子寫入
 
 if __name__ == "__main__":
     main()

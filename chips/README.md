@@ -18,7 +18,8 @@
 收盤 → 開網頁 → 確認日期是今天 → 「📋 複製給 Claude」→ 貼到對話（永豐 PNG 可一併拖給 Claude 對照）。
 
 ## 排程
-跟收盤價一樣：**Cloudflare Worker 準時打 `workflow_dispatch`**（台北 15:40、16:40，帶 `inputs.source=cron`），GitHub 自己的 `schedule` 當備援（會漂移）。Worker 程式在本機 `cloudflare-worker.js`（不進 repo），Cron Triggers 加 `40 7 * * 2-6` 與 `40 8 * * 2-6`（UTC；**Cloudflare 星期欄 1=日 … 7=六**，跟 GitHub 的 0=日不同，寫 `1-5` 會變週日～週四）。
+**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:35 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:25 / 07:30、週日 12:00 先發週一）。LINE 同一天只發一次。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
+GitHub 自己的 `schedule` 只剩 **21:30 補融資**(晚到也無妨)與週日週報;原本 15:40 / 16:40 的 GitHub 備援實際每晚 22:00–03:00 才跑,2026-10-04 拿掉。
 舊圖：每次抓完會刪「當日不在清單裡的 png」與「30 天前的 png」，repo 不會被 PDF 轉圖越撐越肥。
 
 ## 回補歷史（20 日走勢）
@@ -31,7 +32,8 @@ Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回�
 門檻與文字在 `chips/panghu.json`。v2 評分版設定封存在 `chips/panghu_v2.json`、v3 在 `chips/panghu_v3.json`,只給回測當對照組。
 
 ## 程式結構
-`scripts/fetch_all.py` 抓資料、找交易日、寫檔;`scripts/panghu.py` 是胖虎指標的純計算(v2 對照 / v4 描述 / 位置百分位 / 一句話總結),不碰網路,盤後與回測共用;`tests/test_panghu.py` 用假資料測它,`tests/alerts.test.mjs` 測停損 / 目標價提醒,兩者都在 check.yml 自動跑。`data/series.json` 是近 20 日的精簡資料,籌碼站的 20 日走勢圖只抓這一支。
+`scripts/common.py` 是各支共用的小工具:台北時間、原子寫檔(寫到一半中斷不會留半截 json)、證交所被擋時自動重試的 `get_json`、期交所 CSV 解析(`parse_tx` 盤前夜盤與盤後共用);`tests/test_chips_fetch.py` 用 `tests/fixtures/chips` 的假資料(期交所 / 證交所格式)測抓取解析,不連外。`scripts/commit_push.sh` 是 workflow 兩個 Commit 步驟共用的 commit + 重試 push。
+`scripts/fetch_all.py` 抓資料、找交易日、寫檔;前一交易日已存檔且完整(沒缺欄位、融資是真值)就直接讀檔,不再整套重抓;`scripts/panghu.py` 是胖虎指標的純計算(v2 對照 / v4 描述 / 位置百分位 / 一句話總結),不碰網路,盤後與回測共用;`tests/test_panghu.py` 用假資料測它,`tests/alerts.test.mjs` 測停損 / 目標價提醒,兩者都在 check.yml 自動跑。`data/series.json` 是近 20 日的精簡資料,籌碼站的 20 日走勢圖只抓這一支。
 
 ## 回測（驗證胖虎指標）
 **自動**：每週六 11:00 自動補上新交易日並重算報告與 `events.json`；改到 `chips/panghu*.json`、`fetch_all.py`、`backtest.py`、`panghu_v3.py` 時也會自動重算（不抓資料）。以下是手動用法。
@@ -52,10 +54,10 @@ GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資�
 期交所三大法人約 15:00 才算好；在那之前查得到當天，但多空未平倉全是 0。程式把這種情況視為「尚未公布」，自動改用前一交易日，不會把 0 當真算出假的增減。
 
 ## 盤前資料（07:30）
-`scripts/premarket.py` 抓美股四大指數、台積電 ADR 等個股、美債 10Y、美元指數、黃金、油、美元兌台幣、VIX（Yahoo，失敗退 Stooq），加上期交所台指期夜盤與前一交易日台股收盤（讀 `data/latest.json`），寫成 `data/premarket_YYYYMMDD.json`、`data/premarket_latest.json`、`data/premarket_YYYYMMDD_claude.txt`。抓不到的欄位一律寫「【缺】」並列在 `missing`，不猜數字。程式再依規則產生「描述卡」（一句話 + 美股 / 半導體 / 利率匯率 / 夜盤 / 昨收五格，門檻在 `panghu.json` 的 `premarket`，各標的漲跌附近 3 年百分位；只描述、不預測），寫在 `describe`。頁面最上面的金框卡片顯示描述卡，數據表收在下面，`notify_premarket.py` 早上推一則 LINE（同一天只發一次）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌會標「可能是換月」。每天 07:30 由 Cloudflare Worker 觸發（cron `30 23 * * 1-5`，dispatch `chips.yml` 帶 `premarket=true`），GitHub 本身不排程。手動跑：Actions → chips → Run workflow → `premarket` 填 true。
+`scripts/premarket.py` 抓美股四大指數、台積電 ADR 等個股、美債 10Y、美元指數、黃金、油、美元兌台幣、VIX（Yahoo，失敗退 Stooq），加上期交所台指期夜盤與前一交易日台股收盤（讀 `data/latest.json`），寫成 `data/premarket_YYYYMMDD.json`、`data/premarket_latest.json`、`data/premarket_YYYYMMDD_claude.txt`。抓不到的欄位一律寫「【缺】」並列在 `missing`，不猜數字。程式再依規則產生「描述卡」（一句話 + 美股 / 半導體 / 利率匯率 / 夜盤 / 昨收五格，門檻在 `panghu.json` 的 `premarket`，各標的漲跌附近 3 年百分位；只描述、不預測），寫在 `describe`。頁面最上面的金框卡片顯示描述卡，數據表收在下面，`notify_premarket.py` 早上推一則 LINE（同一天只發一次）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌會標「可能是換月」。每天 07:25(cron-job.org)/ 07:30(Cloudflare `30 23 * * 1-5`)觸發(dispatch `chips.yml` 帶 `premarket=true`),週日 12:00 先發週一盤前,GitHub 本身不排程。15 個美股標的同時抓。手動跑：Actions → chips → Run workflow → `premarket` 填 true。
 
 ## 圖卡（每日自動）
-`scripts/render_card.py` 把盤後（`latest.json`）與盤前（`premarket_latest.json`）畫成 1080 寬的 PNG：`data/card_post_YYYYMMDD.png`、`data/card_pre_YYYYMMDD.png`，同一天重跑會覆蓋，30 天後自動刪。GitHub 上用 Noto Sans CJK（workflow 會 apt 裝），本機用微軟正黑。LINE 傳圖只能給公開網址，所以 workflow 順序是「抓資料 → 畫圖卡 → commit → LINE（等 Pages 上的圖跟剛畫的一樣才傳，最多 4 分鐘，逾時只發文字）→ commit 通知標記」，LINE 會比以前晚 1~2 分鐘。網頁兩張卡片標題旁的「🖼 圖卡」可以直接開圖長按存檔。
+`scripts/render_card.py` 把盤後（`latest.json`）與盤前（`premarket_latest.json`）畫成 1080 寬的 PNG：`data/card_post_YYYYMMDD.png`、`data/card_pre_YYYYMMDD.png`，同一天重跑會覆蓋，30 天後自動刪。GitHub 上用 Noto Sans CJK（workflow 第一次 apt 裝後快取在 `~/.cache/fonts-cjk`,之後直接用;套件也有 pip 快取），本機用微軟正黑。LINE 傳圖只能給公開網址，所以 workflow 順序是「抓資料 → 畫圖卡 → commit → LINE（等 Pages 上的圖跟剛畫的一樣才傳，最多 4 分鐘，逾時只發文字）→ commit 通知標記」，LINE 會比以前晚 1~2 分鐘。網頁兩張卡片標題旁的「🖼 圖卡」可以直接開圖長按存檔。
 
 ## LINE 通知
 只在 **15:40 排程或 Cloudflare cron 那班**推一則（免費方案每月 200 則；手動 Run workflow 與頁面「立即抓取」不通知），同一交易日不重發（`data/notified.json`）。

@@ -14,8 +14,10 @@ import sys, os, io, re, json, time, math, bisect, datetime as dt
 import requests, pandas as pd
 from urllib.parse import urljoin
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from panghu import *                                             # 胖虎指標純計算:v2 對照 / v4 描述 / 位置百分位 / 一句話總結(backtest 走 fa.xxx 也照樣拿得到)
+# 刻意用 import *:backtest.py 透過 fa.build_describe / fa.POS_SPEC / fa.realized_vol… 取用 panghu 的東西,改成逐一 import 會讓回測壞掉
+from panghu import *                                             # 胖虎指標純計算:v2 對照 / v4 描述 / 位置百分位 / 一句話總結
 from panghu import _close, _amt, _pct, _mean, _lvl, _fmt, _run   # import * 不帶底線名稱,補上
+from common import tw_now, read_json, write_json, write_text, get_json, decode, read_csv_text, col, parse_tx   # 共用小工具(見 common.py)
 
 TAIFEX = "https://www.taifex.com.tw/cht/3/"
 TWSE   = "https://www.twse.com.tw/rwd/zh/"
@@ -36,12 +38,6 @@ LOG = []
 def log(s): LOG.append(s); print(s)
 
 # ─────────────── 工具 ───────────────
-def decode(raw: bytes) -> str:
-    for enc in ("utf-8-sig", "cp950", "big5"):
-        try: return raw.decode(enc)
-        except UnicodeDecodeError: pass
-    return raw.decode("utf-8", "ignore")
-
 def num(x, default=0):
     if x is None: return default
     s = str(x).replace(",", "").replace("+", "").strip()
@@ -58,7 +54,7 @@ def taifex_fut(date):
                       data={"queryStartDate": date, "queryEndDate": date, "commodityId": ""}, headers=H, timeout=30)
     txt = decode(r.content)
     if "商品名稱" not in txt: return None
-    df = pd.read_csv(io.StringIO(txt), index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
+    df = read_csv_text(txt)
     return df if not df.empty else None
 
 def fut_oi(df, name):
@@ -85,8 +81,8 @@ def taifex_market_oi(date, code):
                       headers=H, timeout=30)
     txt = decode(r.content)
     if "未沖銷" not in txt: log(f"  {code} 全市場OI：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
-    col_oi = [c for c in df.columns if "未沖銷" in c][0]
+    df = read_csv_text(txt, dtype=str)
+    col_oi = col(df, "未沖銷")
     col_sess = [c for c in df.columns if "交易時段" in c]
     sub = df
     if col_sess:
@@ -102,27 +98,14 @@ def taifex_market_oi(date, code):
     return total
 
 def taifex_tx_close(date):
-    """臺股期貨近月：一般時段收盤、盤後（夜盤）收盤"""
+    """臺股期貨近月：一般時段收盤、盤後（夜盤）收盤(解析在 common.parse_tx,盤前的夜盤也用同一支)"""
     r = requests.post(TAIFEX + "futDataDown",
                       data={"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date},
                       headers=H, timeout=30)
     txt = decode(r.content)
     if "收盤價" not in txt: log("  TX 收盤：CSV 無收盤價欄"); return None
-    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]
-    c_m = [c for c in df.columns if "到期月份" in c][0]; c_close = [c for c in df.columns if c.startswith("收盤價")][0]
-    c_sess = [c for c in df.columns if "交易時段" in c]
-    df = df[df[c_m].astype(str).str.strip().str.fullmatch(r"\d{6}")]          # 排除價差/週選
-    if df.empty: return None
-    near = sorted(df[c_m].astype(str).str.strip().unique())[0]
-    sub = df[df[c_m].astype(str).str.strip() == near]
-    def close_of(mask):
-        v = pd.to_numeric(sub[mask][c_close].astype(str).str.replace(",", ""), errors="coerce").dropna()
-        return float(v.iloc[0]) if len(v) else None
-    if c_sess:
-        day = close_of(sub[c_sess[0]].astype(str).str.contains("一般")); night = close_of(sub[c_sess[0]].astype(str).str.contains("盤後"))
-    else:
-        day, night = close_of(pd.Series(True, index=sub.index)), None
-    return {"contract": near, "close": day, "night_close": night}
+    x = parse_tx(txt)
+    return {"contract": x["contract"], "close": x["day_close"], "night_close": x["night_close"]} if x else None
 
 def retail_ratio(market_oi, inst):
     """永豐口徑：散戶多單＝全市場OI−三大法人多單；散戶空單＝全市場OI−三大法人空單；比＝(多−空)/全市場OI"""
@@ -138,10 +121,10 @@ def taifex_opt(date):
                       data={"queryStartDate": date, "queryEndDate": date, "commodityId": "TXO"}, headers=H, timeout=30)
     txt = decode(r.content)
     if "身份別" not in txt: log("  選擇權：CSV 無身份別欄"); return None
-    df = pd.read_csv(io.StringIO(txt), index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
-    c_role = [c for c in df.columns if "身份" in c][0]
-    c_cp   = [c for c in df.columns if "權別" in c or "買賣權" in c][0]
-    c_net  = [c for c in df.columns if "未平倉" in c and "淨額" in c and "口數" in c][0]
+    df = read_csv_text(txt)
+    c_role = col(df, "身份")
+    c_cp   = next((c for c in df.columns if "權別" in c or "買賣權" in c), None) or col(df, "權別")
+    c_net  = col(df, "未平倉", "淨額", "口數")
     df[c_role] = df[c_role].ffill(); df[c_cp] = df[c_cp].ffill()      # CSV 合併儲存格會留空 → 往下補
     out = {}
     for _, r in df.iterrows():
@@ -159,9 +142,8 @@ def taifex_pc(date):
     r = requests.post(TAIFEX + "pcRatioDown", data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
     txt = decode(r.content)
     if "買賣權" not in txt: log(f"  P/C：回應非預期（前 80 字）{txt[:80]!r}"); return None
-    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]; df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
-    c_date = [c for c in df.columns if "日期" in c][0]
-    c_vol = [c for c in df.columns if "成交量比率" in c][0]; c_oi = [c for c in df.columns if "未平倉量比率" in c][0]
+    df = read_csv_text(txt, dtype=str)
+    c_date, c_vol, c_oi = col(df, "日期"), col(df, "成交量比率"), col(df, "未平倉量比率")
     def f(v):
         m = re.search(r"-?\d+(?:\.\d+)?", str(v).replace(",", "")); return float(m.group()) if m else None
     rows = df[df[c_date].astype(str).str.strip() == date]
@@ -196,14 +178,10 @@ def taifex_vix(date):
 
 # ─────────────── 證交所：加權指數／成交金額 ───────────────
 def twse_index(date, tries=3):
-    # 證交所短時間連打(今日 + 前一交易日各一次)會回空白 / HTML → 先看是不是 JSON,不是就等 4 秒重試,最多 tries 次
-    for a in range(tries):
-        r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": ymd(date), "response": "json"}, headers=H, timeout=30)
-        if r.text.strip().startswith("{"): break
-        log(f"  加權指數 {date}:非 JSON 回應 {r.text[:60]!r},第 {a + 1} 次")
-        if a < tries - 1: time.sleep(4)
-    else: return None
-    j = r.json()
+    # 證交所短時間連打(今日 + 前一交易日各一次)會回空白 / HTML → get_json 等一下重試,最多 tries 次
+    j = get_json(requests.get, TWSE + "afterTrading/FMTQIK", params={"date": ymd(date), "response": "json"}, headers=H,
+                 tries=tries, log=log, label=f"加權指數 {date}")
+    if j is None: return None
     if j.get("stat") != "OK": return None
     y, m, d = date.split("/"); roc = f"{int(y)-1911}/{m}/{d}"
     for row in j["data"]:   # 日期, 成交股數, 成交金額, 成交筆數, 加權指數, 漲跌點數
@@ -213,9 +191,9 @@ def twse_index(date, tries=3):
 
 # ─────────────── 證交所：三大法人買賣超（億） ───────────────
 def twse_inst(date):
-    r = requests.get(TWSE + "fund/BFI82U", params={"dayDate": ymd(date), "type": "day", "response": "json"}, headers=H, timeout=30)
-    j = r.json()
-    if j.get("stat") != "OK": return None
+    j = get_json(requests.get, TWSE + "fund/BFI82U", params={"dayDate": ymd(date), "type": "day", "response": "json"}, headers=H,
+                 log=log, label=f"三大法人 {date}")
+    if not j or j.get("stat") != "OK": return None
     out = {}
     for row in j["data"]:
         name, net = row[0], num(row[3]) / 1e8
@@ -227,9 +205,9 @@ def twse_inst(date):
 
 # ─────────────── 證交所：融資餘額（億） ───────────────
 def twse_margin(date):
-    r = requests.get(TWSE + "marginTrading/MI_MARGN", params={"date": ymd(date), "selectType": "MS", "response": "json"}, headers=H, timeout=30)
-    try: j = r.json()
-    except Exception: log(f"  融資：非 JSON 回應 {r.text[:80]!r}"); return None
+    j = get_json(requests.get, TWSE + "marginTrading/MI_MARGN", params={"date": ymd(date), "selectType": "MS", "response": "json"}, headers=H,
+                 log=log, label=f"融資 {date}")
+    if j is None: return None
     log(f"  融資 keys：{list(j.keys())[:8]}")
     if j.get("stat") != "OK": log(f"  融資：證交所回 {j.get('stat')}"); return None
     rows = j.get("creditList") or []
@@ -275,7 +253,7 @@ def spf_fetch(date):
 def cleanup_pngs(tag, keep):
     """刪掉：(1) 當日不在 spf 清單裡的 png（舊版曾把盤後快訊轉出 30 頁）；(2) 30 天前的 png（json 留著）。
     當日 spf 一張都沒抓到（永豐尚未上傳／抓失敗）就不碰當日的圖，避免把上一班抓好的刪掉。"""
-    cutoff = (dt.datetime.utcnow() + dt.timedelta(hours=8) - dt.timedelta(days=30)).strftime("%Y%m%d")
+    cutoff = (tw_now() - dt.timedelta(days=30)).strftime("%Y%m%d")
     removed = []
     for fn in os.listdir(DATA):
         if not fn.endswith(".png"): continue
@@ -297,7 +275,7 @@ def prev_trading_day(date):
     return None, None
 
 def latest_trading_day():
-    d = dt.datetime.utcnow() + dt.timedelta(hours=8)
+    d = tw_now()
     for _ in range(12):
         s = d.strftime("%Y/%m/%d")
         if d.weekday() < 5:
@@ -339,8 +317,7 @@ def fill_index_from_saved(t):
     """加權指數抓不到時,退回讀已存檔的 data/{tag}.json(前一交易日通常前一天就存好了;16:40 重跑時當日也有 15:40 的檔),
     免得前收是空的、漲跌 % 變問號。檔裡也沒有就維持 None。"""
     if t.get("index"): return
-    try: old = json.load(open(os.path.join(DATA, f"{ymd(t['date'])}.json"), encoding="utf-8")).get("index")
-    except Exception: return
+    old = (read_json(os.path.join(DATA, f"{ymd(t['date'])}.json")) or {}).get("index")
     if old and old.get("close"):
         t["index"] = old
         if "index" in t.get("missing", []): t["missing"].remove("index")
@@ -394,8 +371,9 @@ def recent_days(n, skip_tag):
     out = []
     for tag in load_index():                       # index.json 是新到舊
         if tag >= skip_tag: continue
-        try: out.append(json.load(open(os.path.join(DATA, f"{tag}.json"), encoding="utf-8")))
-        except Exception: continue
+        x = read_json(os.path.join(DATA, f"{tag}.json"))
+        if x is None: continue
+        out.append(x)
         if len(out) >= n: break
     return list(reversed(out))
 
@@ -502,18 +480,13 @@ def _month_index(y, m, tries=3):
     key = (y, m)
     if _IH.get(key): return _IH[key]
     out = {}
-    for a in range(tries):
-        try:
-            r = requests.get(TWSE + "afterTrading/FMTQIK", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H, timeout=30)
-            j = r.json()
-            if j.get("stat") == "OK":
-                for row in j.get("data") or []:
-                    yy, mm, dd = row[0].strip().split("/")
-                    out[f"{int(yy) + 1911}/{mm}/{dd}"] = (num(row[4]), round(num(row[2]) / 1e8))
-                if out: break
-            else: log(f"  加權月表 {y}/{m:02d}:證交所回 {j.get('stat')}")
-        except Exception as e: log(f"  加權月表 {y}/{m:02d} 失敗({e.__class__.__name__}),第 {a + 1} 次")
-        time.sleep(3 * (a + 1))
+    j = get_json(requests.get, TWSE + "afterTrading/FMTQIK", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H,
+                 tries=tries, wait=3, log=log, label=f"加權月表 {y}/{m:02d}")
+    if j and j.get("stat") == "OK":
+        for row in j.get("data") or []:
+            yy, mm, dd = row[0].strip().split("/")
+            out[f"{int(yy) + 1911}/{mm}/{dd}"] = (num(row[4]), round(num(row[2]) / 1e8))
+    elif j: log(f"  加權月表 {y}/{m:02d}:證交所回 {j.get('stat')}")
     if out: _IH[key] = out
     time.sleep(1.2)
     return out
@@ -548,11 +521,9 @@ def recent_fut_nets(date, n):
     got = {}
     y, m = int(date[:4]), int(date[5:7])
     for _ in range(4):                                             # 往回 4 個月的回測原始資料
-        try:
-            for d, x in json.load(open(os.path.join(DATA, "..", "backtest", "raw", f"{y}{m:02d}.json"), encoding="utf-8")).items():
-                fu = (x.get("txf") or {}).get("外資") or {}
-                if d < date and (fu.get("long") or 0) + (fu.get("short") or 0) > 0: got[d] = fu["net"]
-        except Exception: pass
+        for d, x in (read_json(os.path.join(DATA, "..", "backtest", "raw", f"{y}{m:02d}.json")) or {}).items():
+            fu = (x.get("txf") or {}).get("外資") or {}
+            if d < date and (fu.get("long") or 0) + (fu.get("short") or 0) > 0: got[d] = fu["net"]
         m -= 1
         if m == 0: y, m = y - 1, 12
     for x in recent_days(n, ymd(date)):
@@ -580,19 +551,30 @@ def describe_live(t, p, hist, cfg):
     return pg
 
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
+DERIVED = ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at", "spf")
+def raw_fields(x):
+    """只留 collect() 抓到的原始欄位(拿掉衍生 / 疊加的欄位)"""
+    return {k: v for k, v in x.items() if k not in DERIVED}
+
+def load_saved_day(date):
+    """已存檔且完整的那天(missing 是空的,融資也是真值)→ 回原始欄位,不用再打一輪期交所 / 證交所;否則 None 照舊重抓。
+    盤後每班都要「前一交易日」對照,原本每次整套重抓(約 10 個請求,一半打證交所,容易被擋)。"""
+    x = read_json(os.path.join(DATA, f"{ymd(date)}.json"))
+    if not x or x.get("date") != date or x.get("missing") or x.get("margin_note"): return None
+    return raw_fields(x)
 def finish_day(t, p):
     """補上依賴前一日的欄位:融資沿用、prev、claude_text、昨日摘要。"""
     if t.get("margin") is None and p.get("margin") is not None:
         t["margin"] = p["margin"]; t["margin_note"] = f"證交所尚未公布，沿用 {p['date']} 值"; log("  融資：" + t["margin_note"])
     # 前一日只留 collect() 抓到的原始欄位:回補時 p 是已經寫過的前一天,若整份塞進去會連它的 prev 一起帶著,一天疊一天(曾疊到 18 層、檔案 400 KB)
-    t["prev"] = {k: v for k, v in p.items() if k not in ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at")}
+    t["prev"] = raw_fields(p)
     t["log"] = LOG
     hist = recent_days(20, ymd(t["date"]))
     try: t["insight"] = build_insight(t, p, hist)
     except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
     try: t["panghu"] = describe_live(t, p, hist, load_panghu_cfg())      # v4 描述型(v2 評分版 build_panghu 只留給回測當對照)
     except Exception as e: log(f"  胖虎指標計算失敗:{e.__class__.__name__}: {e}")
-    t["generated_at"] = (dt.datetime.utcnow() + dt.timedelta(hours=8)).isoformat(timespec="seconds")
+    t["generated_at"] = tw_now().isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
     if (t.get("insight") or {}).get("lines"):
         t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
@@ -604,19 +586,15 @@ def finish_day(t, p):
         for e in pg.get("events") or []:
             t["claude_text"] += f"\n⚠ 極端事件 {e['name']}({e['text']},近 10 日第 {e['day']} 次):{e.get('history_text', '')}"
     prev_file = os.path.join(DATA, f"{ymd(p['date'])}.json")     # 給「複製給 Claude」用的昨日摘要（前 4 行）
-    if os.path.exists(prev_file):
-        try:
-            pj = json.load(open(prev_file, encoding="utf-8"))
-            t["prev_summary"] = "\n".join((pj.get("claude_text") or "").splitlines()[:4])
-        except Exception: pass
+    pj = read_json(prev_file)
+    if pj: t["prev_summary"] = "\n".join((pj.get("claude_text") or "").splitlines()[:4])
 
 def load_index():
-    p = os.path.join(DATA, "index.json")
-    return json.load(open(p)) if os.path.exists(p) else []
+    return read_json(os.path.join(DATA, "index.json"), [])
 
 def save_index(idx):
     idx = sorted(set(idx), reverse=True)[:250]
-    json.dump(idx, open(os.path.join(DATA, "index.json"), "w"), indent=0)
+    write_text(os.path.join(DATA, "index.json"), json.dumps(idx, indent=0))
     write_series(idx)
 
 SERIES_N = 20
@@ -637,15 +615,15 @@ def write_series(idx):
     """data/series.json:近 SERIES_N 個交易日的精簡資料(由舊到新),籌碼站開頁只抓這一支,不用抓 20 個完整日檔"""
     out = []
     for tag in sorted(idx)[-SERIES_N:]:
-        try: out.append(slim_day(json.load(open(os.path.join(DATA, f"{tag}.json"), encoding="utf-8"))))
-        except Exception: continue
-    json.dump(out, open(os.path.join(DATA, "series.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+        x = read_json(os.path.join(DATA, f"{tag}.json"))
+        if x is not None: out.append(slim_day(x))
+    write_json(os.path.join(DATA, "series.json"), out, separators=(",", ":"))
 
 def write_day(t, idx, latest):
     tag = ymd(t["date"])
-    json.dump(t, open(os.path.join(DATA, f"{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    open(os.path.join(DATA, f"{tag}_claude.txt"), "w", encoding="utf-8").write(t["claude_text"])
-    if latest: json.dump(t, open(os.path.join(DATA, "latest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    write_json(os.path.join(DATA, f"{tag}.json"), t, indent=1)          # 原子寫入:寫到一半被中斷也不會留半截檔
+    write_text(os.path.join(DATA, f"{tag}_claude.txt"), t["claude_text"])
+    if latest: write_json(os.path.join(DATA, "latest.json"), t, indent=1)
     if tag not in idx: idx.append(tag)
 
 # ─────────────── 回補 ───────────────
@@ -672,10 +650,8 @@ def backfill(n, start=None, force=False):
         old_path = os.path.join(DATA, f"{tag}.json")
         if os.path.exists(old_path):
             if not force: log(f"  {tag} 已存在，略過"); continue
-            try:                                                   # --force 重寫時保留當日已抓到的永豐圖清單(回補不抓 PDF)
-                old = json.load(open(old_path, encoding="utf-8"))
-                if old.get("spf"): t["spf"] = old["spf"]
-            except Exception: pass
+            old = read_json(old_path) or {}                        # --force 重寫時保留當日已抓到的永豐圖清單(回補不抓 PDF)
+            if old.get("spf"): t["spf"] = old["spf"]
         fill_index_from_saved(t); fill_index_from_saved(p)
         finish_day(t, p); write_day(t, idx, latest=False); save_index(idx); written.append(tag)   # 每天寫完就存 index,下一天的解讀才讀得到前面幾天
     save_index(idx)
@@ -699,7 +675,10 @@ def main():
         if df_t is None: sys.exit("找不到近期資料")
     prev, df_p = prev_trading_day(today)
     log(f"今日 {today}｜前一交易日 {prev}")
-    t = collect(today, df_t); p = collect(prev, df_p)
+    t = collect(today, df_t)
+    p = load_saved_day(prev)                       # 前一交易日已存檔且完整 → 直接用,不重打期交所 / 證交所
+    if p: log(f"  前一交易日 {prev}:用已存檔資料")
+    else: p = collect(prev, df_p)
     fill_index_from_saved(t); fill_index_from_saved(p)
     t["spf"] = spf_fetch(today)
     cleanup_pngs(ymd(today), {fn for v in t["spf"].values() for fn in v})

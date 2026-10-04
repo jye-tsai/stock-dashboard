@@ -187,7 +187,7 @@ def image_message(url):
 def main():
     kind = (sys.argv[1:] or ["post"])[0]
     src = "latest.json" if kind == "post" else "premarket_latest.json"
-    t = json.load(open(os.path.join(DATA, src), encoding="utf-8"))
+    with open(os.path.join(DATA, src), encoding="utf-8") as f: t = json.load(f)
     path = render_post(t) if kind == "post" else render_pre(t)
     print("圖卡:", path, os.path.getsize(path), "bytes")
     gone = cleanup()

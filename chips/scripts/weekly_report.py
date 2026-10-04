@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """weekly_report.py ─ 每週日產生「交接文件更新草稿」：本週序列表＋胖虎指標(現況描述)。
 輸出 data/weekly_YYYYMMDD.md 與 data/weekly_index.json"""
-import os, json, glob, datetime as dt
+import os, sys, json, glob, datetime as dt
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import read_json, write_text, tw_now                    # 共用小工具(見 common.py)
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DATA = os.path.join(ROOT, "data")
-idx = json.load(open(os.path.join(DATA, "index.json")))
+idx = read_json(os.path.join(DATA, "index.json"), [])
 days = sorted(idx)[-5:]                     # 最近 5 個交易日
-rows = [json.load(open(os.path.join(DATA, f"{d}.json"), encoding="utf-8")) for d in days if os.path.exists(os.path.join(DATA, f"{d}.json"))]
+rows = [x for x in (read_json(os.path.join(DATA, f"{d}.json")) for d in days) if x]
 if not rows: raise SystemExit("no data")
 def g(o, *ks, d="—"):
     for k in ks:
@@ -14,7 +16,7 @@ def g(o, *ks, d="—"):
         o = o.get(k) if isinstance(o, dict) else None
     return d if o is None else o
 def n(v, f="{:,}"): return f.format(v) if isinstance(v, (int, float)) else ("—" if v is None else str(v))
-today = (dt.datetime.utcnow() + dt.timedelta(hours=8)).strftime("%Y%m%d")
+today = tw_now().strftime("%Y%m%d")
 L = [f"# 台股日報・交接文件更新草稿（{rows[0]['date']} ～ {rows[-1]['date']}）", "",
      "> 由籌碼站自動產生，數字可直接貼進交接文件「4.2 最新數據序列」；判讀與劇情主線請 Claude 補。", "",
      "## 一、本週數據序列", "",
@@ -49,9 +51,9 @@ else:
     L.append("- 本週資料尚無胖虎指標 v4")
 L += ["", "## 四、待 Claude 補寫", "", "- 劇情主線（本週四～五個交易日的因果）", "- 外資期貨方法論新增觀察", "- 散戶溫度計案例入庫", "- 紀律成本照實記（出入點位與差額）", "- 下週事件時程與補齊／防守條件"]
 fn = f"weekly_{today}.md"
-open(os.path.join(DATA, fn), "w", encoding="utf-8").write("\n".join(L))
+write_text(os.path.join(DATA, fn), "\n".join(L))
 wi_path = os.path.join(DATA, "weekly_index.json")
-wi = json.load(open(wi_path)) if os.path.exists(wi_path) else []
+wi = read_json(wi_path, [])
 if fn not in wi: wi.insert(0, fn)
-json.dump(wi[:60], open(wi_path, "w"), indent=0)
+write_text(wi_path, json.dumps(wi[:60], indent=0))
 print("weekly:", fn)

@@ -20,7 +20,7 @@ def _amt(d): return ((d or {}).get("index") or {}).get("amount_yi")
 # 這是機械式指標加總,規則與權重全在設定檔,不是投資建議。
 PANGHU_CFG_PATH = os.path.join(CHIPS, "panghu.json")
 def load_panghu_cfg():
-    return json.load(open(PANGHU_CFG_PATH, encoding="utf-8"))
+    with open(PANGHU_CFG_PATH, encoding="utf-8") as f: return json.load(f)
 
 def _mean(xs): return sum(xs) / len(xs) if xs else None
 def _lvl(rows, v):
@@ -259,7 +259,8 @@ _EV = None
 def load_events_history():
     global _EV
     if _EV is None:
-        try: _EV = json.load(open(EVENTS_PATH, encoding="utf-8")).get("events") or {}
+        try:
+            with open(EVENTS_PATH, encoding="utf-8") as f: _EV = json.load(f).get("events") or {}
         except Exception: _EV = {}
     return _EV
 
@@ -492,7 +493,8 @@ def pct_band(p):
     return "極低" if p <= 5 else "偏低" if p <= 20 else "極高" if p >= 95 else "偏高" if p >= 80 else "正常區間"
 
 def load_dist():
-    try: return json.load(open(DIST_PATH, encoding="utf-8"))
+    try:
+        with open(DIST_PATH, encoding="utf-8") as f: return json.load(f)
     except Exception: return None
 
 def attach_position(pg, t, dist):
@@ -662,7 +664,7 @@ def premarket_target_day(now):
     return d
 
 
-# 給 Claude 的固定指示(插在 *_claude.txt / claude_text 第二行):這份數據只有數字,時事要 Claude 自己上網查。
+# 給 Claude 的固定指示(放在 *_claude.txt / claude_text 開頭):這份數據只有數字,時事要 Claude 自己上網查。
 # Claude 沒有跨對話記憶,靠這段文字(與 repo 根目錄 CLAUDE.md)提醒;改流程時兩邊一起改。
 def claude_news_instruction(kind, date):
     """kind: 'pre' 盤前 / 'post' 盤後;date: 'YYYY/MM/DD'"""

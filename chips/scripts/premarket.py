@@ -9,13 +9,14 @@ import os, io, re, sys, json, datetime as dt
 import requests, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from panghu import describe_premarket, quantiles, pctile, load_panghu_cfg, premarket_target_day, claude_news_instruction   # 盤前描述卡 / 標哪一天(純計算,tests/test_panghu.py 有測)
+from common import tw_now, read_json, write_json, write_text, decode, parse_tx                   # 共用小工具(見 common.py)
+from concurrent.futures import ThreadPoolExecutor
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"); os.makedirs(DATA, exist_ok=True)
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 MISSING = "【缺】"
 LOG, missing = [], []
 def log(s): LOG.append(s); print(s)
-def tw_now(): return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) + dt.timedelta(hours=8)
 
 # ── 想抓的標的：key, 中文名, Yahoo 代碼, Stooq 代碼, 小數位, 顯示方式 ──
 ITEMS = [
@@ -70,34 +71,21 @@ def fetch_item(key, name, ysym, ssym, nd, kind):
             return out
         except Exception as e:
             log(f"  {name} {src} 失敗：{e.__class__.__name__}")
-    missing.append(name)
     return {"name": name, "value": MISSING, "prev": MISSING, "chg": None, "pct": None, "date": "", "src": "", "ok": False}
 
 # ── 期交所：台指期近月 一般時段 vs 盤後（夜盤） ──
 def taifex_night(date):
+    """期交所台指期近月:一般時段收盤 vs 盤後(夜盤);解析共用 common.parse_tx(盤後 fetch_all 也用同一支)"""
     H = {**UA, "Referer": "https://www.taifex.com.tw/cht/3/futDataDown"}
     r = requests.post("https://www.taifex.com.tw/cht/3/futDataDown",
                       data={"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
-    txt = None
-    for enc in ("utf-8-sig", "cp950", "big5"):
-        try: txt = r.content.decode(enc); break
-        except UnicodeDecodeError: pass
+    txt = decode(r.content)
     if not txt or "收盤價" not in txt: raise ValueError("無資料")
-    df = pd.read_csv(io.StringIO(txt), dtype=str, index_col=False); df.columns = [c.strip() for c in df.columns]
-    df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
-    c_m = [c for c in df.columns if "到期月份" in c][0]; c_sess = [c for c in df.columns if "交易時段" in c][0]
-    col = lambda k: [c for c in df.columns if c.startswith(k)][0]
-    df = df[df[c_m].astype(str).str.strip().str.fullmatch(r"\d{6}")]
-    near = sorted(df[c_m].astype(str).str.strip().unique())[0]
-    sub = df[df[c_m].astype(str).str.strip() == near]
-    f = lambda v: float(str(v).replace(",", ""))
-    day = sub[sub[c_sess].astype(str).str.contains("一般")]; night = sub[sub[c_sess].astype(str).str.contains("盤後")]
-    if day.empty: raise ValueError("無一般時段")
-    out = {"contract": near, "day_close": f(day[col("收盤價")].iloc[0])}
-    if night.empty: raise ValueError("盤後時段尚未公布")
-    n = night.iloc[0]
-    out.update({"night_close": f(n[col("收盤價")]), "night_high": f(n[col("最高價")]), "night_low": f(n[col("最低價")]),
-                "night_open": f(n[col("開盤價")])})
+    x = parse_tx(txt)
+    if not x or x["day_close"] is None: raise ValueError("無一般時段")
+    if x["night_close"] is None: raise ValueError("盤後時段尚未公布")
+    out = {"contract": x["contract"], "day_close": x["day_close"], "night_close": x["night_close"],
+           "night_high": x["night_high"], "night_low": x["night_low"], "night_open": x["night_open"]}
     out["night_chg"] = round(out["night_close"] - out["day_close"], 0); out["night_pct"] = round(out["night_chg"] / out["day_close"] * 100, 2)
     return out
 
@@ -111,7 +99,10 @@ def main():
     now = tw_now(); target = premarket_target_day(now)                 # 週末跑 = 下週一的盤前(週日中午先發)
     today = target.strftime("%Y/%m/%d"); tag = target.strftime("%Y%m%d")
     log(f"盤前抓取 {today}(實際 {now.strftime('%m/%d %H:%M')})")
-    us = {k: fetch_item(k, n, y, s, nd, kind) for k, n, y, s, nd, kind in ITEMS}
+    with ThreadPoolExecutor(max_workers=8) as ex:                      # 15 檔各抓 3 年日線,同時抓(原本一檔一檔來)
+        got = list(ex.map(lambda it: fetch_item(*it), ITEMS))
+    us = {it[0]: v for it, v in zip(ITEMS, got)}
+    missing.extend(v["name"] for v in got if not v["ok"])                # 照 ITEMS 順序記缺漏(不在執行緒裡改共用清單)
 
     # 夜盤：前一交易日的盤後時段（凌晨 05:00 收盤）
     night, last_td = None, prev_trading_day(now)
@@ -125,7 +116,8 @@ def main():
     # 台股前收：站上 latest.json
     prev = None
     try:
-        lj = json.load(open(os.path.join(DATA, "latest.json"), encoding="utf-8"))
+        lj = read_json(os.path.join(DATA, "latest.json"))
+        if lj is None: raise ValueError("latest.json 讀不到")
         ix, inst, f = lj.get("index") or {}, lj.get("inst") or {}, (lj.get("txf") or {}).get("外資") or {}
         prev = {"date": lj["date"], "close": ix.get("close"), "chg": ix.get("chg"), "amount_yi": ix.get("amount_yi"),
                 "foreign": inst.get("外資"), "inst_total": inst.get("合計"), "foreign_net_oi": f.get("net"),
@@ -172,9 +164,9 @@ def main():
         L.insert(1, desc["headline"] + "".join(f"\n・{a['name']} {a['label']}:" + ";".join(a["lines"]) for a in desc["aspects"]))
     out = {"date": today, "generated_at": now.isoformat(timespec="seconds"), "us": us, "night": night, "prev": prev, "describe": desc,
            "missing": missing, "log": LOG, "claude_text": "\n".join(L)}
-    json.dump(out, open(os.path.join(DATA, f"premarket_{tag}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    json.dump(out, open(os.path.join(DATA, "premarket_latest.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    open(os.path.join(DATA, f"premarket_{tag}_claude.txt"), "w", encoding="utf-8").write(out["claude_text"])
+    write_json(os.path.join(DATA, f"premarket_{tag}.json"), out, indent=1)            # 原子寫入
+    write_json(os.path.join(DATA, "premarket_latest.json"), out, indent=1)
+    write_text(os.path.join(DATA, f"premarket_{tag}_claude.txt"), out["claude_text"])
     for m in missing: print(f"::warning title=盤前資料缺漏 {today}::{m}")
     print("\n" + out["claude_text"])
 

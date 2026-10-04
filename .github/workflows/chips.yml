@@ -3,10 +3,10 @@ name: chips・盤後籌碼
 run-name: 籌碼 ${{ inputs.premarket == 'true' && '盤前' || '盤後' }} ${{ inputs.via || github.event_name }}
 
 on:
+  # 盤前 / 盤後 / 補永豐由 Cloudflare Worker + cron-job.org 準時打 workflow_dispatch(兩路並行,見 cloudflare/README.md)。
+  # GitHub 自己的 15:40 / 16:40 備援實際每晚 22:00–03:00 才跑,只多出無用 run 與 commit,2026-10-04 拿掉。
   schedule:
-    - cron: "40 7 * * 1-5"   # 台北 15:40 盤後
-    - cron: "40 8 * * 1-5"   # 台北 16:40 補永豐
-    - cron: "30 13 * * 1-5"  # 台北 21:30 補融資餘額
+    - cron: "30 13 * * 1-5"  # 台北 21:30 補融資餘額(只有這班靠 GitHub,晚到也無妨)
     - cron: "0 1 * * 0"      # 週日 09:00 週報草稿
   workflow_dispatch:
     inputs:
@@ -59,11 +59,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install requests pandas beautifulsoup4 pymupdf cryptography pillow
-      # 圖卡要中文字型(週報那班不畫圖,不裝)
-      - name: 中文字型(圖卡用)
+          cache: pip                                   # 套件快取:requirements 沒變就不重新下載
+          cache-dependency-path: chips/requirements.txt
+      - run: pip install -q -r chips/requirements.txt
+      # 圖卡要中文字型(週報那班不畫圖,不裝)。字型檔快取在 ~/.cache/fonts-cjk,命中就不跑 apt(省 10–20 秒);
+      # render_card.py 讀 CARD_FONT / CARD_FONT_BOLD / CARD_FONT_INDEX(3 = 繁中 TC)
+      - name: 中文字型快取
+        id: fontcache
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
-        run: sudo apt-get install -y -qq fonts-noto-cjk >/dev/null
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/fonts-cjk
+          key: fonts-noto-cjk-v1
+      - name: 中文字型(圖卡用)
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && steps.fontcache.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt-get install -y -qq fonts-noto-cjk >/dev/null
+          mkdir -p ~/.cache/fonts-cjk
+          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc ~/.cache/fonts-cjk/ || echo "::warning::字型檔路徑變了,圖卡改用系統字型(render_card 會自己找)"
+      - name: 字型路徑給圖卡
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
+        run: |
+          echo "CARD_FONT=$HOME/.cache/fonts-cjk/NotoSansCJK-Regular.ttc" >> "$GITHUB_ENV"
+          echo "CARD_FONT_BOLD=$HOME/.cache/fonts-cjk/NotoSansCJK-Bold.ttc" >> "$GITHUB_ENV"
+          echo "CARD_FONT_INDEX=3" >> "$GITHUB_ENV"
 
       - name: 抓資料（盤後）
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && github.event.inputs.premarket != 'true' }}
@@ -93,26 +112,14 @@ jobs:
 
       - name: Commit
         run: |
-          git config user.name  "panghu-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add chips/data
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "chips: $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
-          # 收盤價排程每 10 分鐘會 push data.json,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次(同 update-prices.yml)
-          pushed=0
-          for i in 1 2 3; do
-            if git pull --rebase origin main && git push; then pushed=1; break; fi
-            git rebase --abort 2>/dev/null || true
-            echo "push 失敗,重試 $i"; sleep 5
-          done
-          [ "$pushed" = 1 ] || { echo "::error::push 三次都失敗"; exit 1; }
+          bash chips/scripts/commit_push.sh "chips:"
 
-      # 通知時機:GitHub 15:40 排程,或 Cloudflare Worker 準時打進來的 dispatch(inputs.source=cron;跟收盤價更新同一套機制,
-      # GitHub 自己的 schedule 只是備援)。手動 Run workflow / 頁面「立即抓取」source=manual 不通知。同一交易日 notify.py 只送一次。
+      # 通知時機:Cloudflare Worker / cron-job.org 打進來的 dispatch(inputs.source=cron)。
+      # 手動 Run workflow / 頁面「立即抓取」/ 21:30 補融資 都不通知。同一交易日 notify.py 只送一次。
       # 想手動試訊息:本機 python chips/scripts/notify.py --dry-run
       # 在 Commit 之後:notify 會等 Pages 上的圖卡跟剛畫的一樣(最多 4 分鐘)才傳圖,逾時就只發文字
       - name: LINE 通知（排程 / Cloudflare cron）
-        if: ${{ (github.event.schedule == '40 7 * * 1-5' || github.event.inputs.source == 'cron') && github.event.inputs.premarket != 'true' }}
+        if: ${{ github.event.inputs.source == 'cron' && github.event.inputs.premarket != 'true' }}
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
@@ -129,16 +136,4 @@ jobs:
 
       - name: Commit（通知標記）
         run: |
-          git config user.name  "panghu-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git add chips/data
-          if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git commit -m "chips: notified $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')"
-          # 收盤價排程每 10 分鐘會 push data.json,可能落在 checkout 與 push 之間 → 先 rebase 再 push,失敗重試 3 次(同 update-prices.yml)
-          pushed=0
-          for i in 1 2 3; do
-            if git pull --rebase origin main && git push; then pushed=1; break; fi
-            git rebase --abort 2>/dev/null || true
-            echo "push 失敗,重試 $i"; sleep 5
-          done
-          [ "$pushed" = 1 ] || { echo "::error::push 三次都失敗"; exit 1; }
+          bash chips/scripts/commit_push.sh "chips: notified"
