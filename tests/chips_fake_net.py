@@ -20,7 +20,9 @@ class FakeNet:
     def post(self, url, data=None, **kw):
         self.calls.append(("POST", url.rsplit("/", 1)[-1], (data or {}).get("commodity_id") or (data or {}).get("commodityId")))
         if url.endswith("futContractsDateDown"): return Resp(_file("futContracts_notready.csv" if self.not_ready else "futContracts.csv"))
-        if url.endswith("futDataDown"): return Resp(_file(f"futData_{data['commodity_id']}.csv"))
+        if url.endswith("futDataDown"):                        # 盤前查日期區間(日盤 ~ 下一交易日的夜盤)→ 區間檔
+            rng = data.get("queryStartDate") != data.get("queryEndDate")
+            return Resp(_file(f"futData_{data['commodity_id']}{'_range' if rng else ''}.csv"))
         if url.endswith("callsAndPutsDateDown"): return Resp(_file("callsAndPuts.csv"))
         if url.endswith("pcRatioDown"): return Resp(_file("pcRatio.csv"))
         raise AssertionError("未預期的 POST " + url)

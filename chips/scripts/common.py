@@ -99,3 +99,32 @@ def parse_tx(txt):
         out.update({"night_close": first(night, "收盤價"), "night_high": first(night, "最高價"),
                     "night_low": first(night, "最低價"), "night_open": first(night, "開盤價")})
     return out
+
+def parse_tx_night(txt, day_date):
+    """futDataDown 日期區間的台指期 CSV → day_date 日盤「之後」那一段夜盤。
+    ⚠ 期交所把夜盤算在「下一個交易日」:週五 15:00–週六 05:00 那段,交易日期是下週一。
+    所以 day_date 那天的「盤後」列其實是前一晚的夜盤(2026-10-04 前程式誤用它,夜盤一直晚一段、漲跌也對錯日盤)。
+    做法:取交易日期晚於 day_date 的最後一批「盤後」列當夜盤,近月契約以夜盤為準(結算日換月時日盤用同一契約比);
+    回 {contract, day_date, night_date, day_close, night_close, night_high, night_low, night_open};
+    day_date 之後還沒有夜盤 → night_* 為 None;day_date 沒有日盤 → None。"""
+    import pandas as pd
+    df = read_csv_text(txt, dtype=str)
+    c_d, c_m, c_s = col(df, "交易日期"), col(df, "到期月份"), col(df, "交易時段")
+    df = df.assign(_d=df[c_d].astype(str).str.strip(), _m=df[c_m].astype(str).str.strip(), _s=df[c_s].astype(str))
+    df = df[df["_m"].str.fullmatch(r"\d{6}")]                          # 排除價差 / 週選
+    day, night = df[(df["_d"] == day_date) & df["_s"].str.contains("一般")], df[(df["_d"] > day_date) & df["_s"].str.contains("盤後")]
+    if day.empty: return None
+    def num(rows, name):
+        v = pd.to_numeric(rows[col(df, name, start=True)].astype(str).str.replace(",", ""), errors="coerce").dropna()
+        return float(v.iloc[0]) if len(v) else None
+    out = {"contract": sorted(day["_m"].unique())[0], "day_date": day_date, "night_date": None, "day_close": None,
+           "night_close": None, "night_high": None, "night_low": None, "night_open": None}
+    if not night.empty:
+        nd = sorted(night["_d"].unique())[-1]; night = night[night["_d"] == nd]
+        out["contract"] = sorted(night["_m"].unique())[0]; out["night_date"] = nd
+        n = night[night["_m"] == out["contract"]]
+        out.update({"night_close": num(n, "收盤價"), "night_high": num(n, "最高價"), "night_low": num(n, "最低價"), "night_open": num(n, "開盤價")})
+    d = day[day["_m"] == out["contract"]]
+    out["day_close"] = num(d if not d.empty else day[day["_m"] == sorted(day["_m"].unique())[0]], "收盤價")
+    return out
+

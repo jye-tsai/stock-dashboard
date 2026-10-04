@@ -341,7 +341,8 @@ def claude_text(t, p):
     if t.get("tx") and t["tx"].get("close"):
         b = t.get("basis")   # 盤後早班跑時證交所指數可能還沒公布 → basis 是 None,不能直接格式化
         bs = f"（{'正' if b >= 0 else '逆'}價差 {b:+,.0f}）" if b is not None else "（價差 —,加權指數尚未公布）"
-        L.append(f"台指期近月收 {t['tx']['close']:,.0f}" + bs + (f"　夜盤收 {t['tx']['night_close']:,.0f}" if t['tx'].get('night_close') else ""))
+        # tx.night_close 是期交所同日期的「盤後」列 = 這天日盤之前那一晚的夜盤(期交所把夜盤算在下一交易日),所以標「前一晚」
+        L.append(f"台指期近月收 {t['tx']['close']:,.0f}" + bs + (f"　前一晚夜盤收 {t['tx']['night_close']:,.0f}" if t['tx'].get('night_close') else ""))
     L.append("── 臺股期貨 未平倉（前→今）──")
     for role in ROLES:
         a, b = t["txf"].get(role), p["txf"].get(role)

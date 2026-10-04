@@ -37,11 +37,22 @@ class FetchParsing(unittest.TestCase):
         self.fa.requests.post = FakeNet(not_ready=True).post
         self.assertFalse(self.fa.fut_ready(self.fa.taifex_fut(D)))
 
-    def test_tx_and_night_share_parser(self):
+    def test_tx_close(self):
         self.assertEqual(self.fa.taifex_tx_close(D), {"contract": "202610", "close": 48671.0, "night_close": 48475.0})
-        n = self.pm.taifex_night(D)
-        self.assertEqual((n["day_close"], n["night_close"], n["night_high"], n["night_low"], n["night_open"], n["night_chg"], n["night_pct"]),
-                         (48671.0, 48475.0, 48650.0, 48300.0, 48600.0, -196.0, -0.4))
+
+    def test_night_is_session_after_day_close(self):
+        # 期交所把夜盤算在下一交易日:週五(10/02)日盤之後那段夜盤,交易日期是下週一(10/05)。
+        # 2026-10-04 前程式拿 10/02 那天的「盤後」列(其實是週四晚 48,475),週日先發的盤前就寫錯成 -196。
+        n = self.pm.taifex_night(D, "2026/10/05")
+        self.assertEqual((n["contract"], n["day_close"], n["night_close"], n["night_high"], n["night_low"], n["night_open"], n["night_chg"], n["night_pct"]),
+                         ("202610", 48671.0, 49346.0, 49495.0, 48671.0, 48671.0, 675.0, 1.39))
+        with open(os.path.join(HERE, "fixtures", "chips", "futData_TX_range.csv"), encoding="utf-8") as f: x = C.parse_tx_night(f.read(), "2026/10/01")
+        self.assertEqual((x["night_date"], x["day_close"], x["night_close"]), ("2026/10/05", 48685.0, 49346.0))   # 區間裡最後一段夜盤
+
+    def test_night_not_yet(self):        # 日盤之後還沒有夜盤 → 丟「尚未公布」,不拿前一晚充數
+        with open(os.path.join(HERE, "fixtures", "chips", "futData_TX_range.csv"), encoding="utf-8") as f:
+            rows = [l for l in f.read().splitlines() if not l.startswith("2026/10/05")]
+        self.assertIsNone(C.parse_tx_night("\n".join(rows), "2026/10/02")["night_close"])
 
     def test_options_pc(self):
         self.assertEqual(self.fa.taifex_opt(D)["外資"], {"call": 11500, "put": -2300})

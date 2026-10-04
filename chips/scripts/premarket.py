@@ -9,7 +9,7 @@ import os, io, re, sys, json, datetime as dt
 import requests, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from panghu import describe_premarket, quantiles, pctile, load_panghu_cfg, premarket_target_day, claude_news_instruction   # 盤前描述卡 / 標哪一天(純計算,tests/test_panghu.py 有測)
-from common import tw_now, read_json, write_json, write_text, decode, parse_tx                   # 共用小工具(見 common.py)
+from common import tw_now, read_json, write_json, write_text, decode, parse_tx_night                   # 共用小工具(見 common.py)
 from concurrent.futures import ThreadPoolExecutor
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"); os.makedirs(DATA, exist_ok=True)
@@ -74,14 +74,15 @@ def fetch_item(key, name, ysym, ssym, nd, kind):
     return {"name": name, "value": MISSING, "prev": MISSING, "chg": None, "pct": None, "date": "", "src": "", "ok": False}
 
 # ── 期交所：台指期近月 一般時段 vs 盤後（夜盤） ──
-def taifex_night(date):
-    """期交所台指期近月:一般時段收盤 vs 盤後(夜盤);解析共用 common.parse_tx(盤後 fetch_all 也用同一支)"""
+def taifex_night(day_date, until):
+    """台指期近月:day_date 日盤收盤 vs 它之後那一段夜盤(解析在 common.parse_tx_night)。
+    ⚠ 期交所把夜盤算在下一個交易日(週五晚那段的交易日期是下週一),所以要查 day_date ~ until(要標的盤前日)這個區間。"""
     H = {**UA, "Referer": "https://www.taifex.com.tw/cht/3/futDataDown"}
     r = requests.post("https://www.taifex.com.tw/cht/3/futDataDown",
-                      data={"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
+                      data={"down_type": "1", "commodity_id": "TX", "queryStartDate": day_date, "queryEndDate": until}, headers=H, timeout=30)
     txt = decode(r.content)
     if not txt or "收盤價" not in txt: raise ValueError("無資料")
-    x = parse_tx(txt)
+    x = parse_tx_night(txt, day_date)
     if not x or x["day_close"] is None: raise ValueError("無一般時段")
     if x["night_close"] is None: raise ValueError("盤後時段尚未公布")
     out = {"contract": x["contract"], "day_close": x["day_close"], "night_close": x["night_close"],
@@ -108,7 +109,7 @@ def main():
     night, last_td = None, prev_trading_day(now)
     for _ in range(4):
         try:
-            night = taifex_night(last_td.strftime("%Y/%m/%d")); night["date"] = last_td.strftime("%m/%d"); break
+            night = taifex_night(last_td.strftime("%Y/%m/%d"), today); night["date"] = last_td.strftime("%m/%d"); break   # date = 這段夜盤接在哪天日盤之後
         except Exception as e:
             log(f"  夜盤 {last_td.strftime('%m/%d')} 失敗：{e}"); last_td = prev_trading_day(last_td)
     if night is None: missing.append("台指期夜盤")
