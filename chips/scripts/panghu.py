@@ -661,3 +661,16 @@ def premarket_target_day(now):
     while d.weekday() >= 5: d += _dt.timedelta(days=1)
     return d
 
+
+# 給 Claude 的固定指示(插在 *_claude.txt / claude_text 第二行):這份數據只有數字,時事要 Claude 自己上網查。
+# Claude 沒有跨對話記憶,靠這段文字(與 repo 根目錄 CLAUDE.md)提醒;改流程時兩邊一起改。
+def claude_news_instruction(kind, date):
+    """kind: 'pre' 盤前 / 'post' 盤後;date: 'YYYY/MM/DD'"""
+    span = ("前一交易日台股收盤後到現在(含美股盤中、亞洲早盤)" if kind == "pre" else f"{date} 台股盤中到收盤後")
+    focus = ("美股與費半、輝達 / 台積電 ADR 等半導體、聯準會與利率、美元與台幣、油金、地緣政治、今日將公布的重要數據或事件"
+             if kind == "pre" else
+             "台股大盤與權值股、外資動向、半導體與 AI 供應鏈、匯率、盤後重大公告與明日將公布的數據或事件")
+    return ("【給 Claude】下面只有程式抓的數字,沒有新聞。請先上網查" + span + "的相關時事,重點:" + focus +
+            "。整理 3–5 則,每則附來源與時間;只寫查得到的事實,查不到或無法上網就直說,不要猜。"
+            "再把時事和下面的數據對照說明(哪些數字可能跟哪則消息有關),最後提醒這不是投資建議。")
+

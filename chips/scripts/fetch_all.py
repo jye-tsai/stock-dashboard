@@ -352,6 +352,7 @@ def s(n): return f"{n:+,}" if isinstance(n, int) else ("—" if n is None else s
 def claude_text(t, p):
     L = []; ix = t.get("index") or {}; pix = p.get("index") or {}
     L.append(f"【台股盤後數據】{t['date']}（前一交易日 {p['date']}）")
+    L.append(claude_news_instruction("post", t["date"]))             # 提醒 Claude 先上網查時事(數據裡沒有新聞)
     if ix:
         chg_pct = (ix["chg"] / pix["close"] * 100) if pix.get("close") else None
         pc = f"{chg_pct:+.2f}%" if chg_pct is not None else "—"

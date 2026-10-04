@@ -231,6 +231,14 @@ class TestPremarketTargetDay(unittest.TestCase):       # 週末跑的盤前 = �
         self.assertEqual(P.premarket_target_day(D("2026-10-05 07:30")).strftime("%Y/%m/%d"), "2026/10/05")   # 週一 → 當天(同日已發就略過)
         self.assertEqual(P.premarket_target_day(D("2026-10-02 07:30")).strftime("%Y/%m/%d"), "2026/10/02")   # 平日 → 當天
 
+class TestClaudeNewsInstruction(unittest.TestCase):    # *_claude.txt 第二行:提醒 Claude 先上網查時事
+    def test_text(self):
+        pre, post = P.claude_news_instruction("pre", "2026/10/05"), P.claude_news_instruction("post", "2026/10/05")
+        for x in (pre, post):
+            self.assertTrue(x.startswith("【給 Claude】"))
+            self.assertIn("上網查", x); self.assertIn("不要猜", x); self.assertIn("來源與時間", x)
+        self.assertIn("美股", pre); self.assertIn("2026/10/05 台股盤中到收盤後", post)
+
 class TestEventHistoryText(unittest.TestCase):
     def test_text(self):
         self.assertEqual(P.event_history_text({}), "歷史上沒有同類事件紀錄")

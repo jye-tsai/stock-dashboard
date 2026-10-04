@@ -10,7 +10,7 @@
 
 ## 快速定位（給接手的人 / 新的 Claude session)
 
-先讀這段就能接手。細節在後面各節。
+先讀這段就能接手。細節在後面各節。Claude 的固定流程(看盤前 / 盤後要先查時事等)寫在根目錄 `CLAUDE.md`。
 
 - **前端四個檔**:`index.html`(純結構,約 290 行)、`styles.css`(主題 + 版面)、`app.js`(主程式,§ 分段,Ctrl+F 搜 `§` 跳段)、`charts.js`(八張圖 + 熱圖,每圖一支 `drawXxx(T)`);純計算在 `scripts/calc.js`(前端與 Action 共用)。載入順序:calc.js → Chart.js → charts.js → app.js。
 - **HTML 不寫 `onclick`**:按鈕用 `data-action="fn" data-args='[...]'`,由 `app.js` §16b 的委派 listener 查允許清單(`ACTIONS`)呼叫;Enter 送出用 `data-enter="fn"`。新增按鈕記得把函式名加進 `ACTIONS`。
