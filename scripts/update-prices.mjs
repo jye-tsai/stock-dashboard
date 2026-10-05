@@ -133,14 +133,18 @@ async function fromMis(codes, today, hhmm, symHint = {}) {
   const url = () => `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${misQuery(codes, symHint)}&json=1&delay=0&_=${Date.now()}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const j = await fetchJson(url(), 15000);
+    const why = [];                                // 沒拿到價的原因(資料日 / z / pz),記在 log 方便查 MIS 為何沒給
     for (const s of j.msgArray || []) {
       const q = misQuote(s, today, hhmm);
+      if (!q || !(q.price > 0)) why.push(`${s.c} d=${s.d} z=${s.z} pz=${s.pz}`);
       if (!q) continue;
       if (q.price > 0) out.live[q.code] = q.price;
       if (q.prev > 0) out.prev[q.code] = q.prev;
     }
-    if (Object.keys(out.live).length) break;
-    if (attempt === 0) { console.log('MIS 這次沒有今天的成交資料,1.5 秒後重試'); await new Promise(r => setTimeout(r, 1500)); }
+    const miss = codes.filter(c => !(out.live[c] > 0));
+    if (miss.length) console.log(`MIS 第 ${attempt + 1} 次:回 ${(j.msgArray || []).length} 筆,沒價 ${miss.join('、')}${why.length ? `(${why.join(';')})` : ''}`);
+    if (!miss.length || attempt === 1) break;
+    await new Promise(r => setTimeout(r, 1500));   // 有缺就隔 1.5 秒再查一次(只補缺的,已拿到的保留)
   }
   return out;
 }
