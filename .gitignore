@@ -1,0 +1,3 @@
+# Python 執行時的快取:被 commit 進去的話,Action 一跑就變成「未提交的變動」,git pull --rebase 拒跑 → 盤後推不上去(2026-10-05 15:35–15:45 三班全失敗)
+__pycache__/
+*.pyc
