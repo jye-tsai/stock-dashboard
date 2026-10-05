@@ -5,14 +5,17 @@
 // hhmm:台北時間 HHMM 整數(例 905)。回 { code, price, prev } 或 null。
 // - 資料日 d 不是今天(休市日 MIS 仍回上一交易日)→ null
 // - 09:00 前一律不收:08:30–09:00 是開盤前試撮,pz 是試撮價不是成交價(2026-10-05 08:57 曾被寫進當日紀錄)
-// - z = 最近成交價;沒有(這 5 秒沒成交顯示 "-")才用 pz(最後揭示價),但 13:25–13:30 收盤集合競價時 pz 是試撮 → 不用
+// - z = 最近成交價;沒有(顯示 "-")才用 pz(最後揭示價),再沒有用 b 最佳一檔買價(即時、與成交價差一檔內)
+// - 2026-10-05 實測:盤中 MIS 對程式查詢常常 z、pz 全是 "-"(連 2330 在 11:50 也是),只剩五檔買賣 b / a 有值
+// - 13:25–13:30 收盤集合競價時 pz、b 都是試撮 → 只收 z
 export function misQuote(s, today, hhmm) {
   const d = String((s && s.d) || '');
   const day = d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '';
   if (!s || !s.c || day !== today || hhmm < 900) return null;
-  const z = parseFloat(s.z), pz = parseFloat(s.pz), y = parseFloat(s.y);
-  const price = z > 0 ? z : (pz > 0 && hhmm < 1325 ? pz : 0);
-  return { code: String(s.c), price: price > 0 ? price : 0, prev: y > 0 ? y : 0 };
+  const z = parseFloat(s.z), pz = parseFloat(s.pz), y = parseFloat(s.y), bid = parseFloat(String(s.b || '').split('_')[0]);
+  const open = hhmm < 1325;
+  const [price, via] = z > 0 ? [z, 'z'] : open && pz > 0 ? [pz, 'pz'] : open && bid > 0 ? [bid, 'bid'] : [0, ''];
+  return { code: String(s.c), price, via, prev: y > 0 ? y : 0 };
 }
 
 // MIS 查詢字串:已知上市(.TW)/ 上櫃(.TWO)只查那一邊;不知道才兩邊都查(多一個空白回應)

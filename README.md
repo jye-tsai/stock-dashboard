@@ -144,7 +144,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 
 `update-prices.mjs` 行為重點:
 
-- **價格來源順序**(2026-10-05 起 MIS 優先,取捨在 `scripts/quote.mjs`):證交所 MIS `z`/`pz`(真即時;09:00 前試撮價不收、13:25 後不用 `pz`,沒資料重試一次)→ Yahoo `regularMarketPrice`(台股**延遲約 20 分**,實測 09:20 才有當天價,只補 MIS 沒拿到的;昨收 / 除息 / 後綴仍靠它)→ 證交所 / 櫃買 OpenAPI 收盤(**僅用來補「完全沒有價格」的新標的**)。**只有即時價能覆蓋現有價格**,避免被舊收盤價蓋回去。
+- **價格來源順序**(2026-10-05 起 MIS 優先,取捨在 `scripts/quote.mjs`):證交所 MIS `z` → `pz` → 最佳買價 `b`(真即時;2026-10-05 實測盤中常只給 `b`、`z`/`pz` 都是「-」;09:00 前試撮價不收、13:25 後只收 `z`,沒資料重試一次)→ Yahoo `regularMarketPrice`(台股**延遲約 20 分**,實測 09:20 才有當天價,只補 MIS 沒拿到的;昨收 / 除息 / 後綴仍靠它)→ 證交所 / 櫃買 OpenAPI 收盤(**僅用來補「完全沒有價格」的新標的**)。**只有即時價能覆蓋現有價格**,避免被舊收盤價蓋回去。
 - **只認「今日」的即時價**:Yahoo 看 `regularMarketTime`、MIS 看 `d`(資料日),最後成交日不是台北今天(平日國定假日休市)就不算即時價 → 不寫檔、不會多一根假日 history、時間戳不前進。
 - **Yahoo 各檔並行查**,查到的後綴記在 `holdings[].yahooSym`(`.TW` 上市 / `.TWO` 上櫃),下次直接用;`fetchJson` 對逾時 / 429 / 5xx 自動重試一次。
 - **昨收**:Yahoo `previousClose` / MIS `y` 存進各檔 `prevClose`(前端算今日漲跌 %)。

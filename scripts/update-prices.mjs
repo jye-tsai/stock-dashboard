@@ -133,15 +133,17 @@ async function fromMis(codes, today, hhmm, symHint = {}) {
   const url = () => `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${misQuery(codes, symHint)}&json=1&delay=0&_=${Date.now()}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const j = await fetchJson(url(), 15000);
-    const why = [];                                // 沒拿到價的原因(資料日 / z / pz),記在 log 方便查 MIS 為何沒給
+    const why = [], via = {};                      // via:不是用成交價 z 的檔數(pz / bid);why:沒拿到價的原因(資料日 / z / pz),記在 log 方便查 MIS 為何沒給
     for (const s of j.msgArray || []) {
       const q = misQuote(s, today, hhmm);
-      if (!q || !(q.price > 0)) why.push(`${s.c} d=${s.d} z=${s.z} pz=${s.pz}`);
+      if (!q || !(q.price > 0)) why.push(`${s.c} d=${s.d} z=${s.z} pz=${s.pz} b=${String(s.b || '').split('_')[0]}`);
+      else if (q.via !== 'z') via[q.via] = (via[q.via] || 0) + 1;
       if (!q) continue;
       if (q.price > 0) out.live[q.code] = q.price;
       if (q.prev > 0) out.prev[q.code] = q.prev;
     }
     const miss = codes.filter(c => !(out.live[c] > 0));
+    if (Object.keys(via).length) console.log(`MIS 沒有成交價 z,改用:${Object.entries(via).map(([k, n]) => `${k} ${n} 檔`).join('、')}`);
     if (miss.length) console.log(`MIS 第 ${attempt + 1} 次:回 ${(j.msgArray || []).length} 筆,沒價 ${miss.join('、')}${why.length ? `(${why.join(';')})` : ''}`);
     if (!miss.length || attempt === 1) break;
     await new Promise(r => setTimeout(r, 1500));   // 有缺就隔 1.5 秒再查一次(只補缺的,已拿到的保留)
