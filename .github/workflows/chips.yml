@@ -35,7 +35,7 @@ on:
         required: false
         default: "manual"
       premarket:
-        description: "只跑盤前資料（美股 / 夜盤 / 台股前收；true/false）。平日 07:25/07:30、週日 12:00(先發週一)由 cron-job.org / Cloudflare 打進來,GitHub 不排程"
+        description: "只跑盤前資料（美股 / 夜盤 / 台股前收；true/false）。平日 07:30/07:35、週日 12:00(先發週一)由 cron-job.org / Cloudflare 打進來,GitHub 不排程"
         required: false
         default: "false"
 
@@ -93,7 +93,7 @@ jobs:
         if: ${{ github.event.schedule == '0 1 * * 0' || github.event.inputs.weekly == 'true' }}
         run: python chips/scripts/weekly_report.py
 
-      # 盤前(平日 07:25/07:30;週日 12:00 先發週一 —— 週末跑時 premarket.py 標成下週一,週一早上那班同日已發只更新網站):美股收盤 / 債匯金油 / 台指期夜盤 / 台股前收
+      # 盤前(平日 07:30/07:35;週日 12:00 先發週一 —— 週末跑時 premarket.py 標成下週一,週一早上那班同日已發只更新網站):美股收盤 / 債匯金油 / 台指期夜盤 / 台股前收
       # → data/premarket_*.json;抓不到的欄位標【缺】,不亂猜。這一班不跑盤後抓資料、不發盤後 LINE;盤前 LINE 同一天只發一次(premarket_notified.json)。
       - name: 盤前資料（美股 / 夜盤 / 台股前收）
         if: ${{ github.event.inputs.premarket == 'true' }}

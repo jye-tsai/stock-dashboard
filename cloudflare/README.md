@@ -37,10 +37,10 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤後(cron,會發 LINE)`
 
 **07:30 盤前推播也一樣**:cron-job.org 再建一個 job 打 `Worker網址/premarket-cron`
-- Schedule:Minutes `25`、Hours `7`、週一~五,Time zone `Asia/Taipei`(目前設定:比 Cloudflare 07:30 早,通常由它發;Cloudflare 那次略過)
+- Schedule:Minutes `35`、Hours `7`、週一~五,Time zone `Asia/Taipei`(目前設定:Cloudflare 07:30 沒發成時的備援;已發過就只更新網站不重發)
 - **週日 12:00 先發週一盤前**:同一個 URL 再建一個 job,Minutes `0`、Hours `12`、只勾週日。Worker 允許週日 11:30–13:59。
   週末跑時 `premarket.py` 把資料標成下週一(美股、夜盤、台股前收週六清晨就定了),LINE 標「(10/04 先發,週一早上不再重發)」;
-  週一 07:25 / 07:30 照跑、更新網站(含週一清晨開盤的金油匯期貨),但同日已通知 → 不再發 LINE。
+  週一 07:30 / 07:35 照跑、更新網站(含週一清晨開盤的金油匯期貨),但同日已通知 → 不再發 LINE。
 - 只在台北週一~五 07:00–08:59 有效;盤前 LINE 同一天只發一次
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤前(cron,會發 LINE)`
 - 注意:`/premarket`(手動)也會發 LINE —— chips.yml 盤前那步不看 source,同日沒發過就發

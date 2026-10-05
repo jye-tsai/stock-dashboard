@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 // 與前端共用的損益計算模組(scripts/calc.js,UMD):改費率 / 稅率只改那一份,history 的 un / ret 才會跟畫面一致
 const PfCalc = createRequire(import.meta.url)('./calc.js');
 import { scanAlerts, alertText, scheduleGapAlert } from './alerts.mjs';   // 停損 / 目標價 / 排程斷線判斷(純函式,tests/alerts.test.mjs 直接測)
+import { misQuote, misQuery, mergeLive } from './quote.mjs';                 // 即時價取捨:MIS 優先、Yahoo(延遲約 20 分)補(tests/quote.test.mjs)
 
 const FILE = process.env.DATA_FILE || 'data.json';
 // 混淆金鑰（與前端 index.html 相同；AES-256-GCM，防君子不防小人）
@@ -93,7 +94,7 @@ function histPrevClose(history, codes, today) {
   return out;
 }
 
-// 即時來源 1:Yahoo 財經(regularMarketPrice = 即時/最後成交價)
+// 即時來源 2(補 MIS):Yahoo 財經(regularMarketPrice;台股約延遲 20 分鐘)。昨收 / 除息 / 上市櫃後綴也從這裡拿
 // - 各檔並行查;後綴先用上次記住的(symHint:上市 .TW / 上櫃 .TWO),沒有才依序試
 // - 只接受 regularMarketTime 落在今日(台北)的價:平日休市 Yahoo 仍回上一交易日收盤,不能當即時價
 // 回傳 { live: {code: price}, sym: {code: suffix}, exDiv: {code: {date, amount}} }
@@ -124,23 +125,24 @@ async function fromYahoo(codes, prev, today, symHint = {}, histPc = {}) {
   return { live, sym, exDiv };
 }
 
-// 即時來源 2:證交所 MIS(z=成交 → pz=最後揭示;不取昨收 y,以免用舊價倒退)
-async function fromMis(codes, prev, today) {
-  const live = {};
-  if (!codes.length) return live;
-  const q = codes.flatMap(c => [`tse_${c}.tw`, `otc_${c}.tw`]).join('|');
-  const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${q}&json=1&delay=0&_=${Date.now()}`;
-  const j = await fetchJson(url, 15000);
-  (j.msgArray || []).forEach(s => {
-    const d = String(s.d || '');                   // 資料日 YYYYMMDD;非今日(休市)不當即時價
-    const tradeDay = d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : '';
-    if (tradeDay !== today) { console.log(`${s.c}: MIS 資料日 ${tradeDay || '?'} 非今日,略過`); return; }
-    const p = parseFloat(s.z) || parseFloat(s.pz);
-    if (p > 0) live[s.c] = p;
-    const y = parseFloat(s.y);                     // y=昨收 → 算今日漲跌%
-    if (prev && y > 0) prev[s.c] = y;
-  });
-  return live;
+// 即時來源 1(優先):證交所 MIS,真即時。取捨規則在 quote.mjs(09:00 前不收試撮價、收盤集合競價不用 pz)。
+// MIS 偶爾回空資料(2026-10-05 09:05 實例)→ 隔 1.5 秒重試一次。回 { live, prev }
+async function fromMis(codes, today, hhmm, symHint = {}) {
+  const out = { live: {}, prev: {} };
+  if (!codes.length || hhmm < 900) return out;
+  const url = () => `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${misQuery(codes, symHint)}&json=1&delay=0&_=${Date.now()}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const j = await fetchJson(url(), 15000);
+    for (const s of j.msgArray || []) {
+      const q = misQuote(s, today, hhmm);
+      if (!q) continue;
+      if (q.price > 0) out.live[q.code] = q.price;
+      if (q.prev > 0) out.prev[q.code] = q.prev;
+    }
+    if (Object.keys(out.live).length) break;
+    if (attempt === 0) { console.log('MIS 這次沒有今天的成交資料,1.5 秒後重試'); await new Promise(r => setTimeout(r, 1500)); }
+  }
+  return out;
 }
 
 // 股票池 stocks.json(持股表單的代號智能查詢用):證交所 + 櫃買 OpenAPI 全部上市 / 上櫃個股與 ETF 的 [代號, 名稱, 市場]。
@@ -252,26 +254,24 @@ async function main() {
   console.log(`時間 ${stamp}`);
   try { await refreshStockPool(today, +stamp.slice(11, 13)); } catch (e) { console.log(`股票池 失敗:${e.message}`); }   // 與市價無關,失敗不影響後面
 
-  // 即時價:Yahoo 優先,MIS 補 Yahoo 沒抓到的;prevClose 收集各檔昨收(算今日漲跌%)
+  // 即時價:MIS 優先(真即時),Yahoo 補(延遲約 20 分;昨收 / 除息 / 後綴都靠它,所以照跑)
   // 兩個來源都只接受「最後成交日 = 今日」的價,平日休市(國定假日)不會把昨日收盤當即時價寫進 history
-  const live = {}, prevClose = {}, yahooSym = {}, exDivs = {};
+  const prevClose = {}, yahooSym = {}, exDivs = {};
   const symHint = {};
   holdings.forEach(h => { if (h.code && h.yahooSym) symHint[h.code] = h.yahooSym; });
+  let yLive = {};
   try {
     const y = await fromYahoo(codes, prevClose, today, symHint, histPrevClose(data.history, codes, today));
-    Object.assign(live, y.live); Object.assign(yahooSym, y.sym); Object.assign(exDivs, y.exDiv || {});
+    yLive = y.live; Object.assign(yahooSym, y.sym); Object.assign(exDivs, y.exDiv || {});
     if (Object.keys(exDivs).length) console.log('今日除息:', Object.entries(exDivs).map(([c, d]) => `${c} ${d.amount}`).join('、'));
-    console.log(`Yahoo 即時: 取得 ${Object.keys(y.live).length}/${codes.length}`);
   } catch (e) { console.log(`Yahoo 失敗(${e.message})`); }
-
-  const misCodes = codes.filter(c => !(live[c] > 0));
-  if (misCodes.length) {
-    try {
-      const m = await fromMis(misCodes, prevClose, today);
-      Object.assign(live, m);
-      console.log(`MIS 即時: 補抓 ${Object.keys(m).length}/${misCodes.length}`);
-    } catch (e) { console.log(`MIS 失敗(${e.message})`); }
-  }
+  let mis = { live: {}, prev: {} };
+  try { mis = await fromMis(codes, today, +stamp.slice(11, 13) * 100 + +stamp.slice(14, 16), { ...symHint, ...yahooSym }); }
+  catch (e) { console.log(`MIS 失敗(${e.message})`); }
+  for (const c in mis.prev) if (!(prevClose[c] > 0)) prevClose[c] = mis.prev[c];   // 昨收以 Yahoo(含除息判斷)為準,MIS 只補缺
+  const { live, src } = mergeLive(mis.live, yLive);
+  const nMis = Object.values(src).filter(x => x === 'MIS').length, nY = Object.values(src).filter(x => x === 'Yahoo').length;
+  console.log(`即時價: MIS ${nMis} 檔、Yahoo(延遲約 20 分) ${nY} 檔,共 ${Object.keys(live).length}/${codes.length}`);
 
   // 只有「完全沒有價格、即時也沒抓到」的新標的,才用收盤價初始化
   let eod = {};

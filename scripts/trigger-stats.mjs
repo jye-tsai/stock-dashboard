@@ -9,7 +9,7 @@ export const EXPECT = [
   { key: '股價', via: 'cloudflare', label: '盤中股價・Cloudflare', slots: every10(0) },   // */10 1-5 → 09:00–13:50
   { key: '股價', via: 'cronjob',    label: '盤中股價・cron-job.org', slots: every10(5) },  // 09:05–13:55
   { key: '籌碼 盤前', via: 'cloudflare', label: '盤前推播・Cloudflare', slots: ['07:30'] },
-  { key: '籌碼 盤前', via: 'cronjob',    label: '盤前推播・cron-job.org', slots: ['07:25'] },
+  { key: '籌碼 盤前', via: 'cronjob',    label: '盤前推播・cron-job.org', slots: ['07:35'] },
   { key: '籌碼 盤前', via: 'cloudflare', label: '週日先發週一盤前・Cloudflare', slots: ['12:00'], days: [0] },
   { key: '籌碼 盤前', via: 'cronjob',    label: '週日先發週一盤前・cron-job.org', slots: ['12:00'], days: [0] },
   { key: '籌碼 盤後', via: 'cloudflare', label: '盤後・Cloudflare', slots: ['15:40', '16:40'] },

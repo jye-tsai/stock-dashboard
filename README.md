@@ -122,7 +122,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
   兩邊錯開 5 分(:00 / :05)                                   │
                                                        GitHub Action 執行
 備援:GitHub schedule(:05/:20/:35/:50,常延遲)      scripts/update-prices.mjs
-      開網頁 / 下拉刷新(股價 >15 分沒更新才補)   (Yahoo 即時 → MIS → 證交所/櫃買收盤補新標的)
+      開網頁 / 下拉刷新(股價 >15 分沒更新才補)   (MIS 即時 → Yahoo(延遲約 20 分)→ 證交所/櫃買收盤補新標的)
                                                               │
                                                  寫回 data.json + commit
                                                               │
@@ -136,7 +136,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 | Cloudflare Worker cron `*/10 1-5 * * *` | 09:00–13:50 每 10 分 | 主力 |
 | cron-job.org → Worker 根網址 `/` | 週一~五 09:05–13:55 每 10 分(`5,15,…,55`,Asia/Taipei) | 主力(2026-10-02 加)。跟 Cloudflare 錯開 5 分:兩邊都活著 = 每 5 分一次,任一邊掛 = 每 10 分 |
 | GitHub `schedule` | `:05/:20/:35/:50`,常延遲數小時或漏跑 | 最後備援 |
-| cron-job.org → Worker `/premarket-cron` | 週一~五 07:25(籌碼站盤前推播,比 Cloudflare 07:30 早,通常由它發) | 07:30 推播的第二條路(Worker 只在 07:00–08:59 接受) |
+| cron-job.org → Worker `/premarket-cron` | 週一~五 07:35(籌碼站盤前推播,Cloudflare 07:30 的備援;週一已在週日先發) | 07:30 推播的第二條路(Worker 只在 07:00–08:59 接受) |
 | cron-job.org + Cloudflare(`0 4 * * 1`)→ `/premarket-cron` | **週日 12:00** 先發週一盤前(資料週六清晨就定了;週一早上那班只更新網站、不重發 LINE) | 週一盤前提早到週日中午(Worker 週日只在 11:30–13:59 接受) |
 | cron-job.org → Worker `/chips-cron` | 週一~五 15:35、15:45(籌碼站盤後推播,`source=cron`;15:35 通常由它發,15:45 備援) | 15:40 推播的第二條路(Worker 只在 15:30–17:59 接受) |
 | 網頁(開啟 / 下拉刷新) | 股價超過 15 分沒更新才送,同 10 分區段一次 | 備援 |
@@ -144,7 +144,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 
 `update-prices.mjs` 行為重點:
 
-- **價格來源順序**:Yahoo `regularMarketPrice`(即時)→ 證交所 MIS `z`/`pz`(即時)→ 證交所 / 櫃買 OpenAPI 收盤(**僅用來補「完全沒有價格」的新標的**)。**只有即時價能覆蓋現有價格**,避免被舊收盤價蓋回去。
+- **價格來源順序**(2026-10-05 起 MIS 優先,取捨在 `scripts/quote.mjs`):證交所 MIS `z`/`pz`(真即時;09:00 前試撮價不收、13:25 後不用 `pz`,沒資料重試一次)→ Yahoo `regularMarketPrice`(台股**延遲約 20 分**,實測 09:20 才有當天價,只補 MIS 沒拿到的;昨收 / 除息 / 後綴仍靠它)→ 證交所 / 櫃買 OpenAPI 收盤(**僅用來補「完全沒有價格」的新標的**)。**只有即時價能覆蓋現有價格**,避免被舊收盤價蓋回去。
 - **只認「今日」的即時價**:Yahoo 看 `regularMarketTime`、MIS 看 `d`(資料日),最後成交日不是台北今天(平日國定假日休市)就不算即時價 → 不寫檔、不會多一根假日 history、時間戳不前進。
 - **Yahoo 各檔並行查**,查到的後綴記在 `holdings[].yahooSym`(`.TW` 上市 / `.TWO` 上櫃),下次直接用;`fetchJson` 對逾時 / 429 / 5xx 自動重試一次。
 - **昨收**:Yahoo `previousClose` / MIS `y` 存進各檔 `prevClose`(前端算今日漲跌 %)。
