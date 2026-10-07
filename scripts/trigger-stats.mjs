@@ -25,7 +25,8 @@ const parse = title => {                                    // '股價 cloudflar
 };
 
 // runs: [{ display_title, created_at }];from / to: 'YYYY-MM-DD'(台北,含頭含尾)
-export function triggerStats(runs, from, to) {
+// now: 'YYYY-MM-DD HH:MM'(台北,可省略):還沒到(或 5 分鐘容許內)的時段不算應到,白天手動跑報表才不會把下午的班算成漏掉
+export function triggerStats(runs, from, to, now = '') {
   const all = [];                                           // [{ day, dow }]
   for (let d = new Date(from + 'T00:00:00Z'); ymd(d) <= to; d.setUTCDate(d.getUTCDate() + 1)) all.push({ day: ymd(d), dow: d.getUTCDay() });
   const daysOf = e => all.filter(x => (e.days || [1, 2, 3, 4, 5]).includes(x.dow)).map(x => x.day);
@@ -42,14 +43,17 @@ export function triggerStats(runs, from, to) {
   const rows = EXPECT.map(e => {
     let hit = 0, sum = 0, max = 0; const missed = [];
     const eDays = daysOf(e);
+    let expected = 0;
     for (const day of eDays) for (const s of e.slots) {
       const at = +s.slice(0, 2) * 3600 + +s.slice(3, 5) * 60;
+      if (now && `${day} ${s}` > now.slice(0, 16)) continue;   // 還沒到
+      if (now && day === now.slice(0, 10) && +now.slice(11, 13) * 3600 + +now.slice(14, 16) * 60 < at + WINDOW_SEC) continue;   // 還在容許時間內
+      expected++;
       const m = tagged.filter(x => x.key === e.key && x.via === e.via && x.day === day && x.sec >= at && x.sec < at + WINDOW_SEC)
                       .sort((a, b) => a.sec - b.sec)[0];
       if (m) { hit++; const d = m.sec - at; sum += d; if (d > max) max = d; }
       else missed.push(`${day.slice(5)} ${s}`);
     }
-    const expected = eDays.length * e.slots.length;
     return { label: e.label, expected, hit, rate: expected ? hit / expected : 0, avgDelay: hit ? Math.round(sum / hit) : null, maxDelay: hit ? max : null, missed };
   });
   return { from, to, days: days.length, rows, others };

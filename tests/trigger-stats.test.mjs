@@ -30,4 +30,9 @@ assert.match(md, /盤後・cron-job\.org\*\*\(1\):10-05 15:45/);
 assert.deepEqual([R['週日先發週一盤前・cron-job.org'].expected, R['週日先發週一盤前・cron-job.org'].hit], [1, 1]);
 assert.deepEqual([R['週日先發週一盤前・Cloudflare'].expected, R['週日先發週一盤前・Cloudflare'].missed], [1, ['10-04 12:00']]);
 assert.equal(R['盤前推播・cron-job.org'].expected, 1);                     // 平日項目不算週日
-console.log('trigger-stats.test: 14 項通過');
+// now:白天跑報表,還沒到 / 還在 5 分鐘容許內的時段不算應到
+const early = Object.fromEntries(triggerStats(runs, '2026-10-04', '2026-10-05', '2026-10-05 09:23').rows.map(r => [r.label, r]));
+assert.deepEqual([early['盤中股價・Cloudflare'].expected, early['盤中股價・Cloudflare'].hit], [2, 2]);   // 09:00、09:10;09:20 還在容許內
+assert.equal(early['盤後・Cloudflare'].expected, 0);
+assert.equal(early['週日先發週一盤前・Cloudflare'].expected, 1);                          // 前一天的照算
+console.log('trigger-stats.test: 17 項通過');
