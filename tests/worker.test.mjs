@@ -4,7 +4,8 @@ const log = console.log; console.log = () => {};          // 未知 cron 的警�
 const { route, cronWindow, viaOf } = await import('../cloudflare/worker.mjs');
 const R = c => { const r = route(c); return r.workflow + ' ' + JSON.stringify(r.inputs); };
 assert.equal(R('*/10 1-5 * * *'), 'update-prices.yml {}');
-assert.equal(R('30 23 * * 1-5'), 'chips.yml {"premarket":"true","source":"cron"}');
+assert.equal(R('20 23 * * 1-5'), 'chips.yml {"premarket":"true","source":"cron"}');
+assert.equal(R('30 23 * * 1-5'), 'chips.yml {"premarket":"true","source":"cron"}');   // 舊 07:30 字串也認
 assert.equal(R('40 7 * * 2-6'), 'chips.yml {"source":"cron"}');
 assert.equal(R('40 8 * * 2-6'), 'chips.yml {"source":"cron"}');
 assert.equal(R('0 4 * * 1'), 'chips.yml {"premarket":"true","source":"cron"}');   // 週日 12:00 先發週一盤前

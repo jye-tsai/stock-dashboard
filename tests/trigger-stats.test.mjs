@@ -6,7 +6,7 @@ const run = (title, tpe) => ({ display_title: title, created_at: new Date(Date.p
 // 2026-10-05 週一:Cloudflare 股價只到 09:00(+20 秒)、09:10(+50 秒),其餘漏;cron-job.org 全到(+3 秒)
 const runs = [run('股價 cloudflare', '2026-10-05T09:00:20'), run('股價 cloudflare', '2026-10-05T09:10:50')];
 for (let h = 9; h <= 13; h++) for (let m = 5; m < 60; m += 10) runs.push(run('股價 cronjob', `2026-10-05T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:03`));
-runs.push(run('籌碼 盤前 cronjob', '2026-10-05T07:35:04'), run('籌碼 盤前 cloudflare', '2026-10-05T07:30:30'));
+runs.push(run('籌碼 盤前 cronjob', '2026-10-05T07:25:04'), run('籌碼 盤前 cloudflare', '2026-10-05T07:20:30'));
 runs.push(run('籌碼 盤後 cloudflare', '2026-10-05T15:40:18'), run('籌碼 盤後 cronjob', '2026-10-05T15:35:02'));
 runs.push(run('籌碼 盤後 cronjob', '2026-10-05T15:51:00'));              // 晚 6 分 → 不算 15:45 那格
 runs.push(run('股價 web', '2026-10-05T10:33:00'), run('股價 button', '2026-10-05T11:00:00'), run('update-prices・股價更新', '2026-10-05T11:00:00'));

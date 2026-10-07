@@ -8,7 +8,7 @@ GitHub 內建 schedule 常延遲數小時或漏跑,所以盤中股價與籌碼�
 | Cron(UTC) | 台北時間 | 觸發 |
 |---|---|---|
 | `*/10 1-5 * * *` | 每天 09:00–13:50 每 10 分(週末由腳本擋) | `update-prices.yml` 盤中股價 |
-| `30 23 * * 1-5` | 週一~五 07:30 | `chips.yml` 盤前 |
+| `20 23 * * 1-5` | 週一~五 07:20 | `chips.yml` 盤前 |
 | `0 4 * * 1` | **週日 12:00**(Cloudflare 星期 1 = 日) | `chips.yml` 盤前:先發週一的盤前 |
 | `40 7 * * 2-6` | 週一~五 15:40 | `chips.yml` 盤後 |
 | `40 8 * * 2-6` | 週一~五 16:40 | `chips.yml` 補永豐 |
@@ -36,11 +36,11 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 只在台北週一~五 15:30–17:59 有效,其他時間回「⏸ 不在時段」不觸發;同一交易日 LINE 只發一次,兩邊都打也只收一則
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤後(cron,會發 LINE)`
 
-**07:30 盤前推播也一樣**:cron-job.org 再建一個 job 打 `Worker網址/premarket-cron`
-- Schedule:Minutes `35`、Hours `7`、週一~五,Time zone `Asia/Taipei`(目前設定:Cloudflare 07:30 沒發成時的備援;已發過就只更新網站不重發)
+**07:20 盤前推播也一樣**:cron-job.org 再建一個 job 打 `Worker網址/premarket-cron`
+- Schedule:Minutes `25`、Hours `7`、週一~五,Time zone `Asia/Taipei`(目前設定:Cloudflare 07:20 沒發成時的備援;已發過就只更新網站不重發)
 - **週日 12:00 先發週一盤前**:同一個 URL 再建一個 job,Minutes `0`、Hours `12`、只勾週日。Worker 允許週日 11:30–13:59。
   週末跑時 `premarket.py` 把資料標成下週一(美股、夜盤、台股前收週六清晨就定了),LINE 標「(10/04 先發,週一早上不再重發)」;
-  週一 07:30 / 07:35 照跑、更新網站(含週一清晨開盤的金油匯期貨),但同日已通知 → 不再發 LINE。
+  週一 07:20 / 07:25 照跑、更新網站(含週一清晨開盤的金油匯期貨),但同日已通知 → 不再發 LINE。
 - 只在台北週一~五 07:00–08:59 有效;盤前 LINE 同一天只發一次
 - 預期回應:`✅ 已觸發 籌碼站 chips 盤前(cron,會發 LINE)`
 - 注意:`/premarket`(手動)也會發 LINE —— chips.yml 盤前那步不看 source,同日沒發過就發

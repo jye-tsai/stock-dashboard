@@ -18,7 +18,7 @@
 ## 排程與觸發(出事先看這裡)
 
 - 盤中股價:Cloudflare cron `:00/:10…` + cron-job.org `:05/:15…`(兩路並行),網頁超過 15 分沒更新會補觸發。
-- 盤前 07:30(Cloudflare)/ 07:35(cron-job.org);週日 12:00 先發週一盤前。盤後 15:35 / 15:40 / 15:45。LINE 同一天只發一次。
+- 盤前 07:20(Cloudflare)/ 07:25(cron-job.org);週日 12:00 先發週一盤前。盤後 15:35 / 15:40 / 15:45。LINE 同一天只發一次。
 - 每個觸發都帶來源(GitHub 執行紀錄標題如「股價 cloudflare」「籌碼 盤後 cronjob」);可靠度報表 `reports/triggers.md`(每週六)。
 - 細節、Cron 清單、出事怎麼查:`cloudflare/README.md`。Worker 正本是 `cloudflare/worker.mjs`,改完要使用者自己貼到 Cloudflare。
 

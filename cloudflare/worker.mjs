@@ -4,8 +4,8 @@
 //
 // 一支 Worker 管兩個 workflow,依觸發的 cron 字串分流(Cloudflare Triggers 全用 UTC):
 //   */10 1-5 * * *   台北 09:00–13:50 每 10 分       → update-prices.yml(盤中股價)
-//   30 23 * * 1-5    台北 07:30 盤前(週一~五)        → chips.yml(premarket=true,source=cron → 盤前 LINE)
-//   0 4 * * 1        台北週日 12:00 先發週一盤前      → chips.yml(同上;premarket.py 週末跑會標成下週一,週一 07:30 同日已發 → 略過)
+//   20 23 * * 1-5    台北 07:20 盤前(週一~五)        → chips.yml(premarket=true,source=cron → 盤前 LINE)
+//   0 4 * * 1        台北週日 12:00 先發週一盤前      → chips.yml(同上;premarket.py 週末跑會標成下週一,週一 07:20 同日已發 → 略過)
 //   40 7 * * 2-6     台北 15:40 盤後(週一~五)        → chips.yml(source=cron → 盤後 LINE)
 //   40 8 * * 2-6     台北 16:40 補永豐 PDF            → chips.yml(source=cron;同日已通知過 notify.py 會略過)
 //   ※ Cloudflare 星期欄 1=日 … 7=六(GitHub 是 0=日)。盤後同一天,週一~五寫 2-6;
@@ -26,7 +26,7 @@ const REPO = 'jye-tsai/stock-dashboard';
 // 依「分 時」比對(不比星期欄,星期編號兩邊不同、容易寫錯),由上往下第一個符合的生效
 const ROUTES = [
   { re: /^\*\/10 1-5 /, workflow: 'update-prices.yml', inputs: {} },                             // 09:00–13:50 盤中股價
-  { re: /^30 23 /,      workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 07:30 盤前
+  { re: /^[23]0 23 /,    workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 07:20 盤前(2026-10-07 起;舊的 30 23 = 07:30 也認,改 Cloudflare 前後都不會打錯)
   { re: /^0 4 /,        workflow: 'chips.yml', inputs: { premarket: 'true', source: 'cron' } },   // 週日 12:00 先發週一盤前
   { re: /^40 (7|8) /,   workflow: 'chips.yml', inputs: { source: 'cron' } },                      // 15:40 / 16:40 盤後
 ];

@@ -18,7 +18,7 @@
 收盤 → 開網頁 → 確認日期是今天 → 「📋 複製給 Claude」→ 貼到對話（永豐 PNG 可一併拖給 Claude 對照）。
 
 ## 排程
-**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:35 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:30 / 07:35、週日 12:00 先發週一）。LINE 同一天只發一次。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
+**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:35 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:20 / 07:25、週日 12:00 先發週一）。LINE 同一天只發一次。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
 GitHub 自己的 `schedule` 只剩 **21:30 補融資**(晚到也無妨)與週日週報;原本 15:40 / 16:40 的 GitHub 備援實際每晚 22:00–03:00 才跑,2026-10-04 拿掉。
 舊圖：每次抓完會刪「當日不在清單裡的 png」與「30 天前的 png」，repo 不會被 PDF 轉圖越撐越肥。
 
@@ -53,8 +53,8 @@ GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資�
 ## 盤後資料還沒公布時
 期交所三大法人約 15:00 才算好；在那之前查得到當天，但多空未平倉全是 0。程式把這種情況視為「尚未公布」，自動改用前一交易日，不會把 0 當真算出假的增減。
 
-## 盤前資料（07:30）
-`scripts/premarket.py` 抓美股四大指數、台積電 ADR 等個股、美債 10Y、美元指數、黃金、油、美元兌台幣、VIX（Yahoo，失敗退 Stooq），加上期交所台指期夜盤與前一交易日台股收盤（讀 `data/latest.json`），寫成 `data/premarket_YYYYMMDD.json`、`data/premarket_latest.json`、`data/premarket_YYYYMMDD_claude.txt`。抓不到的欄位一律寫「【缺】」並列在 `missing`，不猜數字。程式再依規則產生「描述卡」（一句話 + 美股 / 半導體 / 利率匯率 / 夜盤 / 昨收五格，門檻在 `panghu.json` 的 `premarket`，各標的漲跌附近 3 年百分位；只描述、不預測），寫在 `describe`。頁面最上面的金框卡片顯示描述卡，數據表收在下面，`notify_premarket.py` 早上推一則 LINE（同一天只發一次）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌會標「可能是換月」。**夜盤**:期交所把夜盤算在「下一個交易日」(週五 15:00–週六 05:00 那段的交易日期是下週一),所以盤前查「前一交易日 ~ 盤前日」區間,取前一交易日日盤之後那段(`common.parse_tx_night`);2026-10-04 前誤用同日期的盤後列,夜盤一直晚一段、漲跌也對錯日盤。盤後文字裡的「前一晚夜盤收」是當天日盤之前那段。每天 07:30(Cloudflare `30 23 * * 1-5`)/ 07:35(cron-job.org)觸發(dispatch `chips.yml` 帶 `premarket=true`),週日 12:00 先發週一盤前,GitHub 本身不排程。15 個美股標的同時抓。手動跑：Actions → chips → Run workflow → `premarket` 填 true。
+## 盤前資料（07:20）
+`scripts/premarket.py` 抓美股四大指數、台積電 ADR 等個股、美債 10Y、美元指數、黃金、油、美元兌台幣、VIX（Yahoo，失敗退 Stooq），加上期交所台指期夜盤與前一交易日台股收盤（讀 `data/latest.json`），寫成 `data/premarket_YYYYMMDD.json`、`data/premarket_latest.json`、`data/premarket_YYYYMMDD_claude.txt`。抓不到的欄位一律寫「【缺】」並列在 `missing`，不猜數字。程式再依規則產生「描述卡」（一句話 + 美股 / 半導體 / 利率匯率 / 夜盤 / 昨收五格，門檻在 `panghu.json` 的 `premarket`，各標的漲跌附近 3 年百分位；只描述、不預測），寫在 `describe`。頁面最上面的金框卡片顯示描述卡，數據表收在下面，`notify_premarket.py` 早上推一則 LINE（同一天只發一次）。黃金 / 油 / 美元指數是期貨連續合約，換月當天的漲跌會標「可能是換月」。**夜盤**:期交所把夜盤算在「下一個交易日」(週五 15:00–週六 05:00 那段的交易日期是下週一),所以盤前查「前一交易日 ~ 盤前日」區間,取前一交易日日盤之後那段(`common.parse_tx_night`);2026-10-04 前誤用同日期的盤後列,夜盤一直晚一段、漲跌也對錯日盤。盤後文字裡的「前一晚夜盤收」是當天日盤之前那段。每天 07:20(Cloudflare `20 23 * * 1-5`)/ 07:25(cron-job.org)觸發(dispatch `chips.yml` 帶 `premarket=true`),週日 12:00 先發週一盤前,GitHub 本身不排程。15 個美股標的同時抓。手動跑：Actions → chips → Run workflow → `premarket` 填 true。
 
 ## 圖卡（每日自動）
 `scripts/render_card.py` 把盤後（`latest.json`）與盤前（`premarket_latest.json`）畫成 1080 寬的 PNG：`data/card_post_YYYYMMDD.png`、`data/card_pre_YYYYMMDD.png`，同一天重跑會覆蓋，30 天後自動刪。GitHub 上用 Noto Sans CJK（workflow 第一次 apt 裝後快取在 `~/.cache/fonts-cjk`,之後直接用;套件也有 pip 快取），本機用微軟正黑。LINE 傳圖只能給公開網址，所以 workflow 順序是「抓資料 → 畫圖卡 → commit → LINE（等 Pages 上的圖跟剛畫的一樣才傳，最多 4 分鐘，逾時只發文字）→ commit 通知標記」，LINE 會比以前晚 1~2 分鐘。網頁兩張卡片標題旁的「🖼 圖卡」可以直接開圖長按存檔。

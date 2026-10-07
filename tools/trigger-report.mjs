@@ -9,7 +9,7 @@ const days = +(process.argv[2] || 14);
 const tpe = new Date(Date.now() + 8 * 3600 * 1000);
 const to = tpe.toISOString().slice(0, 10);
 const from = new Date(tpe.getTime() - (days - 1) * 86400000).toISOString().slice(0, 10);
-// GitHub 的 created 篩選是 UTC 日期;台北清晨 07:30 = 前一天 UTC 23:30 → 往前多抓一天,統計範圍仍由 triggerStats 依台北日期切
+// GitHub 的 created 篩選是 UTC 日期;台北清晨 07:20 = 前一天 UTC 23:20 → 往前多抓一天,統計範圍仍由 triggerStats 依台北日期切
 const fromUtc = new Date(tpe.getTime() - days * 86400000).toISOString().slice(0, 10);
 
 async function runs(workflow) {
