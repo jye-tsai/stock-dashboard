@@ -13,7 +13,7 @@ export const EXPECT = [
   { key: '籌碼 盤前', via: 'cloudflare', label: '週日先發週一盤前・Cloudflare', slots: ['12:00'], days: [0] },
   { key: '籌碼 盤前', via: 'cronjob',    label: '週日先發週一盤前・cron-job.org', slots: ['12:00'], days: [0] },
   { key: '籌碼 盤後', via: 'cloudflare', label: '盤後・Cloudflare', slots: ['15:40', '16:40'] },
-  { key: '籌碼 盤後', via: 'cronjob',    label: '盤後・cron-job.org', slots: ['15:35', '15:45'] },
+  { key: '籌碼 盤後', via: 'cronjob',    label: '盤後・cron-job.org', slots: ['15:30', '15:45'] },
 ];
 export const WINDOW_SEC = 300;     // 時段後 5 分鐘內出現才算這個時段有到(cron 正常延遲幾十秒)
 

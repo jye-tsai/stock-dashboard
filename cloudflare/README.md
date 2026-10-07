@@ -28,8 +28,8 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 - 預期回應:`✅ 已觸發 股價 update-prices`(cron-job.org 的 History 看得到每次的回應與狀態碼)
 
 **15:40 盤後推播也有第二條路**:cron-job.org 另建一個 job 打 `Worker網址/chips-cron`
-- Schedule:Minutes `35,45`、Hours `15`、週一~五,Time zone `Asia/Taipei`(目前設定)
-  - 15:35 通常是它發 LINE(比 Cloudflare 15:40 早);15:40 Cloudflare 與 15:45 這班看到「今天已通知」就略過推播、只更新資料
+- Schedule:Minutes `30,45`、Hours `15`、週一~五,Time zone `Asia/Taipei`(目前設定)
+  - 15:30 通常是它發 LINE(比 Cloudflare 15:40 早);15:40 Cloudflare 與 15:45 這班看到「今天已通知」就略過推播、只更新資料
   - 越早跑,證交所等資料還沒公布的機率越高:期交所沒好會自動用前一交易日 → 不發、等下一班;期交所好了但其他缺 →
     照發並加一行「⚠ 盤後尚未完整公布」,網站之後自動補齊,但 LINE 不重發。所以不要早於 15:30(Worker 也會擋)
   - 永豐 PDF:9/23–10/2 每個交易日 15:40 那班都已抓到;16:40 是補抓保險,cron-job.org 不另設

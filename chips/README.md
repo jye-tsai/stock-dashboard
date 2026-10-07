@@ -18,7 +18,7 @@
 收盤 → 開網頁 → 確認日期是今天 → 「📋 複製給 Claude」→ 貼到對話（永豐 PNG 可一併拖給 Claude 對照）。
 
 ## 排程
-**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:35 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:20 / 07:25、週日 12:00 先發週一）。LINE 同一天只發一次。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
+**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:30 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:20 / 07:25、週日 12:00 先發週一）。LINE 同一天只發一次。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
 GitHub 自己的 `schedule` 只剩 **21:30 補融資**(晚到也無妨)與週日週報;原本 15:40 / 16:40 的 GitHub 備援實際每晚 22:00–03:00 才跑,2026-10-04 拿掉。
 舊圖：每次抓完會刪「當日不在清單裡的 png」與「30 天前的 png」，repo 不會被 PDF 轉圖越撐越肥。
 

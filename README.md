@@ -138,7 +138,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 | GitHub `schedule` | `:05/:20/:35/:50`,常延遲數小時或漏跑 | 最後備援 |
 | cron-job.org → Worker `/premarket-cron` | 週一~五 07:25(籌碼站盤前推播,Cloudflare 07:20 的備援;週一已在週日先發) | 07:20 推播的第二條路(Worker 只在 07:00–08:59 接受) |
 | cron-job.org + Cloudflare(`0 4 * * 1`)→ `/premarket-cron` | **週日 12:00** 先發週一盤前(資料週六清晨就定了;週一早上那班只更新網站、不重發 LINE) | 週一盤前提早到週日中午(Worker 週日只在 11:30–13:59 接受) |
-| cron-job.org → Worker `/chips-cron` | 週一~五 15:35、15:45(籌碼站盤後推播,`source=cron`;15:35 通常由它發,15:45 備援) | 15:40 推播的第二條路(Worker 只在 15:30–17:59 接受) |
+| cron-job.org → Worker `/chips-cron` | 週一~五 15:30、15:45(籌碼站盤後推播,`source=cron`;15:30 通常由它發,15:45 備援) | 15:40 推播的第二條路(Worker 只在 15:30–17:59 接受) |
 | 網頁(開啟 / 下拉刷新) | 股價超過 15 分沒更新才送,同 10 分區段一次 | 備援 |
 | 「📈 更新市價」按鈕 / 瀏覽器開 Worker `/` | 手動 | 立刻更新 |
 
