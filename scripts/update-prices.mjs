@@ -174,8 +174,19 @@ async function refreshStockPool(today, hh) {
   console.log(`股票池 stocks.json:${out.length} 檔(上市 ${out.filter(x => x[2] === 'TW').length} / 上櫃 ${out.filter(x => x[2] === 'OTC').length})`);
 }
 
-// 加權指數(TAIEX,^TWII)當前點位 → 供前端「對比大盤」
-async function fromTaiex() {
+// 加權指數(TAIEX)當前點位 → 供前端「對比大盤」
+// 先抓證交所 MIS(tse_t00,即時);沒有才用 Yahoo ^TWII(延遲約 20 分,2026-10-07 09:00/09:05 都還是前一天收盤)
+async function fromTaiex(today, hhmm) {
+  try {
+    if (hhmm >= 900) {
+      const j = await fetchJson(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_t00.tw&json=1&delay=0&_=${Date.now()}`, 15000);
+      const q = misQuote((j.msgArray || [])[0], today, hhmm);
+      if (q && q.price > 0) return { value: q.price, src: 'MIS' };
+    }
+  } catch (e) { console.log(`加權指數 MIS 失敗(${e.message}),改用 Yahoo`); }
+  return { value: await fromTaiexYahoo(), src: 'Yahoo' };
+}
+async function fromTaiexYahoo() {
   try {
     const j = await fetchJson('https://query1.finance.yahoo.com/v8/finance/chart/%5ETWII?interval=1d&range=1d');
     const m = j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].meta;
@@ -316,7 +327,7 @@ async function main() {
 
     // 加權指數(對比大盤用);抓不到就不寫,前端會自動略過
     let taiex = 0;
-    try { taiex = await fromTaiex(); if (taiex) console.log(`加權指數: ${taiex}`); } catch (e) {}
+    try { const t = await fromTaiex(today, +stamp.slice(11, 13) * 100 + +stamp.slice(14, 16)); taiex = t.value; if (taiex) console.log(`加權指數: ${taiex}(${t.src})`); } catch (e) {}
 
     // 記錄每日資產走勢(同一天只留最新一筆,供前端畫淨值曲線)
     const tot = PfCalc.totals(data);     // 與前端同一份計算(scripts/calc.js)

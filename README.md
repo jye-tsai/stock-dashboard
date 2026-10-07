@@ -148,7 +148,7 @@ cron-job.org(GET Worker /)─┴─▶ Cloudflare Worker ──▶ GitHub workfl
 - **只認「今日」的即時價**:Yahoo 看 `regularMarketTime`、MIS 看 `d`(資料日),最後成交日不是台北今天(平日國定假日休市)就不算即時價 → 不寫檔、不會多一根假日 history、時間戳不前進。
 - **Yahoo 各檔並行查**,查到的後綴記在 `holdings[].yahooSym`(`.TW` 上市 / `.TWO` 上櫃),下次直接用;`fetchJson` 對逾時 / 429 / 5xx 自動重試一次。
 - **昨收**:Yahoo `previousClose` / MIS `y` 存進各檔 `prevClose`(前端算今日漲跌 %)。
-- **加權指數 / 台積電**:每次抓 `^TWII` 現值與 2330 現值寫進當天 history;並用 `fetchYahooDailyClose()` 抓歷史日收盤,**自動回補** history 裡還沒有 `taiex` / `tsmc` 的舊日期(自我修復,一次補齊 6/15 以來)。補不到的(Yahoo 該日無資料或超過 6 個月)標 `taiexMiss` / `tsmcMiss`,之後不再為它重抓;今日那筆不標。
+- **加權指數 / 台積電**:每次抓加權指數現值(先證交所 MIS `tse_t00` 即時,沒有才用 Yahoo `^TWII`,後者延遲約 20 分)與 2330 現值寫進當天 history;並用 `fetchYahooDailyClose()` 抓歷史日收盤,**自動回補** history 裡還沒有 `taiex` / `tsmc` 的舊日期(自我修復,一次補齊 6/15 以來)。補不到的(Yahoo 該日無資料或超過 6 個月)標 `taiexMiss` / `tsmcMiss`,之後不再為它重抓;今日那筆不標。
 - **歷史**:每次把 `{date, mv, cost, un, real, div, ret, taiex, tsmc}` 存進 `history`(同一天只留最新一筆)。
 - **週末防呆**:腳本在台北週六 / 日直接跳過;平日休市由上面「只認今日」的檢查擋。
 - **時間戳**:`priceUpdated` 與各檔 `priceTime` 用台北時間(`taipeiStamp()`,`Date.now()+8h` 手算,不依賴 runner 時區)。
