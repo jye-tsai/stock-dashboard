@@ -9,7 +9,7 @@
 //   40 7 * * 2-6     台北 15:40 盤後(週一~五)        → chips.yml(source=cron → 盤後 LINE)
 //   40 8 * * 2-6     台北 16:40 補永豐 PDF            → chips.yml(source=cron;同日已通知過 notify.py 會略過)
 //   ※ Cloudflare 星期欄 1=日 … 7=六(GitHub 是 0=日)。盤後同一天,週一~五寫 2-6;
-//     盤前 23:30 UTC 是台北隔天,台北週一~五 = UTC 週日~四 = 1-5。
+//     盤前 23:20 UTC 是台北隔天,台北週一~五 = UTC 週日~四 = 1-5。
 //   ※ 新增 Cron Trigger 一定要在下面 ROUTES 補一條。對不到的仍會打 update-prices(保住股價),但 log 會標「未知 cron」
 //     (2026-09-30 盤前漏跑、2026-10-02 股價那條被換成 */30 * * * * 整早沒觸發,都是 Cron Triggers 與這裡對不上)。
 // 瀏覽器手動:開 Worker 根網址 / 觸發股價;/chips 觸發籌碼站盤後(source=manual,不發 LINE);
