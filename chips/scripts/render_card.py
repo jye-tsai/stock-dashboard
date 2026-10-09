@@ -75,7 +75,8 @@ class Canvas:
         h = max(H_MIN, self.y)
         from PIL import ImageDraw
         im = self.im.crop((0, 0, W, h)); ImageDraw.Draw(im).rectangle([(8, 8), (W - 9, h - 9)], outline=GOLD, width=4)
-        im.save(path, optimize=True)
+        from common import shrink_png
+        shrink_png(im, path)                       # 256 色,小約 6 成(內容是文字 + 色塊,看不出差別)
         return path
 
 def header(cv, kind, date, right_lines):

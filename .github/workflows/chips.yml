@@ -41,6 +41,7 @@ on:
 
 permissions:
   contents: write
+  actions: read      # notify_failure.py 查本次哪一步失敗
 
 concurrency:
   group: chips-fetch
@@ -53,10 +54,10 @@ jobs:
     steps:
       # ref: main = 開跑當下的最新版,不是觸發當下的 commit。Cloudflare 與 cron-job.org 15:40 都會打,第二個 run 排隊等第一個跑完;
       # 不指定的話它拿到的是舊版(沒有第一個 run 的資料與 notified.json)→ push 衝突失敗,或更糟:再發一次 LINE(2026-10-02 15:40)
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip                                   # 套件快取:requirements 沒變就不重新下載
@@ -67,7 +68,7 @@ jobs:
       - name: 中文字型快取
         id: fontcache
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/fonts-cjk
           key: fonts-noto-cjk-v1
@@ -137,3 +138,14 @@ jobs:
       - name: Commit（通知標記）
         run: |
           bash chips/scripts/commit_push.sh "chips: notified"
+
+      # 任何一步失敗(上面的步驟就會跳過)→ LINE 說哪一班、哪一步失敗。只管排程觸發的,手動跑失敗看畫面就知道。
+      # 同一班別兩條路(Cloudflare / cron-job.org)都失敗會收到兩則;只有一條失敗、另一條成功也會收到一則,看訊息裡的時間判斷。
+      - name: 失敗通知(LINE)
+        if: ${{ failure() && (github.event_name == 'schedule' || github.event.inputs.via == 'cloudflare' || github.event.inputs.via == 'cronjob') }}
+        env:
+          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RUN_TITLE: 籌碼 ${{ github.event.inputs.premarket == 'true' && '盤前' || '盤後' }} ${{ github.event.inputs.via || github.event_name }}
+        run: python chips/scripts/notify_failure.py || true

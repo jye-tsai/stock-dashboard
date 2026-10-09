@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # 刻意用 import *:backtest.py 透過 fa.build_describe / fa.POS_SPEC / fa.realized_vol… 取用 panghu 的東西,改成逐一 import 會讓回測壞掉
 from panghu import *                                             # 胖虎指標純計算:v2 對照 / v4 描述 / 位置百分位 / 一句話總結
 from panghu import _close, _amt, _pct, _mean, _lvl, _fmt, _run   # import * 不帶底線名稱,補上
-from common import tw_now, read_json, write_json, write_text, get_json, decode, read_csv_text, col, parse_tx   # 共用小工具(見 common.py)
+from common import tw_now, read_json, write_json, write_text, get_json, shrink_png, decode, read_csv_text, col, parse_tx   # 共用小工具(見 common.py)
 
 TAIFEX = "https://www.taifex.com.tw/cht/3/"
 TWSE   = "https://www.twse.com.tw/rwd/zh/"
@@ -242,7 +242,7 @@ def spf_fetch(date):
             for i, page in enumerate(doc):
                 if i >= max_pages: break
                 fn = f"{ymd(date)}_spf_{tag}_p{i+1}.png"
-                page.get_pixmap(dpi=170).save(os.path.join(DATA, fn)); pngs.append(fn)
+                page.get_pixmap(dpi=170).save(os.path.join(DATA, fn)); shrink_png(os.path.join(DATA, fn)); pngs.append(fn)   # 256 色,小約 6 成
             out[title] = pngs
         if not out: log(f"  永豐：{date} 尚未上傳")
     except Exception as e:

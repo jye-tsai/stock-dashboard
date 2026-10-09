@@ -3,6 +3,7 @@
 - 台北時間 tw_now():取代已不建議使用的 datetime.utcnow()
 - 讀寫檔 read_json / write_json / write_text:用 with 開檔;寫入一律「先寫暫存檔再整個換過去」,
   Action 寫到一半被中斷也不會留下半截的 latest.json(籌碼站網頁會打不開)
+- shrink_png:圖片存成 256 色(永豐 PDF 頁 / 圖卡;repo 長大速度少約 6 成)
 - get_json:證交所被連續請求時會回 HTML / 空白而不是 JSON → 等一下重試(原本只有加權指數有,法人 / 融資 / 月表沒有)
 - 期交所 CSV:decode / read_csv_text / col(找不到欄位時錯誤訊息直接列出實際欄位)/ parse_tx(台指期近月日盤 + 夜盤)
 pandas 只在 CSV 相關函式裡才 import,notify 這類不需要 pandas 的程式也能用。"""
@@ -36,6 +37,19 @@ def write_text(path, text):
 def write_json(path, obj, **kw):
     kw.setdefault("ensure_ascii", False)
     write_text(path, json.dumps(obj, **kw))
+
+# ─────────────── 圖片 ───────────────
+def shrink_png(src, path=None, colors=256):
+    """PNG 轉 256 色調色盤再存(PIL Image 或檔案路徑;path 省略 = 覆蓋原檔)。
+    永豐 PDF 頁、圖卡都是文字 + 少數色塊,256 色肉眼看不出差別,檔案小約 6 成(2026-10-09 實測 980→372 KB)。
+    這些圖每天 commit 進 repo,省下的就是 repo 長大的速度。不抖色(dither)以免文字邊緣出雜點。"""
+    from PIL import Image
+    im = Image.open(src) if isinstance(src, str) else src
+    path = path or src
+    if im.mode not in ("RGB", "P"): im = im.convert("RGB")
+    if im.mode == "RGB": im = im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    im.save(path, optimize=True)
+    return path
 
 # ─────────────── 網路 ───────────────
 def get_json(get, url, params=None, headers=None, tries=3, wait=4, log=print, label=""):
