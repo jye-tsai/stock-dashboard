@@ -2,11 +2,13 @@ name: backtest・回測
 
 # 胖虎指標回測:10 年歷史逐日資料(可中斷續跑)→ 重算 v2 / v3 對照組與 v4 極端事件統計 → 產出 chips/backtest/result.json 與 events.json。
 # 報告頁:https://jye-tsai.github.io/stock-dashboard/chips/backtest/
-# 已有 10 年資料;每週六自動補新交易日(幾分鐘),改到指標規則 / 程式會自動重算。手動跑時 eval_only=true 只重算不抓。
+# 已有 10 年資料;每個交易日晚上自動補當天(幾分鐘),改到指標規則 / 程式會自動重算。手動跑時 eval_only=true 只重算不抓。
 on:
-  # 每週六 11:00(台北)自動:補上這週新增的交易日,重算報告與 events.json(極端事件歷史)
+  # 週一～週五 22:17(台北)自動:補上當天交易日,重算報告與 events.json(極端事件歷史)
+  # 選 22:17:融資約 21:30 才補齊、盤後流程已跑完;避開整點(GitHub 整點排程常延遲)
+  # 休市日跑也沒關係:沒有新資料就 no change,不會 commit
   schedule:
-    - cron: "0 3 * * 6"
+    - cron: "17 14 * * 1-5"
   # 改到指標規則或程式就自動重驗(只重算、不抓資料),報告跟著更新
   push:
     branches: [main]

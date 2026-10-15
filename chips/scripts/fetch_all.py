@@ -518,7 +518,7 @@ def fx_history(date, n=40):
     return out
 
 def recent_fut_nets(date, n):
-    """date 之前最近 n 個交易日的外資台指期淨未平倉 {日期: 口}:回測原始資料(每週六更新)+ 每日存檔(較新,蓋過)"""
+    """date 之前最近 n 個交易日的外資台指期淨未平倉 {日期: 口}:回測原始資料(每個交易日晚上更新)+ 每日存檔(較新,蓋過)"""
     got = {}
     y, m = int(date[:4]), int(date[5:7])
     for _ in range(4):                                             # 往回 4 個月的回測原始資料

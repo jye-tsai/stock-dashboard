@@ -448,7 +448,7 @@ def build_describe(t, p, hist, cfg, closes, amts, fxh, ev_hist=None, dist=None):
 
 # ─────────────── 胖虎指標 v4:歷史位置百分位 ───────────────
 # 只回答「今天這個值在過去歷史中排第幾(0 最低、100 最高)」;不加總、不給多空結論。
-# 分布由 backtest.py 重算時產生(chips/backtest/dist.json,每週六更新),只含過去的日子,不偷看未來。
+# 分布由 backtest.py 重算時產生(chips/backtest/dist.json,每個交易日晚上更新),只含過去的日子,不偷看未來。
 DIST_PATH = os.path.join(CHIPS, "backtest", "dist.json")
 POS_SPEC = [   # (key, 面向, 名稱, 顯示格式)
     ("gap60", "trend", "收盤對 60 日均", "{:+.1f}%"),

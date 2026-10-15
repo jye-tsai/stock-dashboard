@@ -36,7 +36,7 @@ Actions → chips → Run workflow，`backfill` 填 20 跑一次即可，往回�
 `scripts/fetch_all.py` 抓資料、找交易日、寫檔;前一交易日已存檔且完整(沒缺欄位、融資是真值)就直接讀檔,不再整套重抓;`scripts/panghu.py` 是胖虎指標的純計算(v2 對照 / v4 描述 / 位置百分位 / 一句話總結),不碰網路,盤後與回測共用;`tests/test_panghu.py` 用假資料測它,`tests/alerts.test.mjs` 測停損 / 目標價提醒,兩者都在 check.yml 自動跑。`data/series.json` 是近 20 日的精簡資料,籌碼站的 20 日走勢圖只抓這一支。
 
 ## 回測（驗證胖虎指標）
-**自動**：每週六 11:00 自動補上新交易日並重算報告與 `events.json`；改到 `chips/panghu*.json`、`fetch_all.py`、`backtest.py`、`panghu_v3.py` 時也會自動重算（不抓資料）。以下是手動用法。
+**自動**：週一～週五 22:17（台北）自動補上當天交易日並重算報告與 `events.json`；改到 `chips/panghu*.json`、`fetch_all.py`、`backtest.py`、`panghu_v3.py` 時也會自動重算（不抓資料）。以下是手動用法。
 GitHub → Actions → **backtest** → Run workflow。預設抓兩年逐日資料（約 40～80 分鐘，抓不完會存進度，再跑一次接著抓），依目前的 `chips/panghu.json` 重算每一天的胖虎指標，報告頁在 `chips/backtest/`（籌碼站胖虎指標卡的「📊 回測」）。
 報告內容：策略績效（照建議倉位操作 vs 全程滿倉 vs 固定五成，含第一年樣本內 / 第二年樣本外）、淨值曲線、溫度分組之後的報酬、各指標分數與之後報酬的相關、每個情境出現次數與之後表現（標出「方向不符」）。
 改了設定之後，Run workflow 時 `eval_only` 填 `true`，幾十秒就重算完，不用重抓；重算同時會更新 `events.json`（籌碼站的極端事件紀錄與 LINE 都讀它）。回測目前有三組：v2 評分版、v3 兩層版（實驗）、v4 描述型的極端事件統計；判斷準確度一律跟「永遠偏多」「60 日均線」兩個笨方法比。
