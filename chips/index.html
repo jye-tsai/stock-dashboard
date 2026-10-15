@@ -93,8 +93,9 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .evt tr.match td:last-child{box-shadow:inset -2px 2px 0 var(--red),inset 0 -2px 0 var(--red)}
 .evt tr.now td{background:#E9B44C1f}
 .mk{display:inline-block;width:12px;height:9px;border:2px solid var(--red);border-radius:2px;margin-right:5px;vertical-align:-1px}
-.evsum{display:grid;gap:6px}
-.evsum details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+/* minmax(0,1fr)+min-width:0:grid 子項預設 min-width:auto 會被表格撐寬,手機整頁變成可左右滑;鎖住後表格改在自己的框內橫捲 */
+.evsum{display:grid;gap:6px;grid-template-columns:minmax(0,1fr)}
+.evsum details{border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
 .evsum summary{cursor:pointer;font-weight:700}
 .evsum .on{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,transparent)}
 .lbl{display:inline-block;margin:3px 6px 3px 0;padding:3px 9px;border-radius:14px;font-size:12px;font-weight:700;color:#fff}
