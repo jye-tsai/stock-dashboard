@@ -87,6 +87,12 @@ th{color:var(--gray);font-weight:600;font-size:12px}
 .evt{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
 .evt th,.evt td{padding:4px 5px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
 .evt th{color:var(--gray);font-weight:600;border-top:none}.evt td:first-child,.evt th:first-child{text-align:left}
+/* 同情境的歷史列:紅框(用 inset 陰影,iOS Safari 的 tr outline 不可靠) */
+.evt tr.match td{box-shadow:inset 0 2px 0 var(--red),inset 0 -2px 0 var(--red)}
+.evt tr.match td:first-child{box-shadow:inset 2px 2px 0 var(--red),inset 0 -2px 0 var(--red)}
+.evt tr.match td:last-child{box-shadow:inset -2px 2px 0 var(--red),inset 0 -2px 0 var(--red)}
+.evt tr.now td{background:#E9B44C1f}
+.mk{display:inline-block;width:12px;height:9px;border:2px solid var(--red);border-radius:2px;margin-right:5px;vertical-align:-1px}
 .evsum{display:grid;gap:6px}
 .evsum details{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .evsum summary{cursor:pointer;font-weight:700}
@@ -508,13 +514,24 @@ function renderPanghu(t){
   const card=$('#phCard');
   if(!EVJ||!EVJ.events){card.style.display='none';return}
   card.style.display='';
-  const today=new Set(((t.panghu||{}).events||[]).map(e=>e.k));
+  const tev=((t.panghu||{}).events||[]), today=new Set(tev.map(e=>e.k));
   const p1=x=>x==null?'—':(x>0?'+':'')+(x*100).toFixed(1)+'%';
+  // 今天的趨勢情境(例:季線之上整理):歷史表中同情境的列加紅框,方便對照
+  const tTrend=(((t.panghu||{}).aspects||[]).find(a=>a.k==='trend')||{}).label||'';
+  const tClose=(t.index||{}).close;
   $('#evBox').innerHTML=Object.entries(EVJ.events).map(([k,v])=>{
-    const b=v.in_bear||{};
-    const rows=(v.list||[]).slice().reverse().map(x=>`<tr><td>${x.date}<div class="mut" style="font-size:11px">${x.trend||''}</div></td><td>${Math.round(x.close).toLocaleString()}</td><td class="${cls(x.fwd5)}">${p1(x.fwd5)}</td><td class="${cls(x.fwd20)}">${p1(x.fwd20)}</td><td class="${cls(x.fwd60)}">${p1(x.fwd60)}</td><td class="dn">${p1(x.dd20)}</td></tr>`).join('');
-    return `<details${today.has(k)?' open class="on"':''}><summary>${today.has(k)?'⚠ 今天出現・':''}${v.name}:${v.n} 次,之後 20 日 ${v.up20} 漲 ${v.down20} 跌,中位數 ${p1(v.median20)},最深再跌 ${p1(v.worst_dd20)}${b.n?`;空頭排列中 ${b.n} 次 ${b.up20} 漲 ${b.down20} 跌`:''}</summary>
-      <div style="overflow-x:auto;margin-top:6px"><table class="evt"><tr><th>日期</th><th>收盤</th><th>5 日</th><th>20 日</th><th>60 日</th><th>20 日內再跌</th></tr>${rows}</table></div></details>`}).join('')
+    const b=v.in_bear||{}, on=today.has(k), te=tev.find(e=>e.k===k)||{};
+    const list=(v.list||[]).filter(x=>x.date!==t.date);   // 回測若已含今天,改由下方「進行中」列顯示
+    const row=(x,c)=>`<tr${c?` class="${c}"`:''}><td>${x.date}<div class="mut" style="font-size:11px">${x.trend||''}</div></td><td>${x.close==null?'—':Math.round(x.close).toLocaleString()}</td><td class="${cls(x.fwd5)}">${p1(x.fwd5)}</td><td class="${cls(x.fwd20)}">${p1(x.fwd20)}</td><td class="${cls(x.fwd60)}">${p1(x.fwd60)}</td><td class="dn">${p1(x.dd20)}</td></tr>`;
+    const hit=on&&tTrend?list.filter(x=>x.trend===tTrend):[];
+    const rows=list.slice().reverse().map(x=>row(x,on&&tTrend&&x.trend===tTrend?'match':'')).join('');
+    // 今天這一列:後續報酬還沒發生,一律顯示「—」;同一波第 2 天以後註明
+    const now=on?row({date:t.date,trend:(tTrend||'')+'・進行中'+(te.day>1?`(本波第 ${te.day} 天)`:''),close:tClose},'now'):'';
+    const done=hit.filter(x=>x.fwd20!=null), hu=done.filter(x=>x.fwd20>0).length;
+    const med=a=>{if(!a.length)return null;const s=a.slice().sort((p,q)=>p-q),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+    const hitTxt=on&&tTrend?`<div class="mut" style="font-size:12px;margin-top:4px"><span class="mk"></span>紅框＝與今天同情境（${tTrend}）:${hit.length?`${hit.length} 次,之後 20 日 ${hu} 漲 ${done.length-hu} 跌,中位數 ${p1(med(done.map(x=>x.fwd20)))}`:'歷史上沒有同情境的紀錄'}</div>`:'';
+    return `<details${on?' open class="on"':''}><summary>${on?'⚠ 今天出現・':''}${v.name}:${v.n} 次,之後 20 日 ${v.up20} 漲 ${v.down20} 跌,中位數 ${p1(v.median20)},最深再跌 ${p1(v.worst_dd20)}${b.n?`;空頭排列中 ${b.n} 次 ${b.up20} 漲 ${b.down20} 跌`:''}</summary>
+      ${hitTxt}<div style="overflow-x:auto;margin-top:6px"><table class="evt"><tr><th>日期</th><th>收盤</th><th>5 日</th><th>20 日</th><th>60 日</th><th>20 日內再跌</th></tr>${now}${rows}</table></div></details>`}).join('')
     +`<div class="mut" style="font-size:12px">${EVJ.note||''}(資料 ${EVJ.range[0]} ～ ${EVJ.range[1]})</div>`;
 }
 
