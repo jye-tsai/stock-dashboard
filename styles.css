@@ -739,7 +739,13 @@
   .pl-rpg .mut { color: var(--muted); }
   .rpg-hero { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
     background: linear-gradient(135deg, color-mix(in srgb, #f5b301 16%, var(--card)), var(--card)); border: 1px solid color-mix(in srgb, #f5b301 45%, var(--border)); }
-  .rpg-vault { line-height: 1; filter: drop-shadow(0 0 10px rgba(245,179,1,.45)); flex: none; }
+  .rpg-vault { line-height: 0; flex: none; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--rc) 55%, transparent)); }
+  .rpg-hero.v-gold { --rc: #e0a800; } .rpg-hero.v-iron { --rc: #8e9aab; } .rpg-hero.v-bronze { --rc: #c07a3a; } .rpg-hero.v-cloth { --rc: #c9a46a; }
+  .rpg-hero.v-broken { --rc: #8a8f99; } .rpg-hero.v-broken .rpg-vault { filter: grayscale(1); }
+  .rpg-ingots { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; line-height: 0; } .rpg-ingots b { line-height: 1; margin-left: 4px; font-size: var(--fs-sm); }
+  svg.px { display: block; } .px-m { fill: var(--rc); } .px-h { fill: color-mix(in srgb, var(--rc) 50%, #fff); } .px-d { fill: color-mix(in srgb, var(--rc) 62%, #000); }
+  .rpg-badge { --rc: var(--muted); display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; margin-left: 4px; padding: 1px 6px 1px 3px;
+    border-radius: var(--r-pill); border: 1px solid var(--rc); background: color-mix(in srgb, var(--rc) 12%, transparent); font-size: var(--fs-xs); font-weight: var(--fw-bold); white-space: nowrap; animation: none; box-shadow: none; }
   .rpg-hero-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .rpg-lv { font-size: var(--fs-lg); font-weight: var(--fw-heavy); } .rpg-lv b { font-size: var(--fs-2xl); }
   .rpg-gold { font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
@@ -749,7 +755,7 @@
   .rpg-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-2); }
   .rpg-item { --rc: var(--muted); display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md);
     border: 2px solid var(--rc); background: color-mix(in srgb, var(--rc) 9%, var(--card)); min-width: 0; }
-  .rpg-icon { font-size: 30px; line-height: 1; width: 44px; height: 44px; display: grid; place-items: center; flex: none; border-radius: 10px;
+  .rpg-icon { line-height: 0; width: 48px; height: 48px; display: grid; place-items: center; flex: none; border-radius: 10px;
     background: color-mix(in srgb, var(--rc) 20%, transparent); }
   .rpg-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
   .rpg-name { font-weight: var(--fw-heavy); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -764,8 +770,9 @@
   .r-rare   { --rc: #2f7fe6; }
   .r-common { --rc: color-mix(in srgb, var(--muted) 75%, var(--text)); }
   .r-broken { --rc: #8a8f99; border-style: dashed; }
-  .r-broken .rpg-icon { filter: grayscale(.8); }
+  .r-broken .rpg-icon svg { filter: grayscale(.85) brightness(.9); } .r-broken .rpg-icon { transform: rotate(-12deg); }
   .r-cursed { --rc: #5b4b6e; border-style: dashed; background: repeating-linear-gradient(135deg, color-mix(in srgb, #5b4b6e 14%, var(--card)) 0 8px, var(--card) 8px 16px); }
   @keyframes rpg-glow { 50% { box-shadow: 0 0 22px rgba(245,158,11,.7); } }
+  .rpg-badge.r-legend, .rpg-badge.r-epic { animation: none; box-shadow: none; } .rpg-badge.r-cursed { background: color-mix(in srgb, var(--rc) 14%, transparent); }
   @media (prefers-reduced-motion: reduce) { .r-legend { animation: none; } }
   @media (max-width: 600px) { .rpg-items { grid-template-columns: 1fr; } .rpg-hero { gap: var(--sp-3); } }

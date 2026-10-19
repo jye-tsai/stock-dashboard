@@ -616,12 +616,87 @@ function drawPl(T, held) {
 
 // 4.3b 持股損益・RPG 冒險模式:每檔持股是一件裝備,報酬率決定稀有度,損益決定攻擊力;合計損益決定等級與寶庫大小
 // 純 HTML(不用 canvas),顏色走 CSS(.pl-rpg,稀有度色在 styles.css),金額漲跌色仍是主題的 --up / --down
-const RPG_SLOTS = [['⚔️', '劍'], ['🛡️', '盾'], ['🪖', '盔'], ['🥋', '甲'], ['💍', '戒'], ['📿', '項鍊'], ['👢', '靴'], ['🧤', '手套'], ['🏹', '弓'], ['🔮', '寶珠']];
+// 圖示是 16×16 像素圖(下面 RPG_SPRITES,一字一格):m / h / d = 稀有度主色 / 亮 / 暗(CSS 變數 --rc,稀有度換色同一張圖),
+// 其餘字母是固定色。輸出成 inline SVG(同列同色連續格合成一個 rect),放大不糊、深淺主題都看得清楚。
+const PX_FIXED = { o: '#1d1a2b', g: '#f6c945', G: '#b8860b', w: '#9a6331', W: '#5f3b1c', c: '#d9b27a', C: '#9c7442', s: '#e7ecf3', S: '#9aa3b2', r: '#e5484d', R: '#8f1d22', p: '#a78bfa', k: '#2a1f3d' };
+const RPG_SPRITES = {
+  sword: [
+    '.............ooo', '............ohho', '...........ohmdo', '..........ohmdo.', '.........ohmdo..', '........ohmdo...',
+    '...oo..ohmdo....', '...ogoohmdo.....', '....ogGmdo......', '.....oGgo.......', '....owoGgo......', '...owo.oGgo.....',
+    '..owo...ooo.....', '.ogo............', '.oGo............', '..o.............'],
+  shield: [
+    '................', '..oooooooooooo..', '..ohhhhhhhhhmo..', '..ohmmmggmmmdo..', '..ohmmmggmmmdo..', '..ohmggggggmdo..',
+    '..ohmGGggGGmdo..', '..ohmmmggmmmdo..', '..ohmmmggmmmdo..', '...ohmmggmmdo...', '...ohmmGGmmdo...', '....ohmmmmdo....',
+    '.....ohmmdo.....', '......oddo......', '.......oo.......', '................'],
+  helmet: [
+    '.......oo.......', '......orro......', '......oRro......', '.....oooooo.....', '...oohhmmmmoo...', '..ohhmmmmmmmdo..',
+    '..ohmmmmmmmmdo..', '..ogggggggggGo..', '..ohmoooooomdo..', '..ohmmmmmmmmdo..', '..ohmo.oo.omdo..', '..ohmmmmmmmmdo..',
+    '...ohmmmmmmdo...', '....oddddddo....', '.....oooooo.....', '................'],
+  armor: [
+    '................', '..ooo......ooo..', '.ohhmo....ohmdo.', '.ohmmmooooommdo.', '.ohmmmhhmmmmmdo.', '..oommhmmmmmoo..',
+    '...ommhmmmmmo...', '...oggggggggo...', '...ommhmmmmdo...', '...ommhmmmmdo...', '...ohmhmmmmdo...', '...ohmmmmmmdo...',
+    '....oddddddo....', '.....oooooo.....', '................', '................'],
+  ring: [
+    '................', '......oooo......', '.....ohhmmo.....', '.....ohmmdo.....', '......oddo......', '.....oggggo.....',
+    '....ogGooGgo....', '...ogGo..oGgo...', '...ogo....oGo...', '...ogo....oGo...', '...ogGo..oGGo...', '....ogGooGGo....',
+    '.....oGGGGo.....', '......oooo......', '................', '................'],
+  amulet: [
+    '..oo........oo..', '...og......Go...', '....og....Go....', '.....og..Go.....', '......oggo......', '.....oGooGo.....',
+    '....ohhmmmdo....', '...ohhmmmmmdo...', '...ohmmmmmmdo...', '....ommmmmdo....', '.....ommmdo.....', '......omdo......',
+    '.......oo.......', '................', '................', '................'],
+  boots: [
+    '................', '....oooooo......', '....ohmmdo......', '....oggggo......', '....ohmmdo......', '....ohmmdo......',
+    '....ohmmdo......', '....ohmmdo......', '....ohmmdoooo...', '....ohmmmmmmdo..', '....ohmmmmmmmdo.', '....ohmmmmmmmdo.',
+    '....oWWWWWWWWWo.', '.....ooooooooo..', '................', '................'],
+  orb: [
+    '................', '.....oooooo.....', '....ohhmmmmo....', '...ohhhmmmmdo...', '...ohhmmmmmdo...', '...ommmmmmmdo...',
+    '...ommmmmmddo...', '....ommmmddo....', '.....oddddo.....', '....ogggggGo....', '...ogggggggGo...', '...oGGGGGGGGo...',
+    '....oooooooo....', '................', '................', '................'],
+  skull: [
+    '................', '....oooooooo....', '...osssssssso...', '..osssssssssso..', '..osssssssssso..', '..oskkossokkso..',
+    '..oskkossokkso..', '..ossssooossso..', '...osssoksssSo..', '....osssssso....', '....oskskskso...', '.....oooooo.....',
+    '...p........p...', '..p.p......p.p..', '................', '................'],
+  chest: [
+    '................', '................', '................', '..oooooooooooo..', '.owwwwwmmwwwwwo.', '.owwwwwmmwwwwwo.',
+    '.ommmmmmmmmmmmo.', '.oWWWWoggoWWWWo.', '.owwwwoGgowwwwo.', '.owwwwwoowwwwwo.', '.owwwwwmmwwwwwo.', '.owwwwwmmwwwwwo.',
+    '.oWWWWWmmWWWWWo.', '.oooooooooooooo.', '................', '................'],
+  pouch: [
+    '................', '................', '......oooo......', '.....oCggCo.....', '......oggo......', '.....occcco.....',
+    '....occcccco....', '...occcscccco...', '..occcccccccco..', '..occcoggoccco..', '..occcoGgoccco..', '..occccoocccco..',
+    '...oCCCCCCCCo...', '....oooooooo....', '................', '................'],
+  ingot: [
+    '................', '................', '................', '......oooo......', '.....ohhgGo.....', '.oo.ohgggGGo.oo.',
+    '.ohoogggggGGoGo.', '..ohhggggggGGo..', '..ohggggggggGo..', '...oGggggggGo...', '....oGGGGGGo....', '.....oooooo.....',
+    '................', '................', '................', '................']
+};
+// 皇冠 / 金幣堆:疊在寶箱上方(高等寶庫)
+const RPG_OVERLAY = {
+  coins: ['................', '....oo..oo......', '...oggoogGo.oo..', '..ogggggggGoggo.'],
+  crown: ['...o...o...o....', '..ogo.ogo.ogo...', '..ogggggggggo...', '..ogrgggbggrgo..']
+};
+function pxSvg(rows, size, extraRows) {
+  const all = extraRows ? extraRows.concat(rows.slice(extraRows.length)) : rows;
+  let rects = '';
+  all.forEach((line, y) => {
+    const row = line.padEnd(16, '.').slice(0, 16);
+    for (let x = 0; x < 16;) {
+      const ch = row[x]; let n = 1;
+      while (x + n < 16 && row[x + n] === ch) n++;
+      if (ch !== '.') rects += 'mhd'.includes(ch) ? `<rect class="px-${ch}" x="${x}" y="${y}" width="${n}" height="1"/>` : `<rect fill="${PX_FIXED[ch] || PX_FIXED.o}" x="${x}" y="${y}" width="${n}" height="1"/>`;
+      x += n;
+    }
+  });
+  return `<svg class="px" viewBox="0 0 16 16" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+const RPG_SLOTS = [['sword', '劍'], ['shield', '盾'], ['helmet', '盔'], ['armor', '甲'], ['ring', '戒'], ['amulet', '項鍊'], ['boots', '靴'], ['orb', '寶珠']];
 const RPG_RARITY = [   // [報酬率下限, key, 名稱]
   [0.5, 'legend', '傳說'], [0.2, 'epic', '史詩'], [0.05, 'rare', '稀有'], [0, 'common', '普通'], [-0.1, 'broken', '破損'], [-Infinity, 'cursed', '詛咒']
 ];
-const RPG_VAULT = [    // [合計損益下限, 圖示, 名稱, 圖示大小 px]
-  [3e6, '👑', '傳說寶庫', 64], [1e6, '🏆', '黃金寶箱', 56], [5e5, '🧰', '鐵寶箱', 48], [1e5, '💰', '錢袋', 42], [0, '👛', '小錢包', 36], [-Infinity, '🕳️', '破洞錢袋', 36]
+const rpgRarity = r => RPG_RARITY.find(([min]) => (r.plRatio || 0) >= min);
+// 寶庫:[合計損益下限, 圖, 疊加, 金屬色 key, 名稱, 大小 px]
+const RPG_VAULT = [
+  [3e6, 'chest', 'crown', 'gold', '傳說寶庫', 72], [1e6, 'chest', 'coins', 'gold', '黃金寶箱', 64], [5e5, 'chest', null, 'iron', '鐵寶箱', 56],
+  [1e5, 'chest', null, 'bronze', '銅寶箱', 52], [0, 'pouch', null, 'cloth', '錢袋', 48], [-Infinity, 'pouch', null, 'broken', '破洞錢袋', 48]
 ];
 const rpgWan = v => Math.abs(v) >= 10000 ? `${sign(v)}${(Math.abs(v) / 10000).toFixed(1)}萬` : `${sign(v)}${fmt(v)}`;
 // 等級:合計獲利 (Lv-1)² 萬 起算(1 萬 Lv2、4 萬 Lv3 … 100 萬 Lv11、400 萬 Lv21),越後面越難升
@@ -630,22 +705,32 @@ function rpgLevel(total) {
   const lv = Math.floor(Math.sqrt(total / 10000)) + 1, base = (lv - 1) ** 2 * 10000, next = lv ** 2 * 10000;
   return { lv, exp: (total - base) / (next - base), next };
 }
+// 持股明細也用:冒險模式開著時,名稱旁加一個小裝備圖 + 稀有度(slot 依損益排名,跟冒險卡同一件)
+function rpgBadge(r, rank) {
+  if (store.get('pf-pl-view') !== 'rpg') return '';
+  const [, key, rName] = rpgRarity(r);
+  const sprite = key === 'cursed' ? 'skull' : RPG_SLOTS[(rank >= 0 ? rank : 0) % RPG_SLOTS.length][0];
+  return ` <span class="rpg-badge r-${key}" title="${rName}裝備(報酬率 ${pct(r.plRatio || 0)})">${pxSvg(RPG_SPRITES[sprite], 16)}${rName}</span>`;
+}
+// 依未實現損益排名(0 = 最賺);持股明細跟冒險卡要對到同一件裝備
+const rpgRanks = held => new Map([...held].sort((a, b) => b.unrealized - a.unrealized).map((r, i) => [r.code, i]));
 function drawPlRpg(held) {
   const box = document.getElementById('pl-rpg'); if (!box) return;
   const rows = [...held].sort((a, b) => b.unrealized - a.unrealized);
   if (!rows.length) { box.innerHTML = '<div class="mut">背包空空的,先新增持股吧</div>'; return; }
   const total = rows.reduce((s, r) => s + (r.unrealized || 0), 0);
   const { lv, exp, next } = rpgLevel(total);
-  const [, vIcon, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
+  const [, vSprite, vOver, vMetal, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
   const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
+  const ingotRow = ingots ? Array.from({ length: Math.min(ingots, 8) }, () => pxSvg(RPG_SPRITES.ingot, 20)).join('') + (ingots > 8 ? `<b>×${ingots}</b>` : '') : '';
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.unrealized || 0)), 1);
   const items = rows.map((r, i) => {
-    const [, key, rName] = RPG_RARITY.find(([min]) => (r.plRatio || 0) >= min);
-    const [icon, slot] = RPG_SLOTS[i % RPG_SLOTS.length];
+    const [, key, rName] = rpgRarity(r);
+    const [sprite, slot] = RPG_SLOTS[i % RPG_SLOTS.length];
     const up = r.unrealized >= 0, plus = up ? Math.min(15, Math.floor((r.plRatio || 0) * 10)) : 0;
     const w = Math.max(3, Math.round(Math.abs(r.unrealized || 0) / maxAbs * 100));
     return `<div class="rpg-item r-${key}" title="${esc(`${r.name} (${r.code}) 成本 ${fmt(r.costAmt || 0)} 市值 ${fmt(r.mv || 0)}`)}">
-      <div class="rpg-icon" aria-hidden="true">${key === 'cursed' ? '💀' : icon}</div>
+      <div class="rpg-icon">${pxSvg(RPG_SPRITES[key === 'cursed' ? 'skull' : sprite], 40)}</div>
       <div class="rpg-body">
         <div class="rpg-name"><span class="rpg-tag">${rName}</span>${plus > 0 ? `<b class="rpg-plus">+${plus}</b>` : ''}${esc(r.name)}之${slot} <span class="mut">${esc(r.code)}</span></div>
         <div class="rpg-stat"><span>${up ? '攻擊力' : '受損'}</span><b class="${up ? 'up' : 'down'}">${rpgWan(r.unrealized || 0)}</b><span class="mut">${up ? '強化' : '耐久'} ${pct(r.plRatio || 0)}</span></div>
@@ -653,16 +738,17 @@ function drawPlRpg(held) {
       </div>
     </div>`;
   }).join('');
-  box.innerHTML = `<div class="rpg-hero">
-      <div class="rpg-vault" style="font-size:${vSize}px" aria-hidden="true">${vIcon}</div>
+  box.innerHTML = `<div class="rpg-hero v-${vMetal}">
+      <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
       <div class="rpg-hero-main">
         <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
-        <div class="rpg-gold">${total >= 0 ? `🪙 元寶 ×${ingots}` : '💸 寶庫破洞中'} <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b></div>
+        <div class="rpg-gold"><b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>
+        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一錠元寶">${ingotRow}</div>` : ''}
         <div class="rpg-exp" title="下一級:合計獲利 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
       </div>
     </div>
     <div class="rpg-items">${items}</div>
-    <div class="rpg-legend mut">稀有度看報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級</div>`;
+    <div class="rpg-legend mut">稀有度看報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級;元寶每 10 萬一錠</div>`;
 }
 
 // 4.4 年度損益(資本利得 + 股息堆疊;鎖住時容器隱藏就不畫)

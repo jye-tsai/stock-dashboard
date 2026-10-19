@@ -309,12 +309,15 @@ function renderHoldings(ctx) {
       + (tw ? `<polyline class="spark-tw" points="${path(tw)}" fill="none" stroke-width="1" stroke-dasharray="2 2"/>` : '')
       + `<polyline points="${path(me)}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   };
-  const H = { hideZero, cols, headHtml, ptimeCell, todayChg, todayHtml, sparkSvg };
+  // ⚔️ 冒險模式開著時,名稱旁加裝備圖 + 稀有度(charts.js rpgBadge;排名決定是哪件裝備,跟持股損益冒險卡同一件)
+  const ranks = rpgRanks(ctx.rows.filter(r => r.mv > 0));   // 跟 drawCharts 的 held 同一個篩選
+  const badge = r => r.mv > 0 ? rpgBadge(r, ranks.get(r.code)) : '';
+  const H = { hideZero, cols, headHtml, ptimeCell, todayChg, todayHtml, sparkSvg, badge };
   renderHoldingsTable(ctx, H);
   renderHoldingsCards(ctx, H);
 }
 
-function renderHoldingsTable({ rows, t, E }, { hideZero, cols, headHtml, ptimeCell, todayHtml, sparkSvg }) {
+function renderHoldingsTable({ rows, t, E }, { hideZero, cols, headHtml, ptimeCell, todayHtml, sparkSvg, badge }) {
   // 排序(編輯模式也可以:列上帶 _i 原始索引,抽屜靠它寫回)
   if (holdSort.key) {
     const k = holdSort.key, dir = holdSort.dir;
@@ -333,7 +336,7 @@ function renderHoldingsTable({ rows, t, E }, { hideZero, cols, headHtml, ptimeCe
       const hitClass = hitTarget ? 'hit-target' : hitStop ? 'hit-stop' : '';
       const flag = hitTarget ? ' 🎯' : hitStop ? ' ⚠️' : '';
       const cells = `
-        <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}</td>
+        <td><span class="tag">${esc(r.type)}</span></td><td><a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener" title="在 Yahoo 股市開啟 ${esc(r.code)}">${esc(r.code)}</a></td><td>${esc(r.name)}${flag}${badge(r)}</td>
         <td>${fmt2(r.cost)}</td><td>${fmt2(r.price)}${todayHtml(r)}</td><td class="spark" data-action="openStock" data-args='["${esc(r.code)}"]' title="點一下看近 90 日走勢">${sparkSvg(r)}</td><td>${r.lots.toLocaleString('zh-TW',{minimumFractionDigits:3})}</td>`;
       const sellNet = r.mv - r.sellCost;
       const colspan = cols.length + (E ? 1 : 0);
@@ -368,7 +371,7 @@ function renderHoldingsTable({ rows, t, E }, { hideZero, cols, headHtml, ptimeCe
 
 }
 
-function renderHoldingsCards({ rows, t, E }, { hideZero, todayChg, sparkSvg }) {
+function renderHoldingsCards({ rows, t, E }, { hideZero, todayChg, sparkSvg, badge }) {
   // 持股卡片(手機檢視模式)
   const stat = (k, v, c2) => `<div class="h-stat"><span class="k">${k}</span><span class="v ${c2 || ''}">${v}</span></div>`;
   document.getElementById('holdings-cards').innerHTML =
@@ -377,7 +380,7 @@ function renderHoldingsCards({ rows, t, E }, { hideZero, todayChg, sparkSvg }) {
       <div class="h-top">
         <span class="tag">${esc(r.type)}</span>
         <a class="code-link" href="https://tw.stock.yahoo.com/quote/${encodeURIComponent(r.code)}" target="_blank" rel="noopener">${esc(r.code)}</a>
-        <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}</span>
+        <span class="h-name">${esc(r.name)}${r.target > 0 && r.price >= r.target ? ' 🎯' : r.stop > 0 && r.price <= r.stop ? ' ⚠️' : ''}${badge(r)}</span>
         <span class="h-ratio ${cls(r.unrealized)}">${sign(r.unrealized)}${pct(r.plRatio)}</span>
         ${E ? `<button class="btn sm" type="button" data-action="openHolding" data-args='[${r._i}]' aria-label="編輯 ${esc(r.name)}">✏️</button>` : ''}
         ${sparkSvg(r) ? `<button class="spark-btn" type="button" data-action="openStock" data-args='["${esc(r.code)}"]' aria-label="看 ${esc(r.name)} 近 90 日走勢">${sparkSvg(r)}</button>` : ''}
