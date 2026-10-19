@@ -699,7 +699,7 @@ const RPG_VAULT = [
   [1e5, 'chest', null, 'bronze', '銅寶箱', 52], [0, 'pouch', null, 'cloth', '錢袋', 48], [-Infinity, 'pouch', null, 'broken', '破洞錢袋', 48]
 ];
 const rpgWan = v => Math.abs(v) >= 10000 ? `${sign(v)}${(Math.abs(v) / 10000).toFixed(1)}萬` : `${sign(v)}${fmt(v)}`;
-// 等級:合計獲利 (Lv-1)² 萬 起算(1 萬 Lv2、4 萬 Lv3 … 100 萬 Lv11、400 萬 Lv21),越後面越難升
+// 等級:總報酬 (Lv-1)² 萬 起算(1 萬 Lv2、4 萬 Lv3 … 100 萬 Lv11、400 萬 Lv21),越後面越難升
 function rpgLevel(total) {
   if (!(total > 0)) return { lv: 1, exp: 0, next: 10000 };
   const lv = Math.floor(Math.sqrt(total / 10000)) + 1, base = (lv - 1) ** 2 * 10000, next = lv ** 2 * 10000;
@@ -718,7 +718,10 @@ function drawPlRpg(held) {
   const box = document.getElementById('pl-rpg'); if (!box) return;
   const rows = [...held].sort((a, b) => b.unrealized - a.unrealized);
   if (!rows.length) { box.innerHTML = '<div class="mut">背包空空的,先新增持股吧</div>'; return; }
-  const total = rows.reduce((s, r) => s + (r.unrealized || 0), 0);
+  // 等級 / 寶庫 / 元寶看「總報酬」= 未實現 + 已實現 + 股息(2026-10-19 起;原本只看未實現),裝備卡仍是各檔未實現
+  const unreal = rows.reduce((s, r) => s + (r.unrealized || 0), 0);
+  const T = DATA ? PfCalc.totals(DATA) : null;
+  const total = T ? T.totalReturn : unreal;
   const { lv, exp, next } = rpgLevel(total);
   const [, vSprite, vOver, vMetal, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
   const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
@@ -742,13 +745,14 @@ function drawPlRpg(held) {
       <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
       <div class="rpg-hero-main">
         <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
-        <div class="rpg-gold"><b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>
+        <div class="rpg-gold"><span class="mut">總報酬</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>
+        ${T ? `<div class="rpg-src mut">裝備 ${rpgWan(unreal)}・戰利品(已實現)${rpgWan(T.realized)}・俸祿(股息)${rpgWan(T.dividend)}</div>` : ''}
         ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一錠元寶">${ingotRow}</div>` : ''}
-        <div class="rpg-exp" title="下一級:合計獲利 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
+        <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
       </div>
     </div>
     <div class="rpg-items">${items}</div>
-    <div class="rpg-legend mut">稀有度看報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級;元寶每 10 萬一錠</div>`;
+    <div class="rpg-legend mut">等級 / 寶庫 / 元寶看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級;元寶每 10 萬一錠</div>`;
 }
 
 // 4.4 年度損益(資本利得 + 股息堆疊;鎖住時容器隱藏就不畫)

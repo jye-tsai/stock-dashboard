@@ -749,6 +749,7 @@
   .rpg-hero-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .rpg-lv { font-size: var(--fs-lg); font-weight: var(--fw-heavy); } .rpg-lv b { font-size: var(--fs-2xl); }
   .rpg-gold { font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+  .rpg-src { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
   .rpg-exp { position: relative; height: 18px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--muted) 22%, transparent); overflow: hidden; }
   .rpg-exp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #f5b301, #ffd76a); border-radius: var(--r-pill); }
   .rpg-exp span { position: relative; display: block; font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 18px; padding-left: 8px; color: var(--text); }
