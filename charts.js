@@ -114,8 +114,8 @@ function chartTheme() {
     palette: CHART_PALETTES[styleKey],
     muted: v('--muted'), text: v('--text'), card: v('--card'), border,
     up: v('--up'), down: v('--down'),                                   // 漲跌色跟主題 / 色弱模式走
-    tooltipBg: isAgent ? 'rgba(7,10,22,.99)' : (styleKey === 'midnight' ? 'rgba(18,27,48,.98)' : '#ffffff'),
-    tooltipBorder: isAgent ? 'rgba(53,213,255,.72)' : border,
+    tooltipBg: isAgent ? 'rgba(7,10,22,.99)' : styleKey === 'midnight' ? 'rgba(18,27,48,.98)' : styleKey === 'rpg' ? 'rgba(14,18,34,.98)' : '#ffffff',   // 深色主題一律深底(冒險主題原本落到白底 + 淺字,看不清)
+    tooltipBorder: isAgent ? 'rgba(53,213,255,.72)' : styleKey === 'rpg' ? 'rgba(224,168,0,.75)' : border,
     // tooltip 文字色跟著 tooltip 底色走(深底亮字、白底深字),不受頁面主題影響
     tipTitle: isAgent ? '#67e8f9' : (isDark ? '#f0f4ff' : '#1e293b'),
     tipBody: isAgent ? '#eef4ff' : (isDark ? '#e6ecff' : '#334155'),
@@ -690,6 +690,22 @@ function pxSvg(rows, size, extraRows) {
   });
   return `<svg class="px" viewBox="0 0 16 16" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
 }
+// 同一張像素圖畫到 canvas(分享戰報用):rc = 主色(稀有度 / 寶庫金屬色),h / d 由主色混白 / 混黑
+const RPG_RC = { legend: '#e8920c', epic: '#9b51e0', rare: '#2f7fe6', common: '#b8bcc6', broken: '#8a8f99', cursed: '#5b4b6e', gold: '#e0a800', iron: '#8e9aab', bronze: '#c07a3a', cloth: '#c9a46a' };
+function hexMix(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function pxDraw(c, rows, x, y, size, rc, extraRows) {
+  const all = extraRows ? extraRows.concat(rows.slice(extraRows.length)) : rows, s = size / 16;
+  const col = { m: rc, h: hexMix(rc, '#ffffff', 0.5), d: hexMix(rc, '#000000', 0.38) };
+  all.forEach((line, j) => [...line.padEnd(16, '.').slice(0, 16)].forEach((ch, i) => {
+    if (ch === '.') return;
+    c.fillStyle = col[ch] || PX_FIXED[ch] || PX_FIXED.o;
+    c.fillRect(Math.round(x + i * s), Math.round(y + j * s), Math.ceil(s), Math.ceil(s));
+  }));
+}
 const RPG_SLOTS = [['sword', '劍'], ['shield', '盾'], ['helmet', '盔'], ['armor', '甲'], ['ring', '戒'], ['amulet', '項鍊'], ['boots', '靴'], ['orb', '寶珠']];
 const RPG_RARITY = [   // [報酬率下限, key, 名稱]
   [0.5, 'legend', '傳說'], [0.2, 'epic', '史詩'], [0.05, 'rare', '稀有'], [0, 'common', '普通'], [-0.1, 'broken', '破損'], [-Infinity, 'cursed', '詛咒']
@@ -744,24 +760,53 @@ function applyRpgLabels() {
   });
 }
 
-/* ---- 成就牆(冒險主題才顯示):條件只看 data.json 現有資料;第一次開啟把已達成的默默記下,之後新達成才跳通知 ---- */
-// 每一項:[id, 像素圖, 名稱, 說明, 條件(ctx) → true/false]
-const RPG_ACH = [
-  ['first', 'pouch', '首戰告捷', '總報酬轉正', c => c.ret > 0],
-  ['ret10', 'ingot', '十萬元寶', '總報酬達 10 萬', c => c.ret >= 1e5],
-  ['ret100', 'chest', '百萬寶箱', '總報酬達 100 萬', c => c.ret >= 1e6],
-  ['ret500', 'chest', '傳說寶庫', '總報酬達 500 萬', c => c.ret >= 5e6],
-  ['ret1000', 'orb', '千萬財神', '總報酬達 1,000 萬', c => c.ret >= 1e7],
-  ['legend', 'sword', '傳說裝備', '任一持股報酬率 ≥ 50%', c => c.held.some(r => r.plRatio >= 0.5)],
-  ['double', 'sword', '神兵', '任一持股報酬率 ≥ 100%(翻倍)', c => c.held.some(r => r.plRatio >= 1)],
-  ['epic3', 'shield', '史詩收藏家', '3 檔以上報酬率 ≥ 20%', c => c.held.filter(r => r.plRatio >= 0.2).length >= 3],
-  ['party', 'helmet', '組隊冒險', '同時持有 5 檔以上', c => c.held.length >= 5],
-  ['streak5', 'boots', '五連勝', '總報酬連續 5 個交易日上升', c => c.maxStreak >= 5],
-  ['bigday', 'amulet', '大豐收', '單日總報酬增加 10 萬以上', c => c.bestDay >= 1e5],
-  ['div10', 'ring', '俸祿領主', '累積股息達 10 萬', c => c.dividend >= 1e5],
-  ['ath', 'armor', '登峰造極', '總市值創歷史新高(最近一筆)', c => c.ath],
-  ['year', 'orb', '冒險滿一年', '資產紀錄滿 365 天', c => c.days >= 365]
+/* ---- 成就牆(冒險主題才顯示):分章節,一章全部達成才開下一章;條件只看 data.json 現有資料 ----
+   第一次開啟把已達成的默默記下,之後新達成才跳通知;進到新章節時,該章已達成的一起點亮並通知。
+   每一項:[id, 像素圖, 名稱, 說明, 條件(ctx) → true/false, 進度(ctx) → [目前, 目標, 單位](選填,沒達成時顯示進度條)] */
+const wan = v => `${Math.round(v / 10000).toLocaleString('zh-TW')}萬`;
+const RPG_CHAPTERS = [
+  { name: '第一章・新手村', items: [
+    ['first', 'pouch', '首戰告捷', '總報酬轉正', c => c.ret > 0],
+    ['ret10', 'ingot', '十萬元寶', '總報酬達 10 萬', c => c.ret >= 1e5, c => [c.ret, 1e5]],
+    ['ret100', 'chest', '百萬寶箱', '總報酬達 100 萬', c => c.ret >= 1e6, c => [c.ret, 1e6]],
+    ['legend', 'sword', '傳說裝備', '任一持股報酬率 ≥ 50%', c => c.best >= 0.5, c => [c.best * 100, 50, '%']],
+    ['epic3', 'shield', '史詩收藏家', '3 檔以上報酬率 ≥ 20%', c => c.n20 >= 3, c => [c.n20, 3, ' 檔']],
+    ['party', 'helmet', '組隊冒險', '同時持有 5 檔以上', c => c.held.length >= 5, c => [c.held.length, 5, ' 檔']],
+    ['streak5', 'boots', '五連勝', '總報酬連續 5 個交易日上升', c => c.maxStreak >= 5, c => [c.maxStreak, 5, ' 天']],
+    ['bigday', 'amulet', '大豐收', '單日總報酬增加 10 萬以上', c => c.bestDay >= 1e5, c => [c.bestDay, 1e5]],
+    ['div10', 'ring', '俸祿領主', '累積股息達 10 萬', c => c.dividend >= 1e5, c => [c.dividend, 1e5]],
+    ['ath', 'armor', '登峰造極', '總市值創歷史新高(最近一筆)', c => c.ath]
+  ] },
+  { name: '第二章・王城', items: [
+    ['ret500', 'chest', '傳說寶庫', '總報酬達 500 萬', c => c.ret >= 5e6, c => [c.ret, 5e6]],
+    ['double', 'sword', '神兵', '任一持股報酬率 ≥ 100%(翻倍)', c => c.best >= 1, c => [c.best * 100, 100, '%']],
+    ['legend2', 'shield', '雙傳說', '2 檔以上報酬率 ≥ 50%', c => c.n50 >= 2, c => [c.n50, 2, ' 檔']],
+    ['allgreen', 'helmet', '全員獲利', '所有持股都在賺(4 檔以上)', c => c.held.length >= 4 && c.held.every(r => r.unrealized > 0)],
+    ['streak7', 'boots', '七連勝', '總報酬連續 7 個交易日上升', c => c.maxStreak >= 7, c => [c.maxStreak, 7, ' 天']],
+    ['bigday30', 'amulet', '豐收祭', '單日總報酬增加 30 萬以上', c => c.bestDay >= 3e5, c => [c.bestDay, 3e5]],
+    ['div30', 'ring', '領地稅收', '累積股息達 30 萬', c => c.dividend >= 3e5, c => [c.dividend, 3e5]],
+    ['real50', 'ingot', '戰利品滿倉', '已實現損益達 50 萬', c => c.realized >= 5e5, c => [c.realized, 5e5]],
+    ['comeback', 'armor', '浴火重生', '總市值從高點回落 10% 以上,之後再創新高', c => c.comeback],
+    ['year', 'orb', '冒險滿一年', '資產紀錄滿 365 天', c => c.days >= 365, c => [Math.floor(c.days), 365, ' 天']]
+  ] },
+  { name: '第三章・龍之巢穴', items: [
+    ['ret1000', 'orb', '千萬財神', '總報酬達 1,000 萬', c => c.ret >= 1e7, c => [c.ret, 1e7]],
+    ['triple', 'sword', '屠龍刀', '任一持股報酬率 ≥ 200%', c => c.best >= 2, c => [c.best * 100, 200, '%']],
+    ['legend3', 'shield', '傳說軍團', '3 檔以上報酬率 ≥ 50%', c => c.n50 >= 3, c => [c.n50, 3, ' 檔']],
+    ['streak10', 'boots', '十連勝', '總報酬連續 10 個交易日上升', c => c.maxStreak >= 10, c => [c.maxStreak, 10, ' 天']],
+    ['bigday50', 'amulet', '天降橫財', '單日總報酬增加 50 萬以上', c => c.bestDay >= 5e5, c => [c.bestDay, 5e5]],
+    ['div50', 'ring', '王國國庫', '累積股息達 50 萬', c => c.dividend >= 5e5, c => [c.dividend, 5e5]],
+    ['mv2000', 'chest', '富甲一方', '總市值達 2,000 萬', c => c.mv >= 2e7, c => [c.mv, 2e7]],
+    ['year2', 'orb', '老練冒險者', '資產紀錄滿 730 天', c => c.days >= 730, c => [Math.floor(c.days), 730, ' 天']]
+  ] },
+  { name: '終章・傳說之境', items: [
+    ['ret2000', 'orb', '財富之神', '總報酬達 2,000 萬', c => c.ret >= 2e7, c => [c.ret, 2e7]],
+    ['ret5000', 'chest', '黃金國度', '總報酬達 5,000 萬', c => c.ret >= 5e7, c => [c.ret, 5e7]],
+    ['div100', 'ring', '萬年俸祿', '累積股息達 100 萬', c => c.dividend >= 1e6, c => [c.dividend, 1e6]],
+    ['year5', 'orb', '傳奇', '資產紀錄滿 5 年', c => c.days >= 1826, c => [Math.floor(c.days), 1826, ' 天']]
+  ] }
 ];
+const RPG_ACH = RPG_CHAPTERS.flatMap(ch => ch.items);
 function rpgAchCtx(d, held) {
   const T = PfCalc.totals(d), h = (Array.isArray(d.history) ? d.history : []).filter(x => x && typeof x.ret === 'number');
   let streak = 0, maxStreak = 0, bestDay = 0;
@@ -771,8 +816,18 @@ function rpgAchCtx(d, held) {
     if (diff > bestDay) bestDay = diff;
   }
   const mvs = h.map(x => x.mv || 0), last = mvs[mvs.length - 1] || 0;
+  // 浴火重生:曾從當時高點回落 ≥10%,之後又超過那個高點
+  let peak = 0, dipPeak = 0, comeback = false;
+  for (const m of mvs) {
+    if (dipPeak && m > dipPeak) comeback = true;
+    if (m > peak) peak = m;
+    if (peak && m <= peak * 0.9) dipPeak = Math.max(dipPeak, peak);
+  }
   const days = h.length > 1 ? (new Date(h[h.length - 1].date) - new Date(h[0].date)) / 864e5 : 0;
-  return { ret: T.totalReturn, dividend: T.dividend, held, maxStreak, bestDay, ath: h.length > 5 && last > 0 && last >= Math.max(...mvs), days };
+  const ratios = held.map(r => r.plRatio || 0);
+  return { ret: T.totalReturn, dividend: T.dividend, realized: T.realized, mv: T.mv, held, maxStreak, bestDay, days, comeback,
+           best: Math.max(0, ...ratios), n20: ratios.filter(x => x >= 0.2).length, n50: ratios.filter(x => x >= 0.5).length,
+           ath: h.length > 5 && last > 0 && last >= Math.max(...mvs) };
 }
 function renderAchievements(d, held) {
   const panel = document.getElementById('ach-panel'); if (!panel) return;
@@ -781,18 +836,35 @@ function renderAchievements(d, held) {
   const c = rpgAchCtx(d, held);
   let saved = {}; try { saved = JSON.parse(store.get('pf-ach') || '{}') || {}; } catch (e) { saved = {}; }
   const seeded = !!saved._seeded, today = tpeNow().date, fresh = [];
-  for (const [id, , name, , test] of RPG_ACH) {
-    let ok = false; try { ok = !!test(c); } catch (e) { ok = false; }
-    if (ok && !saved[id]) { saved[id] = seeded ? today : '初次'; if (seeded) fresh.push(name); }
+  const ok = item => { try { return !!item[4](c); } catch (e) { return false; } };
+  // 由第一章往後:這章可見 → 記下達成的;這章全部達成才看得到下一章
+  let cur = 0;
+  for (let i = 0; i < RPG_CHAPTERS.length; i++) {
+    cur = i;
+    for (const it of RPG_CHAPTERS[i].items) if (ok(it) && !saved[it[0]]) { saved[it[0]] = seeded ? today : '初次'; if (seeded) fresh.push(it[2]); }
+    if (!RPG_CHAPTERS[i].items.every(it => saved[it[0]])) break;
   }
-  saved._seeded = 1; store.set('pf-ach', JSON.stringify(saved));
-  if (fresh.length) setTimeout(() => toast(`🏆 解鎖成就:${fresh.join('、')}`), 600);
-  const got = RPG_ACH.filter(([id]) => saved[id]).length;
-  document.getElementById('ach-count').textContent = `${got} / ${RPG_ACH.length}`;
-  document.getElementById('ach-grid').innerHTML = RPG_ACH.map(([id, sp, name, desc]) => {
-    const on = !!saved[id];
+  const allDone = RPG_CHAPTERS.every(ch => ch.items.every(it => saved[it[0]]));
+  if (seeded && saved._ch != null && cur > saved._ch) fresh.unshift(`進入${RPG_CHAPTERS[cur].name}`);
+  saved._ch = cur; saved._seeded = 1; store.set('pf-ach', JSON.stringify(saved));
+  if (fresh.length) setTimeout(() => toast(`🏆 ${fresh.join('、')}`), 600);
+  const ch = RPG_CHAPTERS[cur], got = ch.items.filter(it => saved[it[0]]).length;
+  document.getElementById('ach-count').textContent = allDone ? '全部章節完成!' : `${ch.name} ${got} / ${ch.items.length}`;
+  const cleared = RPG_CHAPTERS.slice(0, allDone ? RPG_CHAPTERS.length : cur);
+  const doneRow = cleared.length ? `<div class="ach-cleared">${cleared.map(x => `<span>✓ ${esc(x.name)}</span>`).join('')}</div>` : '';
+  const show = allDone ? RPG_CHAPTERS[RPG_CHAPTERS.length - 1] : ch;
+  document.getElementById('ach-grid').innerHTML = doneRow + show.items.map(it => {
+    const [id, sp, name, desc, , prog] = it, on = !!saved[id];
+    let bar = '';
+    if (!on && prog) {
+      try {
+        const [now, goal, unit = ''] = prog(c), p = Math.max(0, Math.min(1, now / goal));
+        const fmtV = goal >= 1e4 ? wan : v => Math.floor(v);                      // 金額用萬,其餘取整數 + 單位(% / 檔 / 天)
+        bar = `<i class="ach-prog"><em style="width:${Math.round(p * 100)}%"></em></i><small>${fmtV(Math.max(0, now))} / ${fmtV(goal)}${unit}</small>`;
+      } catch (e) { bar = ''; }
+    }
     return `<div class="ach ${on ? 'on' : 'off'}" title="${esc(desc)}${on ? `(${saved[id] === '初次' ? '開啟冒險前就已達成' : saved[id] + ' 解鎖'})` : ''}">
-      ${pxSvg(RPG_SPRITES[on ? sp : 'chest'], 36)}<b>${on ? esc(name) : '???'}</b><span>${esc(desc)}</span></div>`;
+      ${pxSvg(RPG_SPRITES[on ? sp : 'chest'], 36)}<b>${on ? esc(name) : '???'}</b><span>${esc(desc)}</span>${bar}</div>`;
   }).join('');
 }
 

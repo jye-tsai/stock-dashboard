@@ -1173,8 +1173,24 @@ async function shareCard(previewOnly) {
   const font = (w, px) => `${w} ${px}px ${FAM}`;
   const upC = v('--up'), downC = v('--down'), textC = v('--text'), labelC = v('--label') || v('--muted'), mutedC = v('--muted');
   const colorOf = n => n > 0 ? upC : n < 0 ? downC : textC;
-  const card = (x, y, w, h) => { c.fillStyle = v('--card'); c.strokeStyle = v('--border'); c.lineWidth = 2; roundedRectPath(c, x, y, w, h, 28); c.fill(); c.stroke(); };
+  const RPG = isRpg();   // ⚔️ 冒險主題:金色雙框視窗、像素寶庫 + 等級、裝備欄 TOP3
+  const card = (x, y, w, h) => {
+    if (RPG) {
+      c.fillStyle = '#171d33'; c.fillRect(x, y, w, h);
+      c.strokeStyle = '#8a7130'; c.lineWidth = 6; c.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      c.strokeStyle = 'rgba(224,168,0,.45)'; c.lineWidth = 2; c.strokeRect(x + 12, y + 12, w - 24, h - 24);
+      [[x, y], [x + w - 14, y], [x, y + h - 14], [x + w - 14, y + h - 14]].forEach(([a, b]) => { c.fillStyle = '#e0a800'; c.fillRect(a, b, 14, 14); });   // 四角金釘
+      return;
+    }
+    c.fillStyle = v('--card'); c.strokeStyle = v('--border'); c.lineWidth = 2; roundedRectPath(c, x, y, w, h, 28); c.fill(); c.stroke();
+  };
   c.fillStyle = v('--bg'); c.fillRect(0, 0, W, H);
+  if (RPG) {   // 星空底
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0b0f1e'); g.addColorStop(.6, '#121833'); g.addColorStop(1, '#0e1222');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    for (let i = 0; i < 70; i++) { c.fillStyle = `rgba(255,240,200,${0.2 + rnd() * 0.5})`; const s = rnd() < 0.85 ? 3 : 5; c.fillRect(Math.round(rnd() * W), Math.round(rnd() * H), s, s); }
+  }
   c.textBaseline = 'middle'; c.textAlign = 'left';
 
   // 標題列:吉祥物 + 標題 + 期間
@@ -1197,32 +1213,53 @@ async function shareCard(previewOnly) {
   const pctTxt = `${sign(pctV)}${pct(pctV)}`;
   card(PAD, 220, INNER, 400);
   c.fillStyle = labelC; c.font = font(700, 32);
-  c.fillText(M.label + (missing ? `(${missing} 檔缺昨收未計)` : ''), PAD + 48, 285);
+  const label = RPG ? { day: '⚔️ 今日戰果', week: '⚔️ 本週戰果', month: '⚔️ 本月戰果' }[mode] || M.label : M.label;
+  c.fillText(label + (missing ? `(${missing} 檔缺昨收未計)` : ''), PAD + 48, 285);
+  if (RPG) {   // 右上角:像素寶庫 + 等級(總報酬算)
+    const tr = TT.totalReturn, { lv } = rpgLevel(tr), [, vs, vo, vm, vn] = RPG_VAULT.find(([min]) => tr >= min);
+    pxDraw(c, RPG_SPRITES[vs], W - PAD - 48 - 150, 250, 150, RPG_RC[vm] || '#e0a800', vo ? RPG_OVERLAY[vo] : null);
+    c.textAlign = 'center'; c.fillStyle = '#ffd76a'; c.font = font(850, 34); c.fillText(`Lv.${lv}`, W - PAD - 48 - 75, 425);
+    c.fillStyle = mutedC; c.font = font(700, 22); c.fillText(vn, W - PAD - 48 - 75, 458); c.textAlign = 'left';
+  }
   c.fillStyle = colorOf(chg);
-  if (pctOnly) { fitText(c, pctTxt, INNER - 96, 150, 880, FAM); c.fillText(pctTxt, PAD + 44, 400); }
+  if (pctOnly) { fitText(c, pctTxt, INNER - 96 - (RPG ? 200 : 0), 150, 880, FAM); c.fillText(pctTxt, PAD + 44, 400); }
   else {
     const big = sign(chg) + fmt(chg);
-    fitText(c, big, INNER - 96, 118, 880, FAM); c.fillText(big, PAD + 44, 392);
+    fitText(c, big, INNER - 96 - (RPG ? 200 : 0), 118, 880, FAM); c.fillText(big, PAD + 44, 392);
     c.font = font(750, 52); c.fillText(`(${pctTxt})`, PAD + 48, 478);
   }
   const col2 = W / 2 + 20, rowY = 560, colW = W - PAD - 48 - col2;
-  c.fillStyle = labelC; c.font = font(700, 28); c.fillText('總市值', PAD + 48, rowY - 24); c.fillText('總報酬', col2, rowY - 24);
+  c.fillStyle = labelC; c.font = font(700, 28); c.fillText(RPG ? '🛡️ 戰力(總市值)' : '總市值', PAD + 48, rowY - 24); c.fillText(RPG ? '👑 總戰果(總報酬)' : '總報酬', col2, rowY - 24);
   c.fillStyle = textC; c.font = font(800, 44); c.fillText(pctOnly ? '—' : fmt(TT.mv), PAD + 48, rowY + 28);
   const rateTxt = `${sign(rate)}${pct(rate)}`, retTxt = pctOnly ? rateTxt : `${sign(TT.totalReturn)}${fmt(TT.totalReturn)} · ${rateTxt}`;
   c.fillStyle = colorOf(TT.totalReturn); fitText(c, retTxt, colW, 44, 800, FAM, 26); c.fillText(retTxt, col2, rowY + 28);
 
-  // 走勢:自己畫總市值線
-  card(PAD, 670, INNER, 520);
+  // 走勢:自己畫總市值線(冒險主題縮短,下面放裝備欄 TOP3)
+  const chartH = RPG ? 330 : 520;
+  card(PAD, 670, INNER, chartH);
   c.fillStyle = labelC; c.font = font(700, 30); c.textAlign = 'left'; c.textBaseline = 'middle';
-  c.fillText(mode === 'day' ? '總市值走勢(近 30 個交易日)' : '總市值走勢(本期間)', PAD + 48, 720);
+  c.fillText((RPG ? '📖 冒險日誌 · ' : '') + (mode === 'day' ? '總市值走勢(近 30 個交易日)' : '總市值走勢(本期間)'), PAD + 48, 720);
   if (series && series.length >= 2) {
-    drawMiniLine(c, series, { x: PAD + 48, y: 760, w: INNER - 96, h: 400 }, { line: v('--title-accent') || v('--accent'), hi: P.hi, lo: P.lo, muted: mutedC, font: FAM, money: !pctOnly });
+    drawMiniLine(c, series, { x: PAD + 48, y: 760, w: INNER - 96, h: chartH - 120 }, { line: v('--title-accent') || v('--accent'), hi: P.hi || upC, lo: P.lo || downC, muted: mutedC, font: FAM, money: !pctOnly });
   } else { c.fillStyle = mutedC; c.font = font(600, 28); c.fillText('(走勢資料不足)', PAD + 48, 900); }
+  if (RPG) {   // 裝備欄 TOP3:依未實現損益排名,跟網頁冒險卡同一件裝備
+    const top = PfCalc.compute(DATA).rows.filter(r => r.mv > 0).sort((a, b) => b.unrealized - a.unrealized).slice(0, 3);
+    const y0 = 1030, ch = 200; card(PAD, y0, INNER, ch);
+    c.fillStyle = labelC; c.font = font(700, 26); c.fillText('⚔️ 裝備欄 TOP3', PAD + 40, y0 + 40);
+    const cw = (INNER - 80) / 3;
+    top.forEach((r, i) => {
+      const [, key, rName] = rpgRarity(r), sp = key === 'cursed' ? 'skull' : RPG_SLOTS[i][0], x = PAD + 40 + i * cw, y = y0 + 70;
+      pxDraw(c, RPG_SPRITES[sp], x, y, 96, RPG_RC[key] || '#b8bcc6');
+      c.fillStyle = RPG_RC[key] || mutedC; c.font = font(800, 22); c.fillText(rName, x + 108, y + 14);
+      c.fillStyle = textC; c.font = font(750, 24); fitText(c, r.name, cw - 120, 24, 750, FAM, 16); c.fillText(r.name, x + 108, y + 48);
+      c.fillStyle = colorOf(r.unrealized); c.font = font(800, 24); c.fillText(pctOnly ? `${sign(r.plRatio)}${pct(r.plRatio)}` : rpgWan(r.unrealized), x + 108, y + 82);
+    });
+  }
 
   // 頁尾:站台網址(在 GitHub Pages 上才有)
   const site = location.hostname.endsWith('.github.io') ? location.host + location.pathname.replace(/index\.html$/, '') : '';
   c.fillStyle = mutedC; c.font = font(600, 26); c.textAlign = 'center';
-  c.fillText(title + (site ? ' · ' + site : ''), W / 2, H - 70);
+  c.fillText((RPG ? '⚔️ ' : '') + title + (site ? ' · ' + site : ''), W / 2, H - (RPG ? 50 : 70));
   if (previewOnly) return cv;
 
   // 輸出:能 Web Share 檔案就分享(手機丟 LINE / IG),不能就下載 PNG

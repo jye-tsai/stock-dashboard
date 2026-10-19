@@ -828,3 +828,9 @@
   @media (max-width: 600px) { .ach-grid { grid-template-columns: repeat(3, 1fr); } .ach { padding: 8px 4px; } }
   .card .label small { display: block; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--muted); margin-top: 1px; }
   [data-theme="rpg"] .panel h2 .panel-tools { color: var(--text); text-shadow: none; letter-spacing: normal; }
+  .ach-prog { display: block; width: 86%; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--muted) 25%, transparent); overflow: hidden; margin-top: 3px; }
+  .ach-prog em { display: block; height: 100%; background: #e0a800; border-radius: 99px; }
+  .ach small { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ach.off:has(.ach-prog) { opacity: .8; }
+  .ach-cleared { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ach-cleared span { font-size: var(--fs-xs); font-weight: var(--fw-bold); padding: 2px 10px; border-radius: 99px; border: 1px solid #e0a800; color: #e0a800; background: rgba(224,168,0,.1); }
