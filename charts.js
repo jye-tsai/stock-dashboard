@@ -252,26 +252,34 @@ const plLabelPlugin = {
   afterDatasetsDraw(chart, args, o) {
     const rows = o.rows || [];
     if (!rows.length) return;
-    const meta = chart.getDatasetMeta(0), xScale = chart.scales.x, { ctx } = chart;
+    const meta = chart.getDatasetMeta(0), xScale = chart.scales.x, { ctx, chartArea } = chart;
+    const zero = xScale.getPixelForValue(0);
     ctx.save();
     ctx.textBaseline = 'middle';
-    ctx.font = `${o.weight || 800} ${o.fontSize || 11}px ${o.fontFamily}`;
+    ctx.font = plFont(o);
     ctx.shadowColor = o.shadowColor || 'transparent'; ctx.shadowBlur = o.shadowBlur || 0;
+    // 標籤一律畫在圖表區內(chartArea),不跨進左邊的股票名稱(2026-10-19 手機上虧損標籤蓋到名稱)
     rows.forEach((r, i) => {
       const el = meta.data[i]; if (!el) return;
       const y = el.getProps(['y'], true).y, xEnd = xScale.getPixelForValue(r.unrealized);
-      const label = `${sign(r.unrealized)}${fmt(r.unrealized)} (${pct(r.plRatio)})`, w = ctx.measureText(label).width;
+      const label = plLabel(r, o.compact), w = ctx.measureText(label).width;
       if (r.unrealized >= 0) {
-        if (xEnd + 10 + w <= chart.width - 4) { ctx.textAlign = 'left'; ctx.fillStyle = o.gainColor; ctx.fillText(label, xEnd + 10, y); }
-        else { ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillText(label, xEnd - 12, y); }
+        if (xEnd + 10 + w <= chart.width - 4) { ctx.textAlign = 'left'; ctx.fillStyle = o.gainColor; ctx.fillText(label, xEnd + 10, y); }   // 條尾外側(右邊有預留空間,通常走這裡)
+        else { ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillText(label, Math.max(xEnd - 12, chartArea.left + 4 + w), y); }
       } else {
-        if (xEnd - 10 - w >= 4) { ctx.textAlign = 'right'; ctx.fillStyle = o.lossColor; ctx.fillText(label, xEnd - 10, y); }
-        else { ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillText(label, xEnd + 12, y); }
+        if (xEnd - 10 - w >= chartArea.left + 2) { ctx.textAlign = 'right'; ctx.fillStyle = o.lossColor; ctx.fillText(label, xEnd - 10, y); }   // 條尾外側(左)
+        else { ctx.textAlign = 'left'; ctx.fillStyle = o.lossColor; ctx.fillText(label, zero + 10, y); }   // 左邊放不下 → 放零軸右側空軌道上
       }
     });
     ctx.restore();
   }
 };
+// 標籤文字:窄螢幕用「萬」縮寫,寬度約少一半
+const plLabel = (r, compact) => {
+  const v = r.unrealized, money = compact && Math.abs(v) >= 10000 ? `${sign(v)}${(Math.abs(v) / 10000).toFixed(1)}萬` : `${sign(v)}${fmt(v)}`;
+  return `${money} (${pct(r.plRatio)})`;
+};
+const plFont = o => `${o.weight || 800} ${o.fontSize || 11}px ${o.fontFamily}`;
 
 // 資產走勢:在總市值線上標「▲ 最高 / ▼ 最低」
 const navPeaksPlugin = {
@@ -559,9 +567,15 @@ function drawPl(T, held) {
   const canvas = document.getElementById('pl'); if (!canvas) return;
   const P = T.palette, A = T.isAgent;
   const rows = [...held].sort((a, b) => b.unrealized - a.unrealized);
+  // 右邊預留「最長的獲利標籤」寬度,條尾外側一定放得下,不會改畫進條內蓋到左邊名稱
+  const W = (canvas.parentElement && canvas.parentElement.clientWidth) || 600, compact = W < 720;
+  const labelOpts = { fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 };
+  const mctx = canvas.getContext('2d'); mctx.save(); mctx.font = plFont(labelOpts);
+  const padR = Math.ceil(Math.max(0, ...rows.filter(r => r.unrealized >= 0).map(r => mctx.measureText(plLabel(r, compact)).width))) + 16;
+  mctx.restore();
   plChart = upsertChart(plChart, canvas, {
     type: 'bar',
-    data: { labels: rows.map(r => `${r.name} (${r.code})`), datasets: [{
+    data: { labels: rows.map(r => compact ? [r.name, `(${r.code})`] : `${r.name} (${r.code})`), datasets: [{   // 窄螢幕名稱 / 代號分兩行,左邊名稱才不會被切掉
       label: '未實現損益', data: rows.map(r => r.unrealized),
       backgroundColor: c => {
         const area = c.chart.chartArea, r = rows[c.dataIndex] || {}, base = r.unrealized >= 0 ? T.up : T.down;
@@ -574,7 +588,7 @@ function drawPl(T, held) {
     }] },
     options: baseOpts({
       indexAxis: 'y',
-      layout: { padding: { top: 4, right: 12, bottom: 2, left: 2 } },
+      layout: { padding: { top: 4, right: Math.max(12, padR), bottom: 2, left: 2 } },
       animation: { duration: 820, easing: 'easeOutBack' },
       scales: {
         x: { border: { display: false }, grid: { color: c => c.tick.value === 0 ? T.zeroLine : 'transparent', lineWidth: c => c.tick.value === 0 ? 1.7 : 1, drawTicks: false },
@@ -583,9 +597,9 @@ function drawPl(T, held) {
       },
       plugins: {
         legend: { display: false },
-        plLabel: { rows, gainColor: T.up, lossColor: T.down, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, fontFamily: T.chartFont, fontSize: A ? 11.5 : 11, weight: 850 },
+        plLabel: { rows, compact, gainColor: T.up, lossColor: T.down, shadowColor: A ? 'rgba(255,79,184,.32)' : 'transparent', shadowBlur: A ? 8 : 0, ...labelOpts },
         tooltip: tooltipOpts(T, { displayColors: false, callbacks: {
-          title: items => items[0]?.label || '',
+          title: items => { const l = items[0]?.label || ''; return Array.isArray(l) ? l.join(' ') : l; },
           label: c => { const r = rows[c.dataIndex] || {}; return [`未實現損益：${sign(r.unrealized)}${fmt(r.unrealized || 0)}`, `損益比例：${pct(r.plRatio || 0)}`, `成本：${fmt(r.costAmt || 0)}　市值：${fmt(r.mv || 0)}`]; }
         } })
       }
