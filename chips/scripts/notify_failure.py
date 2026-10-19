@@ -18,8 +18,8 @@ def failed_steps(get, repo, run_id, token):
     except Exception as e:
         print("notify_failure: 查失敗步驟失敗", repr(e)); return []
 
-def message(title, steps, url):
-    L = [f"⚠ 胖虎排程失敗:{title or 'chips'}"]
+def message(title, steps, url, story=()):
+    L = list(story) + [f"⚠ 胖虎排程失敗:{title or 'chips'}"]                # story:說書人開場(☠ 胖虎倒下了!),關閉時是空的
     L.append(f"失敗步驟:{'、'.join(steps)}" if steps else "失敗步驟:(查不到,看執行紀錄)")
     L.append("資料或 LINE 可能沒更新;同一班別的另一條路(Cloudflare / cron-job.org)若成功會補上。")
     if url: L.append(url)
@@ -32,7 +32,14 @@ def main():
     if not DRY and repo and run_id and os.getenv("GITHUB_TOKEN"):
         import requests
         steps = failed_steps(requests.get, repo, run_id, os.getenv("GITHUB_TOKEN"))
-    text = message(os.getenv("RUN_TITLE", ""), steps, url)
+    story = []
+    try:
+        from storyteller import world_for, fail_lines
+        from common import tw_now
+        d = tw_now().strftime("%Y/%m/%d"); story = fail_lines(world_for(d), d)
+    except Exception as e:
+        print("notify_failure: 說書人略過", repr(e))
+    text = message(os.getenv("RUN_TITLE", ""), steps, url, story)
     print(text)
     tok, uid = os.getenv("LINE_CHANNEL_TOKEN"), os.getenv("LINE_USER_ID")
     if DRY or not tok or not uid: return

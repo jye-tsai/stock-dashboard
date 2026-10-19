@@ -2,8 +2,8 @@
 // 改了任何靜態檔(styles.css / app.js / charts.js / scripts/calc.js / 圖示)記得把 CACHE 版號 +1,activate 會把舊快取整包清掉。
 // index.html 走網路優先;.js / .css 用 ?v= 版本 query 當快取鍵,index.html 換了 v 就一定抓新檔,不會出現「新 app.js 配舊 calc.js」。
 // 靜態資源走 stale-while-revalidate:先回快取、背景抓新版寫回;就算忘了改版號,F5 兩次也一定看到新圖。
-const ASSET_VER = '20261019g';                 // 與 index.html 的 ?v= 一致;改 .js / .css 時兩邊一起換
-const CACHE = 'panghu-v35';
+const ASSET_VER = '20261019h';                 // 與 index.html 的 ?v= 一致;改 .js / .css 時兩邊一起換
+const CACHE = 'panghu-v36';
 const SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SHELL = [
   './charts.js?v=' + ASSET_VER,
   './app.js?v=' + ASSET_VER,
   './scripts/calc.js?v=' + ASSET_VER,
+  './scripts/story.js?v=' + ASSET_VER,
   './manifest.json',
   './favicon.png',
   './panghu-icon.png',

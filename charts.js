@@ -11,7 +11,16 @@
 const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent', 'rpg'];
 // ⚔️ 冒險主題:整頁 RPG 化(角色狀態欄、標題改名、持股損益裝備欄、成就牆);數字與功能完全不變
 const isRpg = () => document.documentElement.dataset.theme === 'rpg';
-const rpgLabel = (normal, rpg) => isRpg() ? rpg : normal;
+const rpgLabel = (normal, rpg, xian) => isRpg() ? (xian && isXian() ? xian : rpg) : normal;   // 一般 / 冒險奇幻 / 冒險修仙 三種名稱
+// 冒險世界(⚙️ 設定:奇幻 / 修仙 / 每天隨機)→ 名詞表 scripts/story.js 的 TERMS;隨機 = 依日期固定一個
+function rpgWorld() {
+  const v = store.get('pf-rpg-world') || '奇幻';
+  if (v !== '隨機') return v === '修仙' ? '修仙' : '奇幻';
+  const d = tpeNow().date; let h = 0; for (const ch of d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % 2 ? '修仙' : '奇幻';
+}
+const rpgT = () => (window.PfStory ? PfStory.TERMS[rpgWorld()] : null) || { rarity: {}, slots: [], vaults: [], chapters: [], lv: lv => 'Lv.' + lv };
+const isXian = () => rpgWorld() === '修仙';
 const CHART_PALETTES = {
   'ocean': {
     name: '海洋藍',
@@ -726,37 +735,39 @@ function rpgLevel(total) {
 // 持股明細也用:冒險主題時,名稱旁加一個小裝備圖 + 稀有度(slot 依損益排名,跟冒險卡同一件)
 function rpgBadge(r, rank) {
   if (!isRpg()) return '';
-  const [, key, rName] = rpgRarity(r);
+  const [, key, rDef] = rpgRarity(r), W = rpgT(), rName = W.rarity[key] || rDef;
   const sprite = key === 'cursed' ? 'skull' : RPG_SLOTS[(rank >= 0 ? rank : 0) % RPG_SLOTS.length][0];
-  return ` <span class="rpg-badge r-${key}" title="${rName}裝備(報酬率 ${pct(r.plRatio || 0)})">${pxSvg(RPG_SPRITES[sprite], 16)}${rName}</span>`;
+  return ` <span class="rpg-badge r-${key}" title="${rName}${W.item || '裝備'}(報酬率 ${pct(r.plRatio || 0)})">${pxSvg(RPG_SPRITES[sprite], 16)}${rName}</span>`;
 }
 // 角色狀態欄(寶庫像素圖 + Lv + 總報酬 + 元寶 + EXP):持股損益冒險卡用完整版,冒險主題的 Hero 用精簡版(compact)
 function rpgStatusHtml(total, { unreal, T, compact } = {}) {
   const { lv, exp, next } = rpgLevel(total);
-  const [, vSprite, vOver, vMetal, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
+  const vi = RPG_VAULT.findIndex(([min]) => total >= min), W = rpgT();
+  const [, vSprite, vOver, vMetal, vDef, vSize] = RPG_VAULT[vi], vName = W.vaults[RPG_VAULT.length - 1 - vi] || vDef;
   const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
   const nIng = compact ? 5 : 8;
   const ingotRow = ingots ? Array.from({ length: Math.min(ingots, nIng) }, () => pxSvg(RPG_SPRITES.ingot, compact ? 16 : 20)).join('') + (ingots > nIng ? `<b>×${ingots}</b>` : '') : '';
   return `<div class="rpg-hero v-${vMetal}${compact ? ' compact' : ''}">
       <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], compact ? 52 : vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
       <div class="rpg-hero-main">
-        <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
-        ${compact ? '' : `<div class="rpg-gold"><span class="mut">總報酬</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>`}
-        ${!compact && T ? `<div class="rpg-src mut">裝備 ${rpgWan(unreal)}・戰利品(已實現)${rpgWan(T.realized)}・俸祿(股息)${rpgWan(T.dividend)}</div>` : ''}
-        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一錠元寶(總報酬 ${rpgWan(total)})">${ingotRow}</div>` : ''}
-        <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
+        <div class="rpg-lv">胖虎 <b>${W.lv(lv)}</b> <span class="mut">・${vName}</span></div>
+        ${compact ? '' : `<div class="rpg-gold"><span class="mut">${W.total || '總報酬'}</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">${W.coin || '元寶'} ${ingots} ${isXian() ? '枚' : '錠'}</span>` : `<span class="mut">${W.vaultWord || '寶庫'}破洞中…</span>`}</div>`}
+        ${!compact && T ? `<div class="rpg-src mut">${W.item} ${rpgWan(unreal)}・${W.loot}(已實現)${rpgWan(T.realized)}・${W.salary}(股息)${rpgWan(T.dividend)}</div>` : ''}
+        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一${isXian() ? '枚' : '錠'}${W.coin || '元寶'}(總報酬 ${rpgWan(total)})">${ingotRow}</div>` : ''}
+        <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → ${W.lv(lv + 1)}(${rpgWan(next)})</span></div>
       </div>
     </div>`;
 }
 // 靜態標題 / 頁籤:有 data-rpg 的元素,冒險主題換成 RPG 名稱(只換第一段文字,裡面的按鈕不動),換回其他主題還原
 function applyRpgLabels() {
   const on = isRpg();
+  document.querySelectorAll('.rpg-only').forEach(el => el.classList.toggle('hidden', !on));   // ⚙️ 設定裡的冒險世界 / 說書選項
   document.querySelectorAll('[data-rpg]').forEach(el => {
     const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
     if (!node) return;
     if (el.dataset.orig == null) el.dataset.orig = node.textContent;
     const lead = el.dataset.orig.match(/^\s*/)[0], tail = el.dataset.orig.match(/\s*$/)[0];
-    node.textContent = on ? lead + el.dataset.rpg + tail : el.dataset.orig;
+    node.textContent = on ? lead + (isXian() && el.dataset.xian ? el.dataset.xian : el.dataset.rpg) + tail : el.dataset.orig;
   });
 }
 
@@ -845,13 +856,14 @@ function renderAchievements(d, held) {
     if (!RPG_CHAPTERS[i].items.every(it => saved[it[0]])) break;
   }
   const allDone = RPG_CHAPTERS.every(ch => ch.items.every(it => saved[it[0]]));
-  if (seeded && saved._ch != null && cur > saved._ch) fresh.unshift(`進入${RPG_CHAPTERS[cur].name}`);
+  if (seeded && saved._ch != null && cur > saved._ch) fresh.unshift(`進入${rpgT().chapters[cur] || RPG_CHAPTERS[cur].name}`);
   saved._ch = cur; saved._seeded = 1; store.set('pf-ach', JSON.stringify(saved));
   if (fresh.length) setTimeout(() => toast(`🏆 ${fresh.join('、')}`), 600);
+  const chName = i => rpgT().chapters[i] || RPG_CHAPTERS[i].name;                  // 章節名跟世界觀走(修仙:外門 / 內門 / 真傳 / 飛升)
   const ch = RPG_CHAPTERS[cur], got = ch.items.filter(it => saved[it[0]]).length;
-  document.getElementById('ach-count').textContent = allDone ? '全部章節完成!' : `${ch.name} ${got} / ${ch.items.length}`;
+  document.getElementById('ach-count').textContent = allDone ? '全部章節完成!' : `${chName(cur)} ${got} / ${ch.items.length}`;
   const cleared = RPG_CHAPTERS.slice(0, allDone ? RPG_CHAPTERS.length : cur);
-  const doneRow = cleared.length ? `<div class="ach-cleared">${cleared.map(x => `<span>✓ ${esc(x.name)}</span>`).join('')}</div>` : '';
+  const doneRow = cleared.length ? `<div class="ach-cleared">${cleared.map((x, i) => `<span>✓ ${esc(chName(i))}</span>`).join('')}</div>` : '';
   const show = allDone ? RPG_CHAPTERS[RPG_CHAPTERS.length - 1] : ch;
   document.getElementById('ach-grid').innerHTML = doneRow + show.items.map(it => {
     const [id, sp, name, desc, , prog] = it, on = !!saved[id];
@@ -868,6 +880,63 @@ function renderAchievements(d, held) {
   }).join('');
 }
 
+/* ---- 📜 今日說書(冒險主題首頁;scripts/story.js 產生):真實數字 → 一段奇幻 / 修仙故事 ----
+   同一天固定一則(種子 = 日期 + 世界 + 換一則次數);前 7 天用過的句子避開;資料盤中更新時數字跟著變 */
+function rerollStory() {
+  const today = tpeNow().date;
+  let r = {}; try { r = JSON.parse(store.get('pf-story-roll') || '{}') || {}; } catch (e) { r = {}; }
+  store.set('pf-story-roll', JSON.stringify({ date: today, n: (r.date === today ? r.n || 0 : 0) + 1 }));
+  if (DATA) render();
+}
+function storyInput({ rows, t, prevDay, histArr, totalPL }) {
+  const now = tpeNow(), today = now.date, held = rows.filter(r => r.mv > 0);
+  const h = (histArr || []).filter(x => x && x.date);
+  const last = h[h.length - 1], prevH = [...h].reverse().find(x => x.date < today);
+  const tx = last && last.date === today && last.taiex > 0 && prevH && prevH.taiex > 0 ? last.taiex / prevH.taiex - 1 : 0;
+  const withChg = held.filter(r => r.prevClose > 0 && r.price > 0).map(r => ({ r, p: r.price / r.prevClose - 1 })).sort((a, b) => b.p - a.p);
+  const ranks = rpgRanks(held), slotOf = r => (rpgT().slots[(ranks.get(r.code) || 0) % RPG_SLOTS.length] || '');
+  const nm = r => `${r.name}之${slotOf(r)}`;
+  const mvs = h.map(x => x.mv || 0);
+  const lots = prevH && prevH.lots ? prevH.lots : null, buys = [], sells = [];
+  if (lots) for (const r of rows) {
+    const d = (+r.lots || 0) - (+lots[r.code] || 0);
+    if (Math.abs(d) >= 0.001) (d > 0 ? buys : sells).push(`${r.name} ${Math.abs(d).toLocaleString('zh-TW', { maximumFractionDigits: 3 })} 張`);
+  }
+  let saved = {}; try { saved = JSON.parse(store.get('pf-ach') || '{}') || {}; } catch (e) { saved = {}; }
+  const vi = RPG_VAULT.findIndex(([min]) => totalPL >= min);
+  return {
+    date: today, hhmm: now.hh * 100 + now.mm, day: h.length || 1, taiexPct: tx,
+    todayChg: HERO ? HERO.heroChg : 0, todayPct: HERO ? HERO.heroPct : 0, totalReturn: totalPL, mv: t.mv,
+    lv: rpgLevel(totalPL).lv, vaultTier: RPG_VAULT.length - 1 - vi,
+    best: withChg.length ? { name: nm(withChg[0].r), pct: withChg[0].p, rarity: rpgRarity(withChg[0].r)[1] } : null,
+    worst: withChg.length ? { name: nm(withChg[withChg.length - 1].r), pct: withChg[withChg.length - 1].p } : null,
+    ath: mvs.length > 5 && t.mv > 0 && t.mv >= Math.max(...mvs),
+    exDiv: held.filter(r => r.exDiv && r.exDiv.date === today).map(r => `${r.name} 每股 ${r.exDiv.amount} 元`),
+    buys, sells,
+    stops: held.filter(r => r.stop > 0 && r.price <= r.stop).map(r => r.name),
+    targets: held.filter(r => r.target > 0 && r.price >= r.target).map(r => r.name),
+    ach: RPG_ACH.filter(it => saved[it[0]] === today).map(it => it[2])
+  };
+}
+function renderStory(ctx) {
+  const panel = document.getElementById('story-panel'); if (!panel) return;
+  const on = isRpg() && store.get('pf-story') !== 'off' && window.PfStory;
+  panel.classList.toggle('hidden', !on);
+  if (!on) return;
+  const today = tpeNow().date, world = rpgWorld();
+  let roll = {}, log = {};
+  try { roll = JSON.parse(store.get('pf-story-roll') || '{}') || {}; } catch (e) { roll = {}; }
+  try { log = JSON.parse(store.get('pf-story-log') || '{}') || {}; } catch (e) { log = {}; }
+  const avoid = Object.keys(log).filter(d => d !== today).sort().slice(-7).flatMap(d => log[d] || []);   // 前 7 天用過的句子
+  const st = PfStory.tell(storyInput(ctx), { world, roll: roll.date === today ? roll.n || 0 : 0, avoid });
+  log[today] = st.used;
+  const keep = Object.keys(log).sort().slice(-10); store.set('pf-story-log', JSON.stringify(Object.fromEntries(keep.map(d => [d, log[d]]))));
+  STORY_OPENING = st.opening;
+  document.getElementById('story-title').textContent = `📜 ${st.title}`;
+  document.getElementById('story-body').innerHTML = st.lines.map(l => `<p class="st-${l.k}">${esc(l.t)}</p>`).join('');
+}
+let STORY_OPENING = '';   // 分享戰報冒險版底部那一句
+
 // 依未實現損益排名(0 = 最賺);持股明細跟冒險卡要對到同一件裝備
 const rpgRanks = held => new Map([...held].sort((a, b) => b.unrealized - a.unrealized).map((r, i) => [r.code, i]));
 function drawPlRpg(held) {
@@ -880,22 +949,22 @@ function drawPlRpg(held) {
   const total = T ? T.totalReturn : unreal;
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.unrealized || 0)), 1);
   const items = rows.map((r, i) => {
-    const [, key, rName] = rpgRarity(r);
-    const [sprite, slot] = RPG_SLOTS[i % RPG_SLOTS.length];
+    const [, key, rDef] = rpgRarity(r), W = rpgT(), rName = W.rarity[key] || rDef;
+    const [sprite, slotDef] = RPG_SLOTS[i % RPG_SLOTS.length], slot = W.slots[i % RPG_SLOTS.length] || slotDef;
     const up = r.unrealized >= 0, plus = up ? Math.min(15, Math.floor((r.plRatio || 0) * 10)) : 0;
     const w = Math.max(3, Math.round(Math.abs(r.unrealized || 0) / maxAbs * 100));
     return `<div class="rpg-item r-${key}" title="${esc(`${r.name} (${r.code}) 成本 ${fmt(r.costAmt || 0)} 市值 ${fmt(r.mv || 0)}`)}">
       <div class="rpg-icon">${pxSvg(RPG_SPRITES[key === 'cursed' ? 'skull' : sprite], 40)}</div>
       <div class="rpg-body">
         <div class="rpg-name"><span class="rpg-tag">${rName}</span>${plus > 0 ? `<b class="rpg-plus">+${plus}</b>` : ''}${esc(r.name)}之${slot} <span class="mut">${esc(r.code)}</span></div>
-        <div class="rpg-stat"><span>${up ? '攻擊力' : '受損'}</span><b class="${up ? 'up' : 'down'}">${rpgWan(r.unrealized || 0)}</b><span class="mut">${up ? '強化' : '耐久'} ${pct(r.plRatio || 0)}</span></div>
+        <div class="rpg-stat"><span>${up ? W.attack : W.damage}</span><b class="${up ? 'up' : 'down'}">${rpgWan(r.unrealized || 0)}</b><span class="mut">${up ? W.enhance : W.durability} ${pct(r.plRatio || 0)}</span></div>
         <div class="rpg-bar"><i style="width:${w}%"></i></div>
       </div>
     </div>`;
   }).join('');
   box.innerHTML = `${rpgStatusHtml(total, { unreal, T })}
     <div class="rpg-items">${items}</div>
-    <div class="rpg-legend mut">等級 / 寶庫 / 元寶看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級;元寶每 10 萬一錠</div>`;
+    <div class="rpg-legend mut">${(() => { const W = rpgT(), R = W.rarity; return `等級 / ${W.vaultWord} / ${W.coin}看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:${R.legend} ≥50%・${R.epic} ≥20%・${R.rare} ≥5%・${R.common} ≥0・${R.broken} >-10%・${R.cursed} ≤-10%;+N ${W.enhance} = 報酬率每 10% 一級;${W.coin}每 10 萬一${isXian() ? '枚' : '錠'}`; })()}</div>`;
 }
 
 // 4.4 年度損益(資本利得 + 股息堆疊;鎖住時容器隱藏就不畫)
@@ -1228,7 +1297,7 @@ function drawCharts(held, ys) {
   document.getElementById('pl-chart-box')?.classList.toggle('hidden', rpg);
   document.getElementById('pl-rpg')?.classList.toggle('hidden', !rpg);
   const sub = document.getElementById('pl-subtitle');
-  if (sub) sub.textContent = rpg ? '賺越多裝備越強、寶庫越大;賠錢的裝備會破損、被詛咒（未實現損益，已扣賣出稅費）' : '各持股未實現損益（已扣賣出稅費）';
+  if (sub) sub.textContent = rpg ? (isXian() ? '賺越多法寶品階越高、洞府越大;賠錢的法寶會裂紋、被魔化（未實現損益，已扣賣出稅費）' : '賺越多裝備越強、寶庫越大;賠錢的裝備會破損、被詛咒（未實現損益，已扣賣出稅費）') : '各持股未實現損益（已扣賣出稅費）';
   if (rpg) drawPlRpg(held); else drawPl(T, held);
   if (DATA) renderAchievements(DATA, held);
   drawYearly(T, ys);

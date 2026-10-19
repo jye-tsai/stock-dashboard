@@ -191,6 +191,9 @@ def main():
         if d: lines += holdings_lines(d) + trades_lines(d)
     except Exception as e:
         lines.append(f"（庫存段讀取失敗：{e.__class__.__name__}）"); print("notify: holdings error", repr(e))
+    story = (read_json(os.path.join(DATA_DIR, "latest.json"), {}) or {}).get("story") or {}
+    if story.get("lines"):                                          # 說書人(chips/story.json 關閉就沒有這段)
+        lines += [f"── 📜 說書人({story.get('world', '')})──"] + story["lines"]
     site = os.getenv("SITE_URL", "")
     if site: lines.append(site)
     text = "\n".join(lines)

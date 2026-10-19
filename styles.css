@@ -834,3 +834,14 @@
   .ach.off:has(.ach-prog) { opacity: .8; }
   .ach-cleared { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
   .ach-cleared span { font-size: var(--fs-xs); font-weight: var(--fw-bold); padding: 2px 10px; border-radius: 99px; border: 1px solid #e0a800; color: #e0a800; background: rgba(224,168,0,.1); }
+  /* ===== 📜 今日說書(冒險主題首頁;charts.js renderStory) ===== */
+  .story-body { display: grid; gap: 6px; line-height: 1.75; font-size: var(--fs-base); }
+  .story-body p { margin: 0; }
+  .story-body .st-open { color: var(--muted); }
+  .story-body .st-result { font-weight: var(--fw-heavy); color: #ffd76a; }
+  .story-body .st-good { color: color-mix(in srgb, var(--up) 85%, var(--text)); }
+  .story-body .st-bad, .story-body .st-warn { color: color-mix(in srgb, var(--down) 85%, var(--text)); }
+  .story-body .st-misc { color: #c4a7ff; font-style: italic; }
+  .story-body .st-hint { font-size: var(--fs-sm); color: #d8b75a; }
+  [data-theme="rpg"] .story-panel { background: linear-gradient(180deg, #221c33, #161a2e); }
+  #story-title { font-family: inherit; }

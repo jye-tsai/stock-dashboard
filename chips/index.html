@@ -201,6 +201,12 @@ footer{text-align:center;color:var(--gray);font-size:12px;padding:20px}
     <div id="labels" style="margin-top:10px"></div>
   </div>
 
+  <div class="card" id="storyCard" style="display:none">
+    <h2>📜 說書人 <span class="mut" style="font-weight:400;font-size:12px" id="storyWorld"></span></h2>
+    <div id="storyBox" style="line-height:1.8"></div>
+    <div class="mut" style="font-size:11px;margin-top:6px">只把上面的真實數字講成故事;世界觀在 chips/story.json 切換(奇幻 / 修仙 / 隨機 / 關閉)</div>
+  </div>
+
   <div class="card" id="insCard" style="display:none">
     <h2>今日解讀 <span class="mut" style="font-weight:400;font-size:12px">價量 / 籌碼,依當日資料自動判讀</span></h2>
     <div class="ins" id="insBox"></div>
@@ -470,6 +476,10 @@ function spark(title,vals,fmtV,opts={}){
 }
 // ── 今日解讀（fetch_all 算好存在當日 json 的 insight；回補的舊日子沒有就不顯示）
 function renderIns(t){
+  const st=(t.story||{}).lines||[];                                     // 說書人(fetch_all 依 chips/story.json 產生;關閉就沒有)
+  $('#storyCard').style.display=st.length?'':'none';
+  $('#storyWorld').textContent=st.length?`${t.story.world}世界`:'';
+  $('#storyBox').innerHTML=st.map(x=>`<div>${esc(x)}</div>`).join('');
   const ins=(t.insight||{}).lines||[];
   $('#insCard').style.display=ins.length?'':'none';
   $('#insBox').innerHTML=ins.map(x=>{const i=x.indexOf('：')>=0?x.indexOf('：'):x.indexOf(':');

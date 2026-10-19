@@ -18,7 +18,7 @@
 收盤 → 開網頁 → 確認日期是今天 → 「📋 複製給 Claude」→ 貼到對話（永豐 PNG 可一併拖給 Claude 對照）。
 
 ## 排程
-**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:30 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:20(兩路同時)、週日 12:00 先發週一）。LINE 同一天只發一次。**任一步驟失敗**(排程觸發的那幾班)會另發一則「⚠ 胖虎排程失敗」LINE,寫哪一班、哪一步、執行紀錄網址(`scripts/notify_failure.py`)。圖片(永豐 PDF 頁、圖卡)一律存 256 色(`common.shrink_png`),檔案小約 6 成、看不出差別,repo 長得慢。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
+**Cloudflare Worker 與 cron-job.org 兩路準時打 `workflow_dispatch`**（盤後 15:30 / 15:40 / 15:45、補永豐 16:40，帶 `inputs.source=cron`;盤前 07:20(兩路同時)、週日 12:00 先發週一）。LINE 同一天只發一次。**任一步驟失敗**(排程觸發的那幾班)會另發一則「⚠ 胖虎排程失敗」LINE,寫哪一班、哪一步、執行紀錄網址(`scripts/notify_failure.py`)。圖片(永豐 PDF 頁、圖卡)一律存 256 色(`common.shrink_png`),檔案小約 6 成、看不出差別,repo 長得慢。**📜 說書人**:`scripts/storyteller.py` 把當天籌碼真實數字講成奇幻 / 修仙劇情(外資 = 王城騎士團 / 仙門大長老、散戶 = 村民 / 散修、外資台指期 = 巨龍 / 護山神獸),寫進當日 JSON 的 `story`,籌碼站網頁與盤後 LINE 顯示、失敗通知開頭也用;開關與世界觀在 `chips/story.json`(奇幻 / 修仙 / 隨機 / 關閉)。網頁儀表板的冒險主題另有「今日說書」卡(`scripts/story.js`,⚙️ 設定選世界)。Worker 正本 `cloudflare/worker.mjs`,Cron Triggers 與 cron-job.org 設定見 `cloudflare/README.md`。
 GitHub 自己的 `schedule` 只剩 **21:30 補融資**(晚到也無妨)與週日週報;原本 15:40 / 16:40 的 GitHub 備援實際每晚 22:00–03:00 才跑,2026-10-04 拿掉。
 舊圖：每次抓完會刪「當日不在清單裡的 png」與「30 天前的 png」，repo 不會被 PDF 轉圖越撐越肥。
 

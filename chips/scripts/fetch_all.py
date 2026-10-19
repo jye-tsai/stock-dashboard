@@ -552,7 +552,7 @@ def describe_live(t, p, hist, cfg):
     return pg
 
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
-DERIVED = ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at", "spf")
+DERIVED = ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at", "spf", "story")
 def raw_fields(x):
     """只留 collect() 抓到的原始欄位(拿掉衍生 / 疊加的欄位)"""
     return {k: v for k, v in x.items() if k not in DERIVED}
@@ -575,6 +575,11 @@ def finish_day(t, p):
     except Exception as e: log(f"  解讀計算失敗:{e.__class__.__name__}: {e}")
     try: t["panghu"] = describe_live(t, p, hist, load_panghu_cfg())      # v4 描述型(v2 評分版 build_panghu 只留給回測當對照)
     except Exception as e: log(f"  胖虎指標計算失敗:{e.__class__.__name__}: {e}")
+    try:                                                                  # 說書人(chips/story.json 可切奇幻 / 修仙 / 隨機 / 關閉;只包裝上面的真實數字)
+        from storyteller import world_for, chips_story
+        w = world_for(t["date"])
+        if w: t["story"] = {"world": w, "lines": chips_story(t, w)}
+    except Exception as e: log(f"  說書人失敗(不影響數據):{e.__class__.__name__}: {e}")
     t["generated_at"] = tw_now().isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
     if (t.get("insight") or {}).get("lines"):

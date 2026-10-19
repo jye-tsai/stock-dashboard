@@ -153,6 +153,7 @@ function render(opts) {
   renderFresh(ctx);
   renderHero(ctx);
   renderSummary(ctx);
+  renderStory(ctx); applyRpgLabels();
   renderHoldings(ctx);
   renderYearly(ctx);
 
@@ -227,7 +228,7 @@ function renderHero({ rows, t, prevDay, totalPL }) {
       HERO = { heroChg, heroPct, heroMissing, totalPL, heroRate, mv: t.mv };
       document.getElementById('hero').innerHTML = `${isRpg() ? rpgStatusHtml(totalPL, { compact: true }) : ''}
       <div class="hero-main">
-        <div class="label">${rpgLabel('今日損益', '⚔️ 今日戰果')}${TC && TC.exDivCount ? `<span class="fresh-muted" title="除息日的價差不算虧損,昨收已扣掉股息">(${TC.exDivCount} 檔除息已調整)</span>` : ''}</div>
+        <div class="label">${rpgLabel('今日損益', '⚔️ 今日戰果', '☯ 今日修為')}${TC && TC.exDivCount ? `<span class="fresh-muted" title="除息日的價差不算虧損,昨收已扣掉股息">(${TC.exDivCount} 檔除息已調整)</span>` : ''}</div>
         <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
       </div>${heroSparkSvg()}`;                  // 右側:近 30 日總市值小走勢;總市值 / 總報酬看正下方的摘要卡片列
@@ -241,12 +242,12 @@ function renderSummary({ d, t, E, realized, dividend, totalPL }) {
   const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
   // [label, 顯示值, 著色值, 副標, 原始數值, 是否帶正負號]
   const cards = [
-    [rpgLabel('總市值', '🛡️ 戰力<small>總市值</small>'), fmt(t.mv), null, null, t.mv, false],
-    [rpgLabel('總成本', '🪙 投入資源<small>總成本</small>'), fmt(t.costAmt), null, null, t.costAmt, false],
-    [rpgLabel('未實現損益', '⚔️ 裝備加成<small>未實現損益</small>'), sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0), t.unrealized, true],
-    [rpgLabel('已實現損益', '💎 戰利品<small>已實現損益</small>'), E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null, realized, true],
-    [rpgLabel('股息收入', '📜 俸祿<small>股息收入</small>'), E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
-    [rpgLabel('總損益', '👑 總戰果<small>總損益</small>'), sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
+    [rpgLabel('總市值', '🛡️ 戰力<small>總市值</small>', '⛰️ 道行<small>總市值</small>'), fmt(t.mv), null, null, t.mv, false],
+    [rpgLabel('總成本', '🪙 投入資源<small>總成本</small>', '💎 投入靈石<small>總成本</small>'), fmt(t.costAmt), null, null, t.costAmt, false],
+    [rpgLabel('未實現損益', '⚔️ 裝備加成<small>未實現損益</small>', '🗡️ 法寶加持<small>未實現損益</small>'), sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0), t.unrealized, true],
+    [rpgLabel('已實現損益', '💎 戰利品<small>已實現損益</small>', '🍀 機緣<small>已實現損益</small>'), E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null, realized, true],
+    [rpgLabel('股息收入', '📜 俸祿<small>股息收入</small>', '📜 宗門月俸<small>股息收入</small>'), E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
+    [rpgLabel('總損益', '👑 總戰果<small>總損益</small>', '☯ 總修為<small>總損益</small>'), sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
   ];
   // 帳戶資訊小卡(解鎖後顯示;編輯模式沿用 data-path 寫回 account.*)
   const acc = d.account || (d.account = {});
@@ -1213,12 +1214,13 @@ async function shareCard(previewOnly) {
   const pctTxt = `${sign(pctV)}${pct(pctV)}`;
   card(PAD, 220, INNER, 400);
   c.fillStyle = labelC; c.font = font(700, 32);
-  const label = RPG ? { day: '⚔️ 今日戰果', week: '⚔️ 本週戰果', month: '⚔️ 本月戰果' }[mode] || M.label : M.label;
+  const XI = RPG && isXian(), WT = RPG ? rpgT() : null;
+  const label = RPG ? (XI ? { day: '☯ 今日修為', week: '☯ 本週修為', month: '☯ 本月修為' } : { day: '⚔️ 今日戰果', week: '⚔️ 本週戰果', month: '⚔️ 本月戰果' })[mode] || M.label : M.label;
   c.fillText(label + (missing ? `(${missing} 檔缺昨收未計)` : ''), PAD + 48, 285);
   if (RPG) {   // 右上角:像素寶庫 + 等級(總報酬算)
-    const tr = TT.totalReturn, { lv } = rpgLevel(tr), [, vs, vo, vm, vn] = RPG_VAULT.find(([min]) => tr >= min);
+    const tr = TT.totalReturn, { lv } = rpgLevel(tr), vi = RPG_VAULT.findIndex(([min]) => tr >= min), [, vs, vo, vm, vDef] = RPG_VAULT[vi], vn = WT.vaults[RPG_VAULT.length - 1 - vi] || vDef;
     pxDraw(c, RPG_SPRITES[vs], W - PAD - 48 - 150, 250, 150, RPG_RC[vm] || '#e0a800', vo ? RPG_OVERLAY[vo] : null);
-    c.textAlign = 'center'; c.fillStyle = '#ffd76a'; c.font = font(850, 34); c.fillText(`Lv.${lv}`, W - PAD - 48 - 75, 425);
+    c.textAlign = 'center'; c.fillStyle = '#ffd76a'; c.font = font(850, 34); fitText(c, WT.lv(lv), 190, 34, 850, FAM, 20); c.fillText(WT.lv(lv), W - PAD - 48 - 75, 425);
     c.fillStyle = mutedC; c.font = font(700, 22); c.fillText(vn, W - PAD - 48 - 75, 458); c.textAlign = 'left';
   }
   c.fillStyle = colorOf(chg);
@@ -1229,7 +1231,7 @@ async function shareCard(previewOnly) {
     c.font = font(750, 52); c.fillText(`(${pctTxt})`, PAD + 48, 478);
   }
   const col2 = W / 2 + 20, rowY = 560, colW = W - PAD - 48 - col2;
-  c.fillStyle = labelC; c.font = font(700, 28); c.fillText(RPG ? '🛡️ 戰力(總市值)' : '總市值', PAD + 48, rowY - 24); c.fillText(RPG ? '👑 總戰果(總報酬)' : '總報酬', col2, rowY - 24);
+  c.fillStyle = labelC; c.font = font(700, 28); c.fillText(RPG ? (XI ? '⛰️ 道行(總市值)' : '🛡️ 戰力(總市值)') : '總市值', PAD + 48, rowY - 24); c.fillText(RPG ? (XI ? '☯ 總修為(總報酬)' : '👑 總戰果(總報酬)') : '總報酬', col2, rowY - 24);
   c.fillStyle = textC; c.font = font(800, 44); c.fillText(pctOnly ? '—' : fmt(TT.mv), PAD + 48, rowY + 28);
   const rateTxt = `${sign(rate)}${pct(rate)}`, retTxt = pctOnly ? rateTxt : `${sign(TT.totalReturn)}${fmt(TT.totalReturn)} · ${rateTxt}`;
   c.fillStyle = colorOf(TT.totalReturn); fitText(c, retTxt, colW, 44, 800, FAM, 26); c.fillText(retTxt, col2, rowY + 28);
@@ -1238,17 +1240,17 @@ async function shareCard(previewOnly) {
   const chartH = RPG ? 330 : 520;
   card(PAD, 670, INNER, chartH);
   c.fillStyle = labelC; c.font = font(700, 30); c.textAlign = 'left'; c.textBaseline = 'middle';
-  c.fillText((RPG ? '📖 冒險日誌 · ' : '') + (mode === 'day' ? '總市值走勢(近 30 個交易日)' : '總市值走勢(本期間)'), PAD + 48, 720);
+  c.fillText((RPG ? `📖 ${WT.journal} · ` : '') + (mode === 'day' ? '總市值走勢(近 30 個交易日)' : '總市值走勢(本期間)'), PAD + 48, 720);
   if (series && series.length >= 2) {
     drawMiniLine(c, series, { x: PAD + 48, y: 760, w: INNER - 96, h: chartH - 120 }, { line: v('--title-accent') || v('--accent'), hi: P.hi || upC, lo: P.lo || downC, muted: mutedC, font: FAM, money: !pctOnly });
   } else { c.fillStyle = mutedC; c.font = font(600, 28); c.fillText('(走勢資料不足)', PAD + 48, 900); }
   if (RPG) {   // 裝備欄 TOP3:依未實現損益排名,跟網頁冒險卡同一件裝備
     const top = PfCalc.compute(DATA).rows.filter(r => r.mv > 0).sort((a, b) => b.unrealized - a.unrealized).slice(0, 3);
     const y0 = 1030, ch = 200; card(PAD, y0, INNER, ch);
-    c.fillStyle = labelC; c.font = font(700, 26); c.fillText('⚔️ 裝備欄 TOP3', PAD + 40, y0 + 40);
+    c.fillStyle = labelC; c.font = font(700, 26); c.fillText(`${XI ? '🗡️' : '⚔️'} ${WT.board} TOP3`, PAD + 40, y0 + 40);
     const cw = (INNER - 80) / 3;
     top.forEach((r, i) => {
-      const [, key, rName] = rpgRarity(r), sp = key === 'cursed' ? 'skull' : RPG_SLOTS[i][0], x = PAD + 40 + i * cw, y = y0 + 70;
+      const [, key, rDef] = rpgRarity(r), rName = WT.rarity[key] || rDef, sp = key === 'cursed' ? 'skull' : RPG_SLOTS[i][0], x = PAD + 40 + i * cw, y = y0 + 70;
       pxDraw(c, RPG_SPRITES[sp], x, y, 96, RPG_RC[key] || '#b8bcc6');
       c.fillStyle = RPG_RC[key] || mutedC; c.font = font(800, 22); c.fillText(rName, x + 108, y + 14);
       c.fillStyle = textC; c.font = font(750, 24); fitText(c, r.name, cw - 120, 24, 750, FAM, 16); c.fillText(r.name, x + 108, y + 48);
@@ -1259,7 +1261,11 @@ async function shareCard(previewOnly) {
   // 頁尾:站台網址(在 GitHub Pages 上才有)
   const site = location.hostname.endsWith('.github.io') ? location.host + location.pathname.replace(/index\.html$/, '') : '';
   c.fillStyle = mutedC; c.font = font(600, 26); c.textAlign = 'center';
-  c.fillText((RPG ? '⚔️ ' : '') + title + (site ? ' · ' + site : ''), W / 2, H - (RPG ? 50 : 70));
+  if (RPG && STORY_OPENING && store.get('pf-story') !== 'off') {   // 說書人一句(今日說書卡的章名 + 天氣)
+    c.fillStyle = '#ffd76a'; c.font = font(750, 28); fitText(c, `📜 ${STORY_OPENING}`, INNER, 28, 750, FAM, 18); c.fillText(`📜 ${STORY_OPENING}`, W / 2, H - 82);
+  }
+  c.fillStyle = mutedC; c.font = font(600, 26);
+  c.fillText((RPG ? (XI ? '☯ ' : '⚔️ ') : '') + title + (site ? ' · ' + site : ''), W / 2, H - (RPG ? 38 : 70));
   if (previewOnly) return cv;
 
   // 輸出:能 Web Share 檔案就分享(手機丟 LINE / IG),不能就下載 PNG
@@ -1311,6 +1317,11 @@ document.getElementById('compact-toggle').addEventListener('change', e => applyF
 applyFlag('cvd', store.get('pf-cvd') === '1', 'pf-cvd', false);
 applyFlag('compact', store.get('pf-compact') === '1', 'pf-compact', false);
 document.getElementById('theme-sel').addEventListener('change', e => applyTheme(e.target.value));
+// 冒險主題的世界觀(奇幻 / 修仙 / 每天隨機)與首頁說書卡開關,記在這台裝置
+const rpgWorldSel = document.getElementById('rpg-world-sel'), rpgStorySel = document.getElementById('rpg-story-sel');
+rpgWorldSel.value = store.get('pf-rpg-world') || '奇幻'; rpgStorySel.value = store.get('pf-story') || 'on';
+rpgWorldSel.addEventListener('change', e => { store.set('pf-rpg-world', e.target.value); applyRpgLabels(); if (DATA) render(); });
+rpgStorySel.addEventListener('change', e => { store.set('pf-story', e.target.value); if (DATA) render(); });
 document.getElementById('chart-style-sel').addEventListener('change', e => applyChartStyle(e.target.value));
 applyTheme(store.get('pf-theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'midnight' : 'ocean'));   // 沒選過主題就跟系統深淺
 applyChartStyle(store.get('pf-chart-style') || 'match');
@@ -1478,7 +1489,7 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // 特殊 action:backdrop(點遮罩空白處才呼叫 args[0])、seq(依序呼叫多個無參數函式)、toggleHoldDetail(要拿列元素與事件)。
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
-  'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
+  'togglePieMode', 'rerollStory', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
   'closePwdModal', 'pinKey', 'submitPwd', 'bioFromModal', 'toggleBio', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
   'openHolding', 'closeHoldModal', 'saveHolding', 'delHoldingCur', 'pickStock']);
 const callAction = (name, args) => {
