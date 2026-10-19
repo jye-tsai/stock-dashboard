@@ -8,7 +8,10 @@
 /* ==================== 1. 主題色盤 ==================== */
 // slices 前五色都跑過 dataviz validate_palette.js:相鄰 CVD ΔE ≥ 8、正常視力 ≥ 15;第六色固定灰 = 「其他」(刻意低彩度)。
 // 漲跌色不在這裡:一律讀 CSS 變數 --up / --down(主題定義,色弱模式 html.cvd 會覆寫成橘 / 藍)。
-const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent'];
+const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent', 'rpg'];
+// ⚔️ 冒險主題:整頁 RPG 化(角色狀態欄、標題改名、持股損益裝備欄、成就牆);數字與功能完全不變
+const isRpg = () => document.documentElement.dataset.theme === 'rpg';
+const rpgLabel = (normal, rpg) => isRpg() ? rpg : normal;
 const CHART_PALETTES = {
   'ocean': {
     name: '海洋藍',
@@ -44,6 +47,11 @@ const CHART_PALETTES = {
     name: 'Agent Neon',
     slices: ['#8b5cf6', '#35d5ff', '#ff4fb8', '#2ee6b8', '#facc15', '#94a3b8'],
     dividend: '#35d5ff', grid: 'rgba(139,92,246,.16)'
+  },
+  'rpg': {
+    name: '冒險',
+    slices: ['#e0a800', '#9b51e0', '#2f7fe6', '#e5484d', '#2dd4bf', '#8a8f99'],
+    dividend: '#e0a800', grid: 'rgba(224,168,0,.14)'
   }
 };
 
@@ -105,7 +113,7 @@ function chartTheme() {
   const v = name => css.getPropertyValue(name).trim();
   const styleKey = getChartStyleKey();
   const isAgent = styleKey === 'agent';
-  const isDark = isAgent || styleKey === 'midnight';
+  const isDark = isAgent || styleKey === 'midnight' || styleKey === 'rpg';
   const border = v('--border');
   return {
     v, styleKey, isAgent, isDark,
@@ -297,7 +305,7 @@ const navPeaksPlugin = {
     const c = chart.ctx, n = o.mvData.length - 1;
     c.save();
     c.font = '700 11px ' + o.chartFont;
-    [[o.hiIdx, o.hiCol, '▲ 最高 ' + fmt(o.mvData[o.hiIdx]), -12], [o.loIdx, o.loCol, '▼ 最低 ' + fmt(o.mvData[o.loIdx]), 18]].forEach(([idx, col, txt, dy]) => {
+    [[o.hiIdx, o.hiCol, (isRpg() ? '⭐ 最高 ' : '▲ 最高 ') + fmt(o.mvData[o.hiIdx]), -12], [o.loIdx, o.loCol, (isRpg() ? '💀 最低 ' : '▼ 最低 ') + fmt(o.mvData[o.loIdx]), 18]].forEach(([idx, col, txt, dy]) => {
       const pt = meta.data[idx]; if (!pt) return;
       c.textAlign = idx === 0 ? 'left' : idx === n ? 'right' : 'center';
       c.fillStyle = col;
@@ -707,11 +715,94 @@ function rpgLevel(total) {
 }
 // 持股明細也用:冒險模式開著時,名稱旁加一個小裝備圖 + 稀有度(slot 依損益排名,跟冒險卡同一件)
 function rpgBadge(r, rank) {
-  if (store.get('pf-pl-view') !== 'rpg') return '';
+  const v = store.get('pf-pl-view');
+  if (v ? v !== 'rpg' : !isRpg()) return '';
   const [, key, rName] = rpgRarity(r);
   const sprite = key === 'cursed' ? 'skull' : RPG_SLOTS[(rank >= 0 ? rank : 0) % RPG_SLOTS.length][0];
   return ` <span class="rpg-badge r-${key}" title="${rName}裝備(報酬率 ${pct(r.plRatio || 0)})">${pxSvg(RPG_SPRITES[sprite], 16)}${rName}</span>`;
 }
+// 角色狀態欄(寶庫像素圖 + Lv + 總報酬 + 元寶 + EXP):持股損益冒險卡用完整版,冒險主題的 Hero 用精簡版(compact)
+function rpgStatusHtml(total, { unreal, T, compact } = {}) {
+  const { lv, exp, next } = rpgLevel(total);
+  const [, vSprite, vOver, vMetal, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
+  const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
+  const nIng = compact ? 5 : 8;
+  const ingotRow = ingots ? Array.from({ length: Math.min(ingots, nIng) }, () => pxSvg(RPG_SPRITES.ingot, compact ? 16 : 20)).join('') + (ingots > nIng ? `<b>×${ingots}</b>` : '') : '';
+  return `<div class="rpg-hero v-${vMetal}${compact ? ' compact' : ''}">
+      <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], compact ? 52 : vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
+      <div class="rpg-hero-main">
+        <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
+        ${compact ? '' : `<div class="rpg-gold"><span class="mut">總報酬</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>`}
+        ${!compact && T ? `<div class="rpg-src mut">裝備 ${rpgWan(unreal)}・戰利品(已實現)${rpgWan(T.realized)}・俸祿(股息)${rpgWan(T.dividend)}</div>` : ''}
+        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一錠元寶(總報酬 ${rpgWan(total)})">${ingotRow}</div>` : ''}
+        <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
+      </div>
+    </div>`;
+}
+// 靜態標題 / 頁籤:有 data-rpg 的元素,冒險主題換成 RPG 名稱(只換第一段文字,裡面的按鈕不動),換回其他主題還原
+function applyRpgLabels() {
+  const on = isRpg();
+  document.querySelectorAll('[data-rpg]').forEach(el => {
+    const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+    if (!node) return;
+    if (el.dataset.orig == null) el.dataset.orig = node.textContent;
+    const lead = el.dataset.orig.match(/^\s*/)[0], tail = el.dataset.orig.match(/\s*$/)[0];
+    node.textContent = on ? lead + el.dataset.rpg + tail : el.dataset.orig;
+  });
+}
+
+/* ---- 成就牆(冒險主題才顯示):條件只看 data.json 現有資料;第一次開啟把已達成的默默記下,之後新達成才跳通知 ---- */
+// 每一項:[id, 像素圖, 名稱, 說明, 條件(ctx) → true/false]
+const RPG_ACH = [
+  ['first', 'pouch', '首戰告捷', '總報酬轉正', c => c.ret > 0],
+  ['ret10', 'ingot', '十萬元寶', '總報酬達 10 萬', c => c.ret >= 1e5],
+  ['ret100', 'chest', '百萬寶箱', '總報酬達 100 萬', c => c.ret >= 1e6],
+  ['ret500', 'chest', '傳說寶庫', '總報酬達 500 萬', c => c.ret >= 5e6],
+  ['ret1000', 'orb', '千萬財神', '總報酬達 1,000 萬', c => c.ret >= 1e7],
+  ['legend', 'sword', '傳說裝備', '任一持股報酬率 ≥ 50%', c => c.held.some(r => r.plRatio >= 0.5)],
+  ['double', 'sword', '神兵', '任一持股報酬率 ≥ 100%(翻倍)', c => c.held.some(r => r.plRatio >= 1)],
+  ['epic3', 'shield', '史詩收藏家', '3 檔以上報酬率 ≥ 20%', c => c.held.filter(r => r.plRatio >= 0.2).length >= 3],
+  ['party', 'helmet', '組隊冒險', '同時持有 5 檔以上', c => c.held.length >= 5],
+  ['streak5', 'boots', '五連勝', '總報酬連續 5 個交易日上升', c => c.maxStreak >= 5],
+  ['bigday', 'amulet', '大豐收', '單日總報酬增加 10 萬以上', c => c.bestDay >= 1e5],
+  ['div10', 'ring', '俸祿領主', '累積股息達 10 萬', c => c.dividend >= 1e5],
+  ['ath', 'armor', '登峰造極', '總市值創歷史新高(最近一筆)', c => c.ath],
+  ['year', 'orb', '冒險滿一年', '資產紀錄滿 365 天', c => c.days >= 365]
+];
+function rpgAchCtx(d, held) {
+  const T = PfCalc.totals(d), h = (Array.isArray(d.history) ? d.history : []).filter(x => x && typeof x.ret === 'number');
+  let streak = 0, maxStreak = 0, bestDay = 0;
+  for (let i = 1; i < h.length; i++) {
+    const diff = h[i].ret - h[i - 1].ret;
+    streak = diff > 0 ? streak + 1 : 0; if (streak > maxStreak) maxStreak = streak;
+    if (diff > bestDay) bestDay = diff;
+  }
+  const mvs = h.map(x => x.mv || 0), last = mvs[mvs.length - 1] || 0;
+  const days = h.length > 1 ? (new Date(h[h.length - 1].date) - new Date(h[0].date)) / 864e5 : 0;
+  return { ret: T.totalReturn, dividend: T.dividend, held, maxStreak, bestDay, ath: h.length > 5 && last > 0 && last >= Math.max(...mvs), days };
+}
+function renderAchievements(d, held) {
+  const panel = document.getElementById('ach-panel'); if (!panel) return;
+  panel.classList.toggle('hidden', !isRpg());
+  if (!isRpg()) return;
+  const c = rpgAchCtx(d, held);
+  let saved = {}; try { saved = JSON.parse(store.get('pf-ach') || '{}') || {}; } catch (e) { saved = {}; }
+  const seeded = !!saved._seeded, today = tpeNow().date, fresh = [];
+  for (const [id, , name, , test] of RPG_ACH) {
+    let ok = false; try { ok = !!test(c); } catch (e) { ok = false; }
+    if (ok && !saved[id]) { saved[id] = seeded ? today : '初次'; if (seeded) fresh.push(name); }
+  }
+  saved._seeded = 1; store.set('pf-ach', JSON.stringify(saved));
+  if (fresh.length) setTimeout(() => toast(`🏆 解鎖成就:${fresh.join('、')}`), 600);
+  const got = RPG_ACH.filter(([id]) => saved[id]).length;
+  document.getElementById('ach-count').textContent = `${got} / ${RPG_ACH.length}`;
+  document.getElementById('ach-grid').innerHTML = RPG_ACH.map(([id, sp, name, desc]) => {
+    const on = !!saved[id];
+    return `<div class="ach ${on ? 'on' : 'off'}" title="${esc(desc)}${on ? `(${saved[id] === '初次' ? '開啟冒險前就已達成' : saved[id] + ' 解鎖'})` : ''}">
+      ${pxSvg(RPG_SPRITES[on ? sp : 'chest'], 36)}<b>${on ? esc(name) : '???'}</b><span>${esc(desc)}</span></div>`;
+  }).join('');
+}
+
 // 依未實現損益排名(0 = 最賺);持股明細跟冒險卡要對到同一件裝備
 const rpgRanks = held => new Map([...held].sort((a, b) => b.unrealized - a.unrealized).map((r, i) => [r.code, i]));
 function drawPlRpg(held) {
@@ -722,10 +813,6 @@ function drawPlRpg(held) {
   const unreal = rows.reduce((s, r) => s + (r.unrealized || 0), 0);
   const T = DATA ? PfCalc.totals(DATA) : null;
   const total = T ? T.totalReturn : unreal;
-  const { lv, exp, next } = rpgLevel(total);
-  const [, vSprite, vOver, vMetal, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
-  const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
-  const ingotRow = ingots ? Array.from({ length: Math.min(ingots, 8) }, () => pxSvg(RPG_SPRITES.ingot, 20)).join('') + (ingots > 8 ? `<b>×${ingots}</b>` : '') : '';
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.unrealized || 0)), 1);
   const items = rows.map((r, i) => {
     const [, key, rName] = rpgRarity(r);
@@ -741,16 +828,7 @@ function drawPlRpg(held) {
       </div>
     </div>`;
   }).join('');
-  box.innerHTML = `<div class="rpg-hero v-${vMetal}">
-      <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
-      <div class="rpg-hero-main">
-        <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
-        <div class="rpg-gold"><span class="mut">總報酬</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">元寶 ${ingots} 錠</span>` : '<span class="mut">寶庫破洞中…</span>'}</div>
-        ${T ? `<div class="rpg-src mut">裝備 ${rpgWan(unreal)}・戰利品(已實現)${rpgWan(T.realized)}・俸祿(股息)${rpgWan(T.dividend)}</div>` : ''}
-        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一錠元寶">${ingotRow}</div>` : ''}
-        <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
-      </div>
-    </div>
+  box.innerHTML = `${rpgStatusHtml(total, { unreal, T })}
     <div class="rpg-items">${items}</div>
     <div class="rpg-legend mut">等級 / 寶庫 / 元寶看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級;元寶每 10 萬一錠</div>`;
 }
@@ -1081,13 +1159,14 @@ function drawCharts(held, ys) {
   const T = chartTheme();
   drawPie(T, held);
   drawReturn(T, held);
-  const rpg = store.get('pf-pl-view') === 'rpg';
+  const v = store.get('pf-pl-view'), rpg = v ? v === 'rpg' : isRpg();   // 沒選過:冒險主題預設裝備欄
   document.querySelectorAll('.pl-view-btns .btn').forEach(b => b.classList.toggle('primary', (b.dataset.v === 'rpg') === rpg));
   document.getElementById('pl-chart-box')?.classList.toggle('hidden', rpg);
   document.getElementById('pl-rpg')?.classList.toggle('hidden', !rpg);
   const sub = document.getElementById('pl-subtitle');
   if (sub) sub.textContent = rpg ? '賺越多裝備越強、寶庫越大;賠錢的裝備會破損、被詛咒（未實現損益，已扣賣出稅費）' : '各持股未實現損益（已扣賣出稅費）';
   if (rpg) drawPlRpg(held); else drawPl(T, held);
+  if (DATA) renderAchievements(DATA, held);
   drawYearly(T, ys);
   drawNavGroup(T);
 }

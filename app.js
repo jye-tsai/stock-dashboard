@@ -225,9 +225,9 @@ function renderHero({ rows, t, prevDay, totalPL }) {
       const heroPct = heroBase ? heroChg / heroBase : 0;
       const heroRate = t.costAmt ? totalPL / t.costAmt : 0;
       HERO = { heroChg, heroPct, heroMissing, totalPL, heroRate, mv: t.mv };
-      document.getElementById('hero').innerHTML = `
+      document.getElementById('hero').innerHTML = `${isRpg() ? rpgStatusHtml(totalPL, { compact: true }) : ''}
       <div class="hero-main">
-        <div class="label">今日損益${TC && TC.exDivCount ? `<span class="fresh-muted" title="除息日的價差不算虧損,昨收已扣掉股息">(${TC.exDivCount} 檔除息已調整)</span>` : ''}</div>
+        <div class="label">${rpgLabel('今日損益', '⚔️ 今日戰果')}${TC && TC.exDivCount ? `<span class="fresh-muted" title="除息日的價差不算虧損,昨收已扣掉股息">(${TC.exDivCount} 檔除息已調整)</span>` : ''}</div>
         <div class="hero-num ${cls(heroChg)}">${sign(heroChg)}${fmt(heroChg)} <span class="hero-pct">(${sign(heroPct)}${pct(heroPct)}${heroMissing ? `,${heroMissing} 檔缺昨收未計` : ''})</span></div>
       </div>
       </div>${heroSparkSvg()}`;                  // 右側:近 30 日總市值小走勢;總市值 / 總報酬看正下方的摘要卡片列
@@ -241,12 +241,12 @@ function renderSummary({ d, t, E, realized, dividend, totalPL }) {
   const numIn = (path, val) => `<input class="ed" type="number" step="any" data-path="${path}" value="${val}">`;
   // [label, 顯示值, 著色值, 副標, 原始數值, 是否帶正負號]
   const cards = [
-    ['總市值', fmt(t.mv), null, null, t.mv, false],
-    ['總成本', fmt(t.costAmt), null, null, t.costAmt, false],
-    ['未實現損益', sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0), t.unrealized, true],
-    ['已實現損益', E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null, realized, true],
-    ['股息收入', E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
-    ['總損益', sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
+    [rpgLabel('總市值', '🛡️ 戰力<small>總市值</small>'), fmt(t.mv), null, null, t.mv, false],
+    [rpgLabel('總成本', '🪙 投入資源<small>總成本</small>'), fmt(t.costAmt), null, null, t.costAmt, false],
+    [rpgLabel('未實現損益', '⚔️ 裝備加成<small>未實現損益</small>'), sign(t.unrealized) + fmt(t.unrealized), t.unrealized, sign(t.unrealized) + pct(t.costAmt ? t.unrealized / t.costAmt : 0), t.unrealized, true],
+    [rpgLabel('已實現損益', '💎 戰利品<small>已實現損益</small>'), E ? numIn('已實現損益', realized) : sign(realized) + fmt(realized), realized, null, realized, true],
+    [rpgLabel('股息收入', '📜 俸祿<small>股息收入</small>'), E ? numIn('股息收入', dividend) : fmt(dividend), dividend, null, dividend, false],
+    [rpgLabel('總損益', '👑 總戰果<small>總損益</small>'), sign(totalPL) + fmt(totalPL), totalPL, null, totalPL, true]
   ];
   // 帳戶資訊小卡(解鎖後顯示;編輯模式沿用 data-path 寫回 account.*)
   const acc = d.account || (d.account = {});
@@ -261,7 +261,7 @@ function renderSummary({ d, t, E, realized, dividend, totalPL }) {
       + `<div class="card acct sec-protected"><div class="label">可用餘額</div><div class="value ${cls(avail)}">${(avail > 0 ? '+' : '') + fmt(avail)}</div></div>`;
   })();
   document.getElementById('cards').innerHTML = cards.map(([label, val, colorVal, sub, raw, signed]) => {
-    const cnt = String(val).includes('<input') ? '' : ` data-count="${raw}" data-signed="${signed ? 1 : 0}" data-key="${label}"`;
+    const cnt = String(val).includes('<input') ? '' : ` data-count="${raw}" data-signed="${signed ? 1 : 0}" data-key="${esc(label)}"`;
     return `
     <div class="card">
       <div class="label">${label}</div>
@@ -1246,7 +1246,10 @@ function openSettingsModal() { document.getElementById('settings-modal').classLi
 function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
 function applyTheme(t) {
   if (!THEME_KEYS.includes(t)) t = 'ocean';
+  const prev = document.documentElement.dataset.theme;
+  if (t === 'rpg' && prev && prev !== 'rpg') store.set('pf-pl-view', 'rpg');   // 切到冒險主題時,持股損益直接開裝備欄(之後仍可按 📊 切回)
   document.documentElement.dataset.theme = t;
+  applyRpgLabels();
   document.getElementById('theme-sel').value = t;
   store.set('pf-theme', t);
   // 狀態列/瀏覽器列底色跟著主題走(Android 狀態列、iOS 安全區底色)

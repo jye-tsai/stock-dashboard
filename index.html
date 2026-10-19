@@ -47,15 +47,15 @@
   })();
 </script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
-<script defer src="scripts/calc.js?v=20261019d"></script>
-<script defer src="charts.js?v=20261019d"></script>
-<script defer src="app.js?v=20261019d"></script>
+<script defer src="scripts/calc.js?v=20261019e"></script>
+<script defer src="charts.js?v=20261019e"></script>
+<script defer src="app.js?v=20261019e"></script>
 <!-- 數字字體 Inter(Google Fonts);載不到就退回 --font-ui,不影響功能 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Silkscreen:wght@400;700&display=swap">
 <!-- 靜態檔版本 query(?v=):改了任何 .js / .css 就把四處的 v 與 sw.js 的 ASSET_VER 一起換,瀏覽器與 Service Worker 快取都會視為新檔 -->
-<link rel="stylesheet" href="styles.css?v=20261019d">
+<link rel="stylesheet" href="styles.css?v=20261019e">
 </head>
 <body>
 <div id="splash">
@@ -96,9 +96,9 @@
     <div id="edit-banner">編輯模式:點持股列（或卡片上的 ✏️）一檔一檔改,代號欄打字會列出股票池;標題、年度、帳戶欄位直接改。完成後按「💾 儲存 JSON」寫回 data.json。</div>
 
     <div class="view-tabs" aria-label="儀表板頁籤">
-      <button class="tab-btn active" type="button" data-tab="overview" data-action="switchTab" data-args='["overview"]'>📊 總覽</button>
-      <button class="tab-btn" type="button" data-tab="holdings" data-action="switchTab" data-args='["holdings"]'>📋 持股明細</button>
-      <button class="tab-btn sec-protected" type="button" data-tab="yearly" data-action="switchTab" data-args='["yearly"]'>🗓 年度紀錄</button>
+      <button class="tab-btn active" type="button" data-tab="overview" data-action="switchTab" data-args='["overview"]' data-rpg="🏰 總覽">📊 總覽</button>
+      <button class="tab-btn" type="button" data-tab="holdings" data-action="switchTab" data-args='["holdings"]' data-rpg="🎒 背包">📋 持股明細</button>
+      <button class="tab-btn sec-protected" type="button" data-tab="yearly" data-action="switchTab" data-args='["yearly"]' data-rpg="📜 戰史">🗓 年度紀錄</button>
       <a class="tab-btn tab-link" href="./chips/" title="盤後籌碼站(手機版在底部導覽)">🐶 籌碼站</a>
     </div>
 
@@ -109,20 +109,21 @@
 
       <div class="cards" id="cards"></div>
 
+
       <div class="panel full-panel">
-        <h2>總報酬</h2>
+        <h2 data-rpg="👑 總戰果">總報酬</h2>
         <div class="chart-subtitle">未實現 + 已實現 + 股息；報酬率 = 總報酬 ÷ 持股成本</div>
         <div id="retbar"></div>
         <div class="chart-box h190"><canvas id="wf"></canvas></div>
       </div>
 
       <div class="charts">
-        <div class="panel"><h2>市值比例 <span class="panel-tools"><button class="btn sm" id="pie-mode-btn" data-action="togglePieMode">切換</button></span></h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
-        <div class="panel sec-protected"><h2>年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
+        <div class="panel"><h2 data-rpg="陣容配置">市值比例 <span class="panel-tools"><button class="btn sm" id="pie-mode-btn" data-action="togglePieMode">切換</button></span></h2><div class="chart-subtitle">前 5 大持股，其餘合併為其他</div><div class="chart-box"><canvas id="pie"></canvas></div></div>
+        <div class="panel sec-protected"><h2 data-rpg="年度戰績">年度損益</h2><div class="chart-subtitle">資本利得與股息收入分開堆疊，同年度加總顯示</div><div class="chart-box"><canvas id="bar"></canvas></div></div>
       </div>
 
       <div class="panel full-panel">
-        <h2>資產走勢
+        <h2 data-rpg="📖 冒險日誌">資產走勢
           <span class="nav-range panel-tools">
             <button class="btn sm" data-r="5" data-action="setNavRange" data-args='[5]'>近1週</button>
             <button class="btn sm" data-r="30" data-action="setNavRange" data-args='[30]'>近1月</button>
@@ -151,7 +152,7 @@
       </div>
 
       <div class="panel full-panel" id="heat-panel" style="display:none">
-        <h2>每日損益月曆</h2>
+        <h2 data-rpg="每日戰報">每日損益月曆</h2>
         <div class="chart-subtitle">一格一天(週一~週五),紅賺綠賠、顏色越深金額越大;較前一交易日的總報酬變動(未實現 + 已實現 + 股息),近 26 週;滑過看金額、點一下走勢圖定位到那天</div>
         <div class="heat-row">
           <div class="heat-main">
@@ -164,7 +165,7 @@
 
 
       <div class="panel full-panel pl-panel">
-        <h2>持股損益
+        <h2 data-rpg="⚔️ 裝備欄">持股損益
           <span class="panel-tools pl-view-btns">
             <button class="btn sm" data-v="chart" data-action="setPlView" data-args='["chart"]'>📊 圖表</button>
             <button class="btn sm" data-v="rpg" data-action="setPlView" data-args='["rpg"]'>⚔️ 冒險</button>
@@ -175,11 +176,17 @@
         <div class="pl-rpg hidden" id="pl-rpg" aria-live="polite"></div>
       </div>
 
+      <div class="panel full-panel ach-panel hidden" id="ach-panel">
+        <h2>🏆 成就 <span class="mut ach-count" id="ach-count"></span></h2>
+        <div class="chart-subtitle">達成條件就自動解鎖;點一下(或滑鼠停留)看條件</div>
+        <div class="ach-grid" id="ach-grid"></div>
+      </div>
+
     </section>
 
     <section id="tab-holdings" class="tab-page">
       <div class="panel full-panel">
-        <h2>持股明細
+        <h2 data-rpg="🎒 背包">持股明細
           <span class="panel-tools">
             <button class="btn sm hidden edit-only" data-action="addHolding">➕ 新增持股</button>
             <label class="chk"><input type="checkbox" id="hide-zero" checked> 隱藏零持股</label>
@@ -194,7 +201,7 @@
 
     <section id="tab-yearly" class="tab-page">
       <div class="panel full-panel">
-        <h2>年度紀錄 <button class="btn sm hidden edit-only fr" data-action="addYear">➕ 新增年度</button></h2>
+        <h2 data-rpg="📜 歷年戰史">年度紀錄 <button class="btn sm hidden edit-only fr" data-action="addYear">➕ 新增年度</button></h2>
         <div class="tbl-wrap"><table id="yearly"></table></div>
       </div>
     </section>
@@ -203,9 +210,9 @@
 
 <!-- 手機底部分頁列(桌機隱藏;手機取代頂部頁籤,拇指好按) -->
 <nav id="bottom-nav" aria-label="底部分頁">
-  <button class="bnav-btn active" type="button" data-tab="overview" data-action="switchTab" data-args='["overview"]'><span class="bnav-ico">📊</span>總覽</button>
-  <button class="bnav-btn" type="button" data-tab="holdings" data-action="switchTab" data-args='["holdings"]'><span class="bnav-ico">📋</span>持股</button>
-  <button class="bnav-btn sec-protected" type="button" data-tab="yearly" data-action="switchTab" data-args='["yearly"]'><span class="bnav-ico">🗓</span>年度</button>
+  <button class="bnav-btn active" type="button" data-tab="overview" data-action="switchTab" data-args='["overview"]' data-rpg="城堡"><span class="bnav-ico">📊</span>總覽</button>
+  <button class="bnav-btn" type="button" data-tab="holdings" data-action="switchTab" data-args='["holdings"]' data-rpg="背包"><span class="bnav-ico">📋</span>持股</button>
+  <button class="bnav-btn sec-protected" type="button" data-tab="yearly" data-action="switchTab" data-args='["yearly"]' data-rpg="戰史"><span class="bnav-ico">🗓</span>年度</button>
   <button class="bnav-btn" type="button" data-action="shareCard"><span class="bnav-ico">📤</span>分享</button>
   <a class="bnav-btn" href="./chips/" title="盤後籌碼站(同分頁開,左上有回儀表板)"><span class="bnav-ico">🐶</span>籌碼</a>
   <button class="bnav-btn" type="button" data-action="openSettingsModal"><span class="bnav-ico">⚙️</span>設定</button>
@@ -224,6 +231,7 @@
             <option value="cute">🍡 馬卡龍</option>
             <option value="sailor">🌙 美少女</option>
             <option value="agent">🧬 Agent Neon</option>
+            <option value="rpg">⚔️ 冒險(RPG)</option>
           </select>
     </label>
     <label>圖表風格
