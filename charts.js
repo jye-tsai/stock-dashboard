@@ -68,12 +68,6 @@ function togglePieMode() {
   if (DATA) render();
 }
 
-// 持股損益:📊 圖表 / ⚔️ 冒險(RPG 裝備欄)切換,記在這台裝置
-function setPlView(v) {
-  store.set('pf-pl-view', v === 'rpg' ? 'rpg' : 'chart');
-  if (DATA) render();
-}
-
 /* ==================== 2. 通用 helper ==================== */
 // 全域一次性設定:高 DPI 上限 2(iPhone 3x 畫 2x 肉眼無差,像素量少一半);其餘顏色 / 字型都在各圖 options 明寫,不動 defaults
 Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -713,10 +707,9 @@ function rpgLevel(total) {
   const lv = Math.floor(Math.sqrt(total / 10000)) + 1, base = (lv - 1) ** 2 * 10000, next = lv ** 2 * 10000;
   return { lv, exp: (total - base) / (next - base), next };
 }
-// 持股明細也用:冒險模式開著時,名稱旁加一個小裝備圖 + 稀有度(slot 依損益排名,跟冒險卡同一件)
+// 持股明細也用:冒險主題時,名稱旁加一個小裝備圖 + 稀有度(slot 依損益排名,跟冒險卡同一件)
 function rpgBadge(r, rank) {
-  const v = store.get('pf-pl-view');
-  if (v ? v !== 'rpg' : !isRpg()) return '';
+  if (!isRpg()) return '';
   const [, key, rName] = rpgRarity(r);
   const sprite = key === 'cursed' ? 'skull' : RPG_SLOTS[(rank >= 0 ? rank : 0) % RPG_SLOTS.length][0];
   return ` <span class="rpg-badge r-${key}" title="${rName}裝備(報酬率 ${pct(r.plRatio || 0)})">${pxSvg(RPG_SPRITES[sprite], 16)}${rName}</span>`;
@@ -1159,8 +1152,7 @@ function drawCharts(held, ys) {
   const T = chartTheme();
   drawPie(T, held);
   drawReturn(T, held);
-  const v = store.get('pf-pl-view'), rpg = v ? v === 'rpg' : isRpg();   // 沒選過:冒險主題預設裝備欄
-  document.querySelectorAll('.pl-view-btns .btn').forEach(b => b.classList.toggle('primary', (b.dataset.v === 'rpg') === rpg));
+  const rpg = isRpg();   // 冒險主題 = 裝備欄,其他主題 = 長條圖(2026-10-19 起跟主題走,不另外切換)
   document.getElementById('pl-chart-box')?.classList.toggle('hidden', rpg);
   document.getElementById('pl-rpg')?.classList.toggle('hidden', !rpg);
   const sub = document.getElementById('pl-subtitle');

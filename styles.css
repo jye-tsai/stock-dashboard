@@ -743,7 +743,6 @@
   td.spark[data-action]:hover svg, .spark-btn:hover svg { filter: drop-shadow(0 0 4px currentColor); }
 
   /* ===== 持股損益・⚔️ 冒險模式(charts.js drawPlRpg):每檔是一件裝備,稀有度看報酬率 ===== */
-  .pl-view-btns .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .pl-rpg { display: grid; gap: var(--sp-3); }
   .pl-rpg .mut { color: var(--muted); }
   .rpg-hero { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);

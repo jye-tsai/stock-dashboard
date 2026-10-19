@@ -309,7 +309,7 @@ function renderHoldings(ctx) {
       + (tw ? `<polyline class="spark-tw" points="${path(tw)}" fill="none" stroke-width="1" stroke-dasharray="2 2"/>` : '')
       + `<polyline points="${path(me)}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   };
-  // ⚔️ 冒險模式開著時,名稱旁加裝備圖 + 稀有度(charts.js rpgBadge;排名決定是哪件裝備,跟持股損益冒險卡同一件)
+  // ⚔️ 冒險主題時,名稱旁加裝備圖 + 稀有度(charts.js rpgBadge;排名決定是哪件裝備,跟持股損益冒險卡同一件)
   const ranks = rpgRanks(ctx.rows.filter(r => r.mv > 0));   // 跟 drawCharts 的 held 同一個篩選
   const badge = r => r.mv > 0 ? rpgBadge(r, ranks.get(r.code)) : '';
   const H = { hideZero, cols, headHtml, ptimeCell, todayChg, todayHtml, sparkSvg, badge };
@@ -1246,8 +1246,6 @@ function openSettingsModal() { document.getElementById('settings-modal').classLi
 function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
 function applyTheme(t) {
   if (!THEME_KEYS.includes(t)) t = 'ocean';
-  const prev = document.documentElement.dataset.theme;
-  if (t === 'rpg' && prev && prev !== 'rpg') store.set('pf-pl-view', 'rpg');   // 切到冒險主題時,持股損益直接開裝備欄(之後仍可按 📊 切回)
   document.documentElement.dataset.theme = t;
   applyRpgLabels();
   document.getElementById('theme-sel').value = t;
@@ -1443,7 +1441,7 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // 特殊 action:backdrop(點遮罩空白處才呼叫 args[0])、seq(依序呼叫多個無參數函式)、toggleHoldDetail(要拿列元素與事件)。
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
-  'togglePieMode', 'setPlView', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
+  'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
   'closePwdModal', 'pinKey', 'submitPwd', 'bioFromModal', 'toggleBio', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
   'openHolding', 'closeHoldModal', 'saveHolding', 'delHoldingCur', 'pickStock']);
 const callAction = (name, args) => {
