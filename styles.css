@@ -73,6 +73,15 @@
     --up: #ff5cae; --down: #2fe6b2; --accent: #9d6dff;
     --shadow: 0 0 0 1px rgba(139,92,246,.12), 0 20px 52px rgba(0,0,0,.5);
   }
+  [data-theme="rpg"] {                         /* ⚔️ 冒險(RPG):深夜藍底、金框視窗、羊皮紙字色 */
+    --bg: #0e1222; --card: #171d33; --border: #6b5a2e;
+    --text: #f1e8cf; --muted: #b3a785;
+    --title: #ffe7a3; --title-accent: #e0a800; --title-glow: 0 0 14px rgba(224,168,0,.55), 0 0 30px rgba(224,168,0,.22);
+    --label: #d8c9a0; --value: #fff4d6;
+    --up: #ff6b81; --down: #2dd4bf; --accent: #c99a2e;
+    --shadow: 0 0 0 1px rgba(224,168,0,.10), 0 10px 30px rgba(0,0,0,.5);
+    --tint: 13%;
+  }
   
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: var(--font-ui); padding: 20px; min-height: 100vh; }
@@ -649,7 +658,7 @@
 
   /* ===== 色弱友善(html.cvd):漲橘 / 跌藍,紅綠色弱也分得出;圖表讀 --up / --down 所以一起換 ===== */
   html.cvd { --up: #f97316; --down: #2563eb; }
-  html.cvd[data-theme="midnight"], html.cvd[data-theme="agent"] { --up: #fb923c; --down: #60a5fa; }
+  html.cvd[data-theme="midnight"], html.cvd[data-theme="agent"], html.cvd[data-theme="rpg"] { --up: #fb923c; --down: #60a5fa; }
 
   /* ===== 鍵盤 focus:所有可互動元素同一個主色外圈,深色主題也看得到 ===== */
   :focus-visible { outline: none; box-shadow: var(--ring); }
@@ -777,3 +786,46 @@
   .rpg-badge.r-legend, .rpg-badge.r-epic { animation: none; box-shadow: none; } .rpg-badge.r-cursed { background: color-mix(in srgb, var(--rc) 14%, transparent); }
   @media (prefers-reduced-motion: reduce) { .r-legend { animation: none; } }
   @media (max-width: 600px) { .rpg-items { grid-template-columns: 1fr; } .rpg-hero { gap: var(--sp-3); } }
+
+
+  /* ===== ⚔️ 冒險主題:RPG 視窗風(金色雙框、星空底);只換外觀,版面與數字不動 ===== */
+  [data-theme="rpg"] body::before {
+    opacity: 1;
+    background:
+      radial-gradient(1px 1px at 12% 18%, rgba(255,240,200,.55), transparent 60%),
+      radial-gradient(1px 1px at 68% 8%, rgba(255,240,200,.45), transparent 60%),
+      radial-gradient(1.5px 1.5px at 84% 42%, rgba(255,240,200,.4), transparent 60%),
+      radial-gradient(1px 1px at 32% 66%, rgba(255,240,200,.35), transparent 60%),
+      radial-gradient(circle at 50% 120%, rgba(201,154,46,.18), transparent 55%),
+      linear-gradient(180deg, #0b0f1e, #121833 60%, #0e1222);
+  }
+  [data-theme="rpg"] .card, [data-theme="rpg"] .panel {
+    border: 2px solid #8a7130; border-radius: 10px;
+    box-shadow: inset 0 0 0 2px #0e1222, inset 0 0 0 3px rgba(224,168,0,.35), 0 8px 24px rgba(0,0,0,.45);
+    background: linear-gradient(180deg, #1b2240, #151a30);
+  }
+  [data-theme="rpg"] .panel h2 { color: #ffd76a; letter-spacing: .03em; text-shadow: 0 1px 0 #000; }
+  [data-theme="rpg"] .panel h2::before { content: "◆ "; color: #c99a2e; font-size: .8em; }
+  [data-theme="rpg"] .card .label { color: #d8c9a0; }
+  [data-theme="rpg"] .tab-btn.active { background: linear-gradient(180deg, #e0a800, #a87b12); border-color: #e0a800; color: #1a1306; }
+  [data-theme="rpg"] .btn { border-color: #6b5a2e; }
+  [data-theme="rpg"] .rpg-lv b, [data-theme="rpg"] .rpg-exp span { font-family: "Silkscreen", var(--font-num); letter-spacing: .02em; }
+  .rpg-lv b { font-family: "Silkscreen", var(--font-num); }
+  /* Hero 裡的精簡角色狀態欄 */
+  .rpg-hero.compact { padding: 6px 12px 6px 6px; gap: 10px; margin-bottom: 8px; background: color-mix(in srgb, #000 22%, transparent); }
+  .rpg-hero.compact .rpg-lv { font-size: var(--fs-md); } .rpg-hero.compact .rpg-lv b { font-size: var(--fs-xl); }
+  .rpg-hero.compact .rpg-exp { height: 14px; } .rpg-hero.compact .rpg-exp span { line-height: 14px; font-size: 10px; }
+  #hero:has(.rpg-hero.compact) { flex-wrap: wrap; }
+  #hero .rpg-hero.compact { flex: 1 1 100%; }
+  /* 成就牆 */
+  .ach-count { font-size: var(--fs-sm); font-weight: var(--fw-bold); margin-left: 6px; }
+  [data-theme="rpg"] .panel h2 .ach-count::before { content: none; }
+  .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: var(--sp-2); }
+  .ach { --rc: #e0a800; display: grid; justify-items: center; text-align: center; gap: 3px; padding: 10px 6px; border-radius: 10px;
+    border: 2px solid color-mix(in srgb, var(--rc) 70%, transparent); background: color-mix(in srgb, var(--rc) 10%, transparent); }
+  .ach b { font-size: var(--fs-md); } .ach span { font-size: var(--fs-xs); color: var(--muted); line-height: 1.35; }
+  .ach.on { box-shadow: 0 0 12px rgba(224,168,0,.25); }
+  .ach.off { --rc: #6b7280; border-style: dashed; opacity: .55; } .ach.off svg { filter: grayscale(1) brightness(.6); }
+  @media (max-width: 600px) { .ach-grid { grid-template-columns: repeat(3, 1fr); } .ach { padding: 8px 4px; } }
+  .card .label small { display: block; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--muted); margin-top: 1px; }
+  [data-theme="rpg"] .panel h2 .panel-tools { color: var(--text); text-shadow: none; letter-spacing: normal; }
