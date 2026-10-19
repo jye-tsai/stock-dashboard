@@ -560,9 +560,11 @@ function renderCharts(){
   let open=true; try{const v=localStorage.getItem('twdaily_charts');if(v!=null)open=v==='1'}catch(e){}   // 預設展開;自己收起過才記住
   set(open); btn.onclick=()=>set(box.hidden);
 })();
-// ── 解鎖狀態：沿用儀表板（同網域、同分頁）在 sessionStorage 寫的 pf-edit-unlocked-until（30 分鐘）
+// ── 解鎖狀態：沿用儀表板在 localStorage 寫的 pf-edit-unlocked-until（8 小時，同網站所有分頁共用；2026-10-19 前是 sessionStorage 只限同分頁）
 // 這頁只讀不驗密碼，密碼邏輯只留在儀表板一份；沒解鎖就把「複製給 Claude / 立即抓取 / 數據表 / 抓取日誌」藏起來。
-function isUnlocked(){try{return Date.now()<Number(sessionStorage.getItem('pf-edit-unlocked-until')||0)}catch(e){return false}}
+// 注意：LINE 內建瀏覽器的儲存跟 Safari / 主畫面捷徑分開，從 LINE 點進來仍要在那裡解鎖一次。
+function isUnlocked(){try{return Date.now()<Number(localStorage.getItem('pf-edit-unlocked-until')||0)}catch(e){return false}}
+window.addEventListener('storage',e=>{if(e.key==='pf-edit-unlocked-until')applyAuth()});   // 儀表板在別的分頁解鎖 / 登出 → 立刻跟著變
 function applyAuth(){
   const ok=isUnlocked();
   document.querySelectorAll('.auth-only').forEach(el=>el.classList.toggle('locked',!ok));

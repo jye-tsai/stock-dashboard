@@ -60,6 +60,12 @@ function togglePieMode() {
   if (DATA) render();
 }
 
+// 持股損益:📊 圖表 / ⚔️ 冒險(RPG 裝備欄)切換,記在這台裝置
+function setPlView(v) {
+  store.set('pf-pl-view', v === 'rpg' ? 'rpg' : 'chart');
+  if (DATA) render();
+}
+
 /* ==================== 2. 通用 helper ==================== */
 // 全域一次性設定:高 DPI 上限 2(iPhone 3x 畫 2x 肉眼無差,像素量少一半);其餘顏色 / 字型都在各圖 options 明寫,不動 defaults
 Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -608,6 +614,57 @@ function drawPl(T, held) {
   });
 }
 
+// 4.3b 持股損益・RPG 冒險模式:每檔持股是一件裝備,報酬率決定稀有度,損益決定攻擊力;合計損益決定等級與寶庫大小
+// 純 HTML(不用 canvas),顏色走 CSS(.pl-rpg,稀有度色在 styles.css),金額漲跌色仍是主題的 --up / --down
+const RPG_SLOTS = [['⚔️', '劍'], ['🛡️', '盾'], ['🪖', '盔'], ['🥋', '甲'], ['💍', '戒'], ['📿', '項鍊'], ['👢', '靴'], ['🧤', '手套'], ['🏹', '弓'], ['🔮', '寶珠']];
+const RPG_RARITY = [   // [報酬率下限, key, 名稱]
+  [0.5, 'legend', '傳說'], [0.2, 'epic', '史詩'], [0.05, 'rare', '稀有'], [0, 'common', '普通'], [-0.1, 'broken', '破損'], [-Infinity, 'cursed', '詛咒']
+];
+const RPG_VAULT = [    // [合計損益下限, 圖示, 名稱, 圖示大小 px]
+  [3e6, '👑', '傳說寶庫', 64], [1e6, '🏆', '黃金寶箱', 56], [5e5, '🧰', '鐵寶箱', 48], [1e5, '💰', '錢袋', 42], [0, '👛', '小錢包', 36], [-Infinity, '🕳️', '破洞錢袋', 36]
+];
+const rpgWan = v => Math.abs(v) >= 10000 ? `${sign(v)}${(Math.abs(v) / 10000).toFixed(1)}萬` : `${sign(v)}${fmt(v)}`;
+// 等級:合計獲利 (Lv-1)² 萬 起算(1 萬 Lv2、4 萬 Lv3 … 100 萬 Lv11、400 萬 Lv21),越後面越難升
+function rpgLevel(total) {
+  if (!(total > 0)) return { lv: 1, exp: 0, next: 10000 };
+  const lv = Math.floor(Math.sqrt(total / 10000)) + 1, base = (lv - 1) ** 2 * 10000, next = lv ** 2 * 10000;
+  return { lv, exp: (total - base) / (next - base), next };
+}
+function drawPlRpg(held) {
+  const box = document.getElementById('pl-rpg'); if (!box) return;
+  const rows = [...held].sort((a, b) => b.unrealized - a.unrealized);
+  if (!rows.length) { box.innerHTML = '<div class="mut">背包空空的,先新增持股吧</div>'; return; }
+  const total = rows.reduce((s, r) => s + (r.unrealized || 0), 0);
+  const { lv, exp, next } = rpgLevel(total);
+  const [, vIcon, vName, vSize] = RPG_VAULT.find(([min]) => total >= min);
+  const ingots = Math.max(0, Math.floor(total / 100000));                 // 每 10 萬一錠元寶
+  const maxAbs = Math.max(...rows.map(r => Math.abs(r.unrealized || 0)), 1);
+  const items = rows.map((r, i) => {
+    const [, key, rName] = RPG_RARITY.find(([min]) => (r.plRatio || 0) >= min);
+    const [icon, slot] = RPG_SLOTS[i % RPG_SLOTS.length];
+    const up = r.unrealized >= 0, plus = up ? Math.min(15, Math.floor((r.plRatio || 0) * 10)) : 0;
+    const w = Math.max(3, Math.round(Math.abs(r.unrealized || 0) / maxAbs * 100));
+    return `<div class="rpg-item r-${key}" title="${esc(`${r.name} (${r.code}) 成本 ${fmt(r.costAmt || 0)} 市值 ${fmt(r.mv || 0)}`)}">
+      <div class="rpg-icon" aria-hidden="true">${key === 'cursed' ? '💀' : icon}</div>
+      <div class="rpg-body">
+        <div class="rpg-name"><span class="rpg-tag">${rName}</span>${plus > 0 ? `<b class="rpg-plus">+${plus}</b>` : ''}${esc(r.name)}之${slot} <span class="mut">${esc(r.code)}</span></div>
+        <div class="rpg-stat"><span>${up ? '攻擊力' : '受損'}</span><b class="${up ? 'up' : 'down'}">${rpgWan(r.unrealized || 0)}</b><span class="mut">${up ? '強化' : '耐久'} ${pct(r.plRatio || 0)}</span></div>
+        <div class="rpg-bar"><i style="width:${w}%"></i></div>
+      </div>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<div class="rpg-hero">
+      <div class="rpg-vault" style="font-size:${vSize}px" aria-hidden="true">${vIcon}</div>
+      <div class="rpg-hero-main">
+        <div class="rpg-lv">胖虎 <b>Lv.${lv}</b> <span class="mut">・${vName}</span></div>
+        <div class="rpg-gold">${total >= 0 ? `🪙 元寶 ×${ingots}` : '💸 寶庫破洞中'} <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b></div>
+        <div class="rpg-exp" title="下一級:合計獲利 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → Lv.${lv + 1}(${rpgWan(next)})</span></div>
+      </div>
+    </div>
+    <div class="rpg-items">${items}</div>
+    <div class="rpg-legend mut">稀有度看報酬率:傳說 ≥50%・史詩 ≥20%・稀有 ≥5%・普通 ≥0・破損 >-10%・詛咒 ≤-10%;+N 強化 = 報酬率每 10% 一級</div>`;
+}
+
 // 4.4 年度損益(資本利得 + 股息堆疊;鎖住時容器隱藏就不畫)
 function drawYearly(T, ys) {
   const canvas = document.getElementById('bar'); if (!canvas) return;
@@ -934,7 +991,13 @@ function drawCharts(held, ys) {
   const T = chartTheme();
   drawPie(T, held);
   drawReturn(T, held);
-  drawPl(T, held);
+  const rpg = store.get('pf-pl-view') === 'rpg';
+  document.querySelectorAll('.pl-view-btns .btn').forEach(b => b.classList.toggle('primary', (b.dataset.v === 'rpg') === rpg));
+  document.getElementById('pl-chart-box')?.classList.toggle('hidden', rpg);
+  document.getElementById('pl-rpg')?.classList.toggle('hidden', !rpg);
+  const sub = document.getElementById('pl-subtitle');
+  if (sub) sub.textContent = rpg ? '賺越多裝備越強、寶庫越大;賠錢的裝備會破損、被詛咒（未實現損益，已扣賣出稅費）' : '各持股未實現損益（已扣賣出稅費）';
+  if (rpg) drawPlRpg(held); else drawPl(T, held);
   drawYearly(T, ys);
   drawNavGroup(T);
 }

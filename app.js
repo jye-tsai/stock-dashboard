@@ -36,7 +36,11 @@ function toggleHoldDetail(tr, ev) {
 }
 let fsHandle = null;
 const DEFAULT_TITLE = '股票庫存儀表板';
-const EDIT_UNLOCK_MINUTES = 30;
+const EDIT_UNLOCK_MINUTES = 8 * 60;   // 解鎖維持 8 小時(2026-10-19 起;原 30 分鐘)
+// 解鎖到期時間存 localStorage(同網站所有分頁共用,籌碼站 chips/ 也讀這一個 key),原本 sessionStorage 只限同一分頁 →
+// 從 LINE / 新分頁 / 主畫面捷徑開籌碼站都看不到解鎖,只能跳回儀表板。LINE 內建瀏覽器的儲存跟 Safari 分開,在那裡仍要解鎖一次。
+const UNLOCK_KEY = 'pf-edit-unlocked-until';
+const unlockUntil = () => Number(store.get(UNLOCK_KEY) || 0);
 
 // 數字格式:formatter 建一次重複用(toLocaleString 每次呼叫都重新解析 locale,數字跳動動畫每 frame 都在叫)
 const NF0 = new Intl.NumberFormat('zh-TW');
@@ -563,10 +567,7 @@ async function setpwdNext() {
 // 用頁面內視窗輸入密碼(手機/PWA 比原生 prompt 穩);回傳 Promise<boolean>
 let _pwdResolve = null;
 async function verifyEditPassword() {
-  try {
-    const unlockedUntil = Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0);
-    if (Date.now() < unlockedUntil) return true;
-  } catch (e) { console.debug('[pf]', e); }
+  if (Date.now() < unlockUntil()) return true;
   // 這台裝置啟用過 Face ID → 先跳 Face ID;取消或失敗才退回密碼視窗(視窗裡也有 Face ID 鈕可重試)
   if (bioEnabled() && await bioAuth()) { markUnlocked(); updateAuthUI(); return true; }
   return new Promise(resolve => {
@@ -608,7 +609,7 @@ function closePwdModal(ok) {
   if (r) r(!!ok);
 }
 function markUnlocked() {
-  try { sessionStorage.setItem('pf-edit-unlocked-until', String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000)); } catch (e) { console.debug('[pf]', e); }
+  store.set(UNLOCK_KEY, String(Date.now() + EDIT_UNLOCK_MINUTES * 60 * 1000));
 }
 
 // Face ID / 指紋解鎖(WebAuthn 平台驗證器,iPhone 就是 Face ID)
@@ -690,8 +691,7 @@ async function toggleBio() {
 
 /* ==================== §9. 解鎖 / 權限 UI(解鎖後才顯示 編輯/載入/GitHub) ==================== */
 function isUnlocked() {
-  try { return Date.now() < Number(sessionStorage.getItem('pf-edit-unlocked-until') || 0); }
-  catch (e) { return false; }
+  return Date.now() < unlockUntil();
 }
 function updateAuthUI() {
   const ok = isUnlocked();
@@ -707,7 +707,7 @@ async function unlockUI() {
   if (await verifyEditPassword()) toast('🔓 已解鎖');
 }
 function lockUI() {
-  try { sessionStorage.removeItem('pf-edit-unlocked-until'); } catch (e) { console.debug('[pf]', e); }
+  store.del(UNLOCK_KEY);   // 所有分頁一起上鎖(下面 storage 事件)
   if (editMode) {
     editMode = false;
     document.getElementById('edit-btn').textContent = '✏️ 編輯';
@@ -717,6 +717,9 @@ function lockUI() {
   if (DATA) render();
   toast('🔒 已登出');
 }
+// 別的分頁解鎖 / 登出(localStorage 變了)→ 這頁跟著變;8 小時到期也要自己收回(每分鐘看一次,狀態有變才動)
+window.addEventListener('storage', e => { if (e.key === UNLOCK_KEY) updateAuthUI(); });
+setInterval(() => { if (document.body.classList.contains('locked') === isUnlocked()) updateAuthUI(); }, 60000);
 
 /* ==================== §10. 市價更新:一律由 GitHub Action 伺服器端處理 ==================== */
 // 按下「更新市價」→ 觸發 GitHub Action 在伺服器端抓價並寫回 data.json。
@@ -1434,7 +1437,7 @@ function healApp() { if (window.__pfHeal) window.__pfHeal(); else location.reloa
 // 特殊 action:backdrop(點遮罩空白處才呼叫 args[0])、seq(依序呼叫多個無參數函式)、toggleHoldDetail(要拿列元素與事件)。
 // Enter 送出:data-enter="fn"。ACTIONS 是允許清單,markup 打錯字或注入的名字不會亂呼叫全域函式。
 const ACTIONS = new Set(['pickFile', 'unlockUI', 'toggleEdit', 'saveFile', 'updatePrices', 'openSettingsModal', 'lockUI', 'switchTab', 'shareCard',
-  'togglePieMode', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
+  'togglePieMode', 'setPlView', 'setNavRange', 'addHolding', 'addYear', 'closeSettingsModal', 'openGhModal', 'setPassword', 'clearGh', 'closeGhModal', 'saveGh',
   'closePwdModal', 'pinKey', 'submitPwd', 'bioFromModal', 'toggleBio', 'closeSetPwd', 'setpwdNext', 'closeConfirm', 'sortHoldings', 'delHolding', 'delYear', 'healApp', 'openStock', 'closeStockModal',
   'openHolding', 'closeHoldModal', 'saveHolding', 'delHoldingCur', 'pickStock']);
 const callAction = (name, args) => {

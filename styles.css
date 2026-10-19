@@ -732,3 +732,40 @@
   td.spark[data-action], .spark-btn { cursor: pointer; }
   .spark-btn { background: none; border: none; padding: 0; margin-left: auto; line-height: 0; }
   td.spark[data-action]:hover svg, .spark-btn:hover svg { filter: drop-shadow(0 0 4px currentColor); }
+
+  /* ===== 持股損益・⚔️ 冒險模式(charts.js drawPlRpg):每檔是一件裝備,稀有度看報酬率 ===== */
+  .pl-view-btns .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pl-rpg { display: grid; gap: var(--sp-3); }
+  .pl-rpg .mut { color: var(--muted); }
+  .rpg-hero { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+    background: linear-gradient(135deg, color-mix(in srgb, #f5b301 16%, var(--card)), var(--card)); border: 1px solid color-mix(in srgb, #f5b301 45%, var(--border)); }
+  .rpg-vault { line-height: 1; filter: drop-shadow(0 0 10px rgba(245,179,1,.45)); flex: none; }
+  .rpg-hero-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .rpg-lv { font-size: var(--fs-lg); font-weight: var(--fw-heavy); } .rpg-lv b { font-size: var(--fs-2xl); }
+  .rpg-gold { font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+  .rpg-exp { position: relative; height: 18px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--muted) 22%, transparent); overflow: hidden; }
+  .rpg-exp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #f5b301, #ffd76a); border-radius: var(--r-pill); }
+  .rpg-exp span { position: relative; display: block; font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 18px; padding-left: 8px; color: var(--text); }
+  .rpg-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-2); }
+  .rpg-item { --rc: var(--muted); display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md);
+    border: 2px solid var(--rc); background: color-mix(in srgb, var(--rc) 9%, var(--card)); min-width: 0; }
+  .rpg-icon { font-size: 30px; line-height: 1; width: 44px; height: 44px; display: grid; place-items: center; flex: none; border-radius: 10px;
+    background: color-mix(in srgb, var(--rc) 20%, transparent); }
+  .rpg-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
+  .rpg-name { font-weight: var(--fw-heavy); font-size: var(--fs-md); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rpg-tag { display: inline-block; font-size: var(--fs-xs); padding: 0 6px; margin-right: 6px; border-radius: var(--r-pill); background: var(--rc); color: #fff; vertical-align: 1px; }
+  .rpg-plus { color: var(--rc); margin-right: 4px; }
+  .rpg-stat { display: flex; gap: 8px; align-items: baseline; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; } .rpg-stat b { font-size: var(--fs-base); }
+  .rpg-bar { height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--muted) 18%, transparent); overflow: hidden; }
+  .rpg-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--rc); }
+  .rpg-legend { font-size: var(--fs-xs); }
+  .r-legend { --rc: #e8920c; box-shadow: 0 0 14px rgba(245,158,11,.45); animation: rpg-glow 2.4s ease-in-out infinite; }
+  .r-epic   { --rc: #9b51e0; box-shadow: 0 0 10px rgba(155,81,224,.3); }
+  .r-rare   { --rc: #2f7fe6; }
+  .r-common { --rc: color-mix(in srgb, var(--muted) 75%, var(--text)); }
+  .r-broken { --rc: #8a8f99; border-style: dashed; }
+  .r-broken .rpg-icon { filter: grayscale(.8); }
+  .r-cursed { --rc: #5b4b6e; border-style: dashed; background: repeating-linear-gradient(135deg, color-mix(in srgb, #5b4b6e 14%, var(--card)) 0 8px, var(--card) 8px 16px); }
+  @keyframes rpg-glow { 50% { box-shadow: 0 0 22px rgba(245,158,11,.7); } }
+  @media (prefers-reduced-motion: reduce) { .r-legend { animation: none; } }
+  @media (max-width: 600px) { .rpg-items { grid-template-columns: 1fr; } .rpg-hero { gap: var(--sp-3); } }
