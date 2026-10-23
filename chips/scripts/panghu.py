@@ -657,7 +657,7 @@ def premarket_target_day(now):
     """盤前資料要標哪一天(台北 datetime → datetime):平日 = 當天;週六 / 週日 = 下週一。
     週一盤前的資料(美股週五收盤、週五夜盤週六 05:00 收、台股週五收盤)週六清晨就定了,
     所以週日中午那班先抓、先發,標成週一;週一 07:20 那兩班會再抓一次更新網站,LINE 因同日已通知而略過。
-    (不認國定假日,跟其餘排程一致)"""
+    (這裡只跳週末;國定假日 / 颱風假由 premarket.py 開頭的 market_calendar.check 判斷,休市就整班跳過)"""
     import datetime as _dt
     d = now
     while d.weekday() >= 5: d += _dt.timedelta(days=1)

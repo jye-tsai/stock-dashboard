@@ -10,6 +10,10 @@ t = read_json(os.path.join(d, "premarket_latest.json"))
 if not t: print("notify: premarket_latest.json 讀不到"); sys.exit(0)
 MARK = os.path.join(d, "premarket_notified.json")            # 同一天只發一次(手動重跑不會再吵一次);跟盤後的 notified.json 分開記
 mark = read_json(MARK, {})
+from common import tw_now
+from panghu import premarket_target_day
+want = premarket_target_day(tw_now()).strftime("%Y/%m/%d")           # 休市日 premarket.py 會整班跳過 → 檔案還是上一班的,不要拿舊資料再發
+if t.get("date") != want: print(f"notify: 盤前資料是 {t.get('date')},今天要發的是 {want}(休市或還沒抓到),略過"); sys.exit(0)
 if mark.get("last") == t["date"]: print(f"notify: {t['date']} 盤前已通知過，略過"); sys.exit(0)
 us, n = t["us"], t.get("night")
 def s(k): it = us[k]; return f"{it['name']} {it['pct']:+.2f}%" if it["ok"] else f"{it['name']} 缺"

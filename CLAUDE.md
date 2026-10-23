@@ -19,6 +19,7 @@
 
 - 盤中股價:Cloudflare cron `:00/:10…` + cron-job.org `:05/:15…`(兩路並行),網頁超過 15 分沒更新會補觸發。
 - 盤前 07:20(Cloudflare + cron-job.org 同時);週日 12:00 先發週一盤前。盤後 15:30 / 15:40 / 15:45。LINE 同一天只發一次。
+- 休市日盤前整班跳過(`chips/scripts/market_calendar.py`):週末、`chips/closed_days.json` 手動清單、證交所休市日表、臺北市全天停止上班(颱風假)。判斷依據存在 `chips/data/market_calendar.json`;程式漏判時請使用者在 `closed_days.json` 加一行。盤後遇休市會自動退回前一交易日、同日不重發,不用另外處理。
 - 每個觸發都帶來源(GitHub 執行紀錄標題如「股價 cloudflare」「籌碼 盤後 cronjob」);可靠度報表 `reports/triggers.md`(每週六)。
 - 說書人(LINE / 籌碼站的奇幻・修仙劇情)開關:`chips/story.json` 的 world(奇幻 / 修仙 / 隨機 / 關閉);儀表板冒險主題的說書在 ⚙️ 設定。故事只包裝真實數字,看盤分析仍以數字為準。
 - 細節、Cron 清單、出事怎麼查:`cloudflare/README.md`。Worker 正本是 `cloudflare/worker.mjs`,改完要使用者自己貼到 Cloudflare。

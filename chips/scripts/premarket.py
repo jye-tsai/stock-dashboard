@@ -99,6 +99,10 @@ def prev_trading_day(d):
 def main():
     now = tw_now(); target = premarket_target_day(now)                 # 週末跑 = 下週一的盤前(週日中午先發)
     today = target.strftime("%Y/%m/%d"); tag = target.strftime("%Y%m%d")
+    # 休市(國定假日 / 補假 / 颱風假 / chips/closed_days.json)→ 整班跳過:不抓、不寫檔,notify_premarket 也因日期對不上而不發
+    from market_calendar import check as market_check
+    closed, why = market_check(target.date(), now=now)
+    if closed: print(f"盤前 {today} 休市({why}),略過"); return
     log(f"盤前抓取 {today}(實際 {now.strftime('%m/%d %H:%M')})")
     with ThreadPoolExecutor(max_workers=8) as ex:                      # 15 檔各抓 3 年日線,同時抓(原本一檔一檔來)
         got = list(ex.map(lambda it: fetch_item(*it), ITEMS))
