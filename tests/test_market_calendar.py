@@ -109,11 +109,11 @@ class RepoManualFile(unittest.TestCase):
 class PremarketSkips(unittest.TestCase):
     def test_main_returns_before_fetch_when_closed(self):  # 休市:不抓美股、不寫 premarket_*.json
         import premarket
-        orig_check, orig_fetch = mc.check, premarket.fetch_item
+        orig_check, orig_fetch = mc.check, premarket.fetch_raw
         mc.check = lambda *a, **k: (True, "測試休市")
-        premarket.fetch_item = lambda *a, **k: self.fail("休市不該抓資料")
+        premarket.fetch_raw = lambda *a, **k: self.fail("休市不該抓資料")
         try: self.assertIsNone(premarket.main())
-        finally: mc.check, premarket.fetch_item = orig_check, orig_fetch
+        finally: mc.check, premarket.fetch_raw = orig_check, orig_fetch
 
 if __name__ == "__main__":
     unittest.main()

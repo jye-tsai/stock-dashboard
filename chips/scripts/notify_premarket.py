@@ -19,6 +19,10 @@ us, n = t["us"], t.get("night")
 def s(k): it = us[k]; return f"{it['name']} {it['pct']:+.2f}%" if it["ok"] else f"{it['name']} 缺"
 gen = (t.get("generated_at") or "")[:10].replace("-", "/")              # 週日中午先發週一盤前 → 標明哪天抓的
 lines = [f"🐶 {t['date']} 盤前" + (f"（{gen[5:]} 先發,週一早上不再重發）" if gen and gen != t["date"] else "")]
+span = next((v.get("span") for v in us.values() if v.get("span")), None)
+if span:                                                              # 連假:美股漲跌是累計,夜盤只到第一晚
+    frm = next((v.get("from") for v in us.values() if v.get("from")), "?")
+    lines.append(f"⚠ 連假:美股以下為 {frm} 收盤起 {span} 個交易日累計" + ("；夜盤只到第一晚" if (n or {}).get("lag") else ""))
 if t["missing"]: lines.append("⚠ 需手動補：" + "、".join(t["missing"]))
 D = t.get("describe") or {}
 if D.get("headline"):

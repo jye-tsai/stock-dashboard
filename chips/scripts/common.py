@@ -118,7 +118,8 @@ def parse_tx_night(txt, day_date):
     """futDataDown 日期區間的台指期 CSV → day_date 日盤「之後」那一段夜盤。
     ⚠ 期交所把夜盤算在「下一個交易日」:週五 15:00–週六 05:00 那段,交易日期是下週一。
     所以 day_date 那天的「盤後」列其實是前一晚的夜盤(2026-10-04 前程式誤用它,夜盤一直晚一段、漲跌也對錯日盤)。
-    做法:取交易日期晚於 day_date 的最後一批「盤後」列當夜盤,近月契約以夜盤為準(結算日換月時日盤用同一契約比);
+    做法:取交易日期晚於 day_date 的「第一批」盤後列當夜盤(緊接在 day_date 日盤之後那一段),近月契約以夜盤為準(結算日換月時日盤用同一契約比);
+    ⚠ 2026-10-25 前取的是「最後一批」:查詢區間跨好幾天時(連假、前一天抓不到退回更早)會拿到較晚的夜盤配較早的日盤,漲跌錯配(10/20 盤前 -551 實為 -78)。
     回 {contract, day_date, night_date, day_close, night_close, night_high, night_low, night_open};
     day_date 之後還沒有夜盤 → night_* 為 None;day_date 沒有日盤 → None。"""
     import pandas as pd
@@ -134,7 +135,7 @@ def parse_tx_night(txt, day_date):
     out = {"contract": sorted(day["_m"].unique())[0], "day_date": day_date, "night_date": None, "day_close": None,
            "night_close": None, "night_high": None, "night_low": None, "night_open": None}
     if not night.empty:
-        nd = sorted(night["_d"].unique())[-1]; night = night[night["_d"] == nd]
+        nd = sorted(night["_d"].unique())[0]; night = night[night["_d"] == nd]
         out["contract"] = sorted(night["_m"].unique())[0]; out["night_date"] = nd
         n = night[night["_m"] == out["contract"]]
         out.update({"night_close": num(n, "收盤價"), "night_high": num(n, "最高價"), "night_low": num(n, "最低價"), "night_open": num(n, "開盤價")})

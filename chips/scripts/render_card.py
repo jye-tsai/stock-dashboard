@@ -150,6 +150,12 @@ def render_pre(t, out_dir=DATA):
     cv = Canvas(); header(cv, "pre", t.get("date", ""), right)
     if t.get("missing"):
         cv.y += 4; cv.text(M, "需手動補資料:" + "、".join(t["missing"]), 26, "#ffb3b3", bold=True)
+    us = t.get("us") or {}
+    span = next((v.get("span") for v in us.values() if isinstance(v, dict) and v.get("span")), None)
+    if span:                                                            # 連假:美股是累計、夜盤只到第一晚,圖卡上也要看得到
+        frm = next((v.get("from") for v in us.values() if isinstance(v, dict) and v.get("from")), "?")
+        msg = f"連假:美股為 {frm} 收盤起 {span} 個交易日累計" + (f";夜盤只到 {n.get('date', '')} 那晚" if n and n.get("lag") else "")
+        cv.y += 4; cv.text(M, msg, 26, "#ffd27a", bold=True)
     if D.get("headline"): cv.y += 6; cv.text(M, D["headline"], 34, WHITE, bold=True, gap=1.45)
     aspect_rows(cv, D.get("aspects") or [], detail_lines=3, name_w=150, wrap_lines=3)
     foot = (D.get("note") or "只描述盤前現況,不預測開盤方向、不給倉位。") + "黃金 / 油 / 美元指數是期貨連續合約,換月當天漲跌不準。不是投資建議。產生 " + (t.get("generated_at") or "").replace("T", " ")

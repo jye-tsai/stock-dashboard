@@ -38,40 +38,83 @@ ITEMS = [
 ]
 
 def yahoo(sym):
+    """3 年日線 → [{ts, d, c}](ts = UTC 秒,d = 美東日期)。3 年:算「這次漲跌在近 3 年排第幾」"""
     r = requests.get(f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}",
-                     params={"range": "3y", "interval": "1d"}, headers=UA, timeout=20)    # 3 年:算「今天的漲跌在近 3 年排第幾」
+                     params={"range": "3y", "interval": "1d"}, headers=UA, timeout=20)
     j = r.json()["chart"]["result"][0]
     ts = j["timestamp"]; cl = j["indicators"]["quote"][0]["close"]
-    rows = [(t, c) for t, c in zip(ts, cl) if c is not None]
-    if len(rows) < 2: raise ValueError("rows<2")
-    (t1, c1), (t0, c0) = rows[-1], rows[-2]
-    d = dt.datetime.fromtimestamp(t1, dt.timezone.utc) - dt.timedelta(hours=4)      # 美東(粗略,只拿來標日期)
-    hist = [(rows[i][1] / rows[i - 1][1] - 1) * 100 for i in range(1, len(rows) - 1) if rows[i - 1][1]]   # 歷史單日漲跌(不含今天)
-    return {"close": c1, "prev": c0, "date": d.strftime("%m/%d"), "hist": hist}
+    bars = [{"ts": t, "d": (dt.datetime.fromtimestamp(t, dt.timezone.utc) - dt.timedelta(hours=4)).date(), "c": c}   # 美東(粗略,標日期用)
+            for t, c in zip(ts, cl) if c is not None]
+    if len(bars) < 2: raise ValueError("rows<2")
+    return bars
 
 def stooq(sym):
     r = requests.get("https://stooq.com/q/d/l/", params={"s": sym, "i": "d"}, headers=UA, timeout=20)
     df = pd.read_csv(io.StringIO(r.text))
     if "Close" not in df.columns or len(df) < 2: raise ValueError("no data")
     df = df.dropna(subset=["Close"]).tail(760)                                       # 約 3 年
-    cl = df["Close"].astype(float).tolist()
-    return {"close": cl[-1], "prev": cl[-2], "date": str(df["Date"].iloc[-1])[5:].replace("-", "/"),
-            "hist": [(cl[i] / cl[i - 1] - 1) * 100 for i in range(1, len(cl) - 1) if cl[i - 1]]}
+    return [{"ts": None, "d": dt.date.fromisoformat(str(d)[:10]), "c": float(c)} for d, c in zip(df["Date"], df["Close"])]
 
-def fetch_item(key, name, ysym, ssym, nd, kind):
+def fetch_raw(key, name, ysym, ssym, nd, kind):
+    """只抓日線,還不算漲跌(要先知道美股收在哪天、台股前收以來過了幾個美股交易日,見 summarize)"""
     for src, fn, sym in (("yahoo", yahoo, ysym), ("stooq", stooq, ssym)):
-        try:
-            v = fn(sym)
-            chg = v["close"] - v["prev"]; pct = chg / v["prev"] * 100
-            out = {"name": name, "value": round(v["close"], nd), "prev": round(v["prev"], nd),
-                   "chg": round(chg, 4), "pct": round(pct, 2), "date": v["date"], "src": src, "ok": True}
-            if kind == "fut" and abs(pct) >= 3: out["roll_warn"] = True      # 期貨連續合約換月日會出現假跳動(例:布蘭特一天 -5.9%、WTI 卻 +1.2%)
-            qq = quantiles(v.get("hist") or [])                                # 今天的漲跌在近 3 年排第幾(0 最跌、100 最漲)
-            if qq: out["p"] = int(round(pctile(pct, qq))); out["years"] = round(len(v["hist"]) / 250, 1)
-            return out
-        except Exception as e:
-            log(f"  {name} {src} 失敗：{e.__class__.__name__}")
-    return {"name": name, "value": MISSING, "prev": MISSING, "chg": None, "pct": None, "date": "", "src": "", "ok": False}
+        try: return {"key": key, "name": name, "nd": nd, "kind": kind, "src": src, "bars": fn(sym)}
+        except Exception as e: log(f"  {name} {src} 失敗：{e.__class__.__name__}")
+    return {"key": key, "name": name, "nd": nd, "kind": kind, "src": "", "bars": None}
+
+LIVE_KINDS = ("fut",)          # 期貨 / 外匯近乎 24 小時交易:07:20 抓時下一個交易時段已開盤,最後一根是「盤中即時價」
+LIVE_KEYS = ("twd",)
+
+def trim_live(raw, ref):
+    """把美股收盤之後才開的那根(期貨 / 外匯的盤中即時價)拿掉,只留跟美股同一天收的價。
+    ref = {"date": 美股最後交易日, "close_ts": 那天 21:30 UTC};回傳 (bars, 被拿掉的即時價 or None)。
+    2026-10-25 前沒做:布蘭特、美元指數的「漲跌」其實是結算後到台北早上 7 點的變化,隔天前收也對不上前一天的現值。"""
+    bars = list(raw["bars"] or [])
+    if not ref or not (raw["kind"] in LIVE_KINDS or raw["key"] in LIVE_KEYS): return bars, None
+    dropped = None
+    while len(bars) > 2:
+        b = bars[-1]
+        late = (b["ts"] is not None and b["ts"] > ref["close_ts"]) or (b["ts"] is None and b["d"] > ref["date"])
+        if not late: break
+        dropped = dropped or b; bars.pop()
+    return bars, dropped
+
+def summarize(raw, span=1, ref=None):
+    """日線 → 顯示用的一筆。span = 台股前收以來的美股交易日數(連假時 > 1:漲跌改成累計,並列出每天)。"""
+    name, nd, kind = raw["name"], raw["nd"], raw["kind"]
+    if not raw.get("bars"):
+        return {"name": name, "value": MISSING, "prev": MISSING, "chg": None, "pct": None, "date": "", "src": "", "ok": False}
+    bars, dropped = trim_live(raw, ref)
+    span = max(1, min(span, len(bars) - 1))
+    last, base = len(bars) - 1, len(bars) - 1 - span
+    c1, c0 = bars[last]["c"], bars[base]["c"]
+    chg = c1 - c0; pct = chg / c0 * 100
+    out = {"name": name, "value": round(c1, nd), "prev": round(c0, nd), "chg": round(chg, 4), "pct": round(pct, 2),
+           "date": bars[last]["d"].strftime("%m/%d"), "src": raw["src"], "ok": True}
+    if span > 1:
+        out["span"] = span; out["from"] = bars[base]["d"].strftime("%m/%d")
+        out["sessions"] = [{"date": bars[i]["d"].strftime("%m/%d"), "pct": round((bars[i]["c"] / bars[i - 1]["c"] - 1) * 100, 2)}
+                           for i in range(base + 1, last + 1)]
+    if dropped: out["live"] = {"value": round(dropped["c"], nd), "note": "抓取時盤中即時價(未採用)"}
+    if kind == "fut" and abs(pct) >= 3 * span ** .5: out["roll_warn"] = True    # 期貨連續合約換月日會出現假跳動
+    cl = [b["c"] for b in bars[:base + 1]]                                     # 歷史:同樣天數的漲跌(不含這次)
+    hist = [(cl[i] / cl[i - span] - 1) * 100 for i in range(span, len(cl)) if cl[i - span]]
+    qq = quantiles(hist)
+    if qq: out["p"] = int(round(pctile(pct, qq))); out["years"] = round(len(hist) / 250, 1)
+    return out
+
+def us_span(raws, since):
+    """台股前收(since,date)之後美股開了幾天:以道瓊 / 標普 / 那指的日線為準;回 (span, ref)。
+    平常 = 1;10/22(四)收盤後連休到 10/27 → 美股 10/22、10/23、10/26 三天 = 3。"""
+    for k in ("spx", "dji", "ixic"):
+        b = raws.get(k, {}).get("bars")
+        if not b: continue
+        last = b[-1]["d"]
+        ref = {"date": last, "close_ts": dt.datetime(last.year, last.month, last.day, 21, 30, tzinfo=dt.timezone.utc).timestamp()}
+        if since is None: return 1, ref
+        n = sum(1 for x in b if x["d"] >= since)
+        return max(1, n), ref
+    return 1, None
 
 # ── 期交所：台指期近月 一般時段 vs 盤後（夜盤） ──
 def taifex_night(day_date, until):
@@ -90,12 +133,6 @@ def taifex_night(day_date, until):
     out["night_chg"] = round(out["night_close"] - out["day_close"], 0); out["night_pct"] = round(out["night_chg"] / out["day_close"] * 100, 2)
     return out
 
-def prev_trading_day(d):
-    for _ in range(10):
-        d -= dt.timedelta(days=1)
-        if d.weekday() < 5: return d
-    return d
-
 def main():
     now = tw_now(); target = premarket_target_day(now)                 # 週末跑 = 下週一的盤前(週日中午先發)
     today = target.strftime("%Y/%m/%d"); tag = target.strftime("%Y%m%d")
@@ -104,21 +141,8 @@ def main():
     closed, why = market_check(target.date(), now=now)
     if closed: print(f"盤前 {today} 休市({why}),略過"); return
     log(f"盤前抓取 {today}(實際 {now.strftime('%m/%d %H:%M')})")
-    with ThreadPoolExecutor(max_workers=8) as ex:                      # 15 檔各抓 3 年日線,同時抓(原本一檔一檔來)
-        got = list(ex.map(lambda it: fetch_item(*it), ITEMS))
-    us = {it[0]: v for it, v in zip(ITEMS, got)}
-    missing.extend(v["name"] for v in got if not v["ok"])                # 照 ITEMS 順序記缺漏(不在執行緒裡改共用清單)
 
-    # 夜盤：前一交易日的盤後時段（凌晨 05:00 收盤）
-    night, last_td = None, prev_trading_day(now)
-    for _ in range(4):
-        try:
-            night = taifex_night(last_td.strftime("%Y/%m/%d"), today); night["date"] = last_td.strftime("%m/%d"); break   # date = 這段夜盤接在哪天日盤之後
-        except Exception as e:
-            log(f"  夜盤 {last_td.strftime('%m/%d')} 失敗：{e}"); last_td = prev_trading_day(last_td)
-    if night is None: missing.append("台指期夜盤")
-
-    # 台股前收：站上 latest.json
+    # 台股前收:站上 latest.json(先讀:美股要算「台股收盤之後」的漲跌,夜盤也要接在這天之後)
     prev = None
     try:
         lj = read_json(os.path.join(DATA, "latest.json"))
@@ -135,24 +159,53 @@ def main():
         if any(v is None for v in (prev["close"], prev["foreign"])): missing.append("台股前收（latest.json 不完整）")
     except Exception as e:
         log(f"  台股前收失敗：{e}"); missing.append("台股前收")
+    since = dt.datetime.strptime(prev["date"], "%Y/%m/%d").date() if prev and prev.get("date") else None
+
+    with ThreadPoolExecutor(max_workers=8) as ex:                      # 15 檔各抓 3 年日線,同時抓(原本一檔一檔來)
+        raws = list(ex.map(lambda it: fetch_raw(*it), ITEMS))
+    span, ref = us_span({r["key"]: r for r in raws}, since)          # 連假:台股收盤後美股開了幾天(平常 1)
+    if span > 1: log(f"  連假:台股前收 {prev['date']} 之後美股開了 {span} 天,漲跌改成累計")
+    us = {r["key"]: summarize(r, span, ref) for r in raws}
+    missing.extend(v["name"] for v in us.values() if not v["ok"])
+
+    # 夜盤:只取緊接在台股前收那天日盤之後的那一段(凌晨 05:00 收);抓不到就標缺,不退回更早的日子充數
+    night = None
+    if since:
+        for attempt in range(2):
+            try:
+                night = taifex_night(prev["date"], today); night["date"] = since.strftime("%m/%d"); break   # date = 這段夜盤接在哪天日盤之後
+            except Exception as e:
+                log(f"  夜盤 {since.strftime('%m/%d')} 失敗({attempt + 1}):{e}")
+    if night is not None and span > 1:                                 # 連假:夜盤只到第一個美股交易日的凌晨,之後幾天期貨沒交易
+        night["lag"] = span - 1
+        first_us = next((us[k]["sessions"][0]["date"] for k in ("spx", "dji", "sox") if us[k].get("sessions")), "")
+        night["note"] = f"只反映 {first_us} 美股;之後 {span - 1} 個美股交易日台指期休市沒有報價"
+    if night is None: missing.append("台指期夜盤")
 
     # ── 文字表 ──
     def fmt(it, pct_only=False):
         if not it["ok"]: return f"{it['name']} {MISSING}"
         v = it["value"]; s = f"{v:,.2f}" if isinstance(v, float) and v % 1 else f"{v:,.0f}" if isinstance(v, (int, float)) else v
-        if it["name"] == "美債10Y": return f"美債10Y {it['value']:.2f}%（{it['chg']*100:+.0f}bps）"
-        return f"{it['name']} {s}（{it['pct']:+.2f}%{'，可能是換月' if it.get('roll_warn') else ''}）"
+        if it["name"] == "美債10Y": return f"美債10Y {it['value']:.2f}%（{it['chg']*100:+.0f}bps{'，' + str(it['span']) + '日累計' if it.get('span') else ''}）"
+        return f"{it['name']} {s}（{it['pct']:+.2f}%{'，' + str(it['span']) + '日累計' if it.get('span') else ''}{'，可能是換月' if it.get('roll_warn') else ''}）"
     L = [f"【盤前數據】{today}（抓取 {now.strftime('%H:%M') if target.date() == now.date() else now.strftime('%m/%d %H:%M')}）"]
     L.append(claude_news_instruction("pre", today))                  # 提醒 Claude 先上網查時事(數據裡沒有新聞)
     if missing: L.append(f"⚠⚠ 需手動補資料：{'、'.join(missing)} ⚠⚠（請 Claude 提醒使用者上傳截圖補齊，不要自行猜測）")
     us_date = next((us[k]["date"] for k in ("dji", "spx", "sox") if us[k]["ok"]), "?")
+    if span > 1:                                                        # 連假:先講清楚是累計,再列每天
+        frm = next((us[k]["from"] for k in ("dji", "spx", "sox") if us[k].get("from")), "?")
+        L.append(f"⚠ 連假:台股前收 {prev['date']} 之後美股開了 {span} 天,以下美股 / ADR / 債匯漲跌都是 {frm} 收盤 → {us_date} 收盤的累計")
+        for k in ("sox", "tsm", "ixic"):
+            if us[k].get("sessions"): L.append(f"  {us[k]['name']} 逐日：" + "、".join(f"{x['date']} {x['pct']:+.2f}%" for x in us[k]["sessions"]))
+        us_date = f"{frm}→{us_date}（{span}日累計）"
     L.append(f"美股 {us_date}：" + "｜".join(fmt(us[k]) for k in ("dji", "spx", "ixic", "sox")))
     L.append("ADR/個股：" + "｜".join(fmt(us[k]) for k in ("tsm", "nvda", "tsla", "aapl")))
     L.append("債匯金油：" + "｜".join(fmt(us[k]) for k in ("us10y", "dxy", "gold", "brent", "wti", "twd", "vix")))
     if night:
         L.append(f"台指期夜盤（{night['date']}）：收 {night['night_close']:,.0f}（{night['night_chg']:+,.0f}，{night['night_pct']:+.2f}%）"
-                 f" 高 {night['night_high']:,.0f} 低 {night['night_low']:,.0f}｜日盤收 {night['day_close']:,.0f}（{night['contract']}）")
-    else: L.append(f"台指期夜盤：{MISSING}（期交所盤後時段未取得）")
+                 f" 高 {night['night_high']:,.0f} 低 {night['night_low']:,.0f}｜日盤收 {night['day_close']:,.0f}（{night['contract']}）"
+                 + (f"｜⚠ {night['note']}" if night.get("note") else ""))
+    else: L.append(f"台指期夜盤：{MISSING}（{prev['date'] if prev else '前一交易日'} 日盤之後的盤後時段未取得;不拿更早的夜盤充數）")
     if prev and prev.get("close") is not None:
         L.append(f"台股前收（{prev['date']}）：加權 {prev['close']:,}（{prev['chg']:+,}，{('%+.2f%%' % prev['pct']) if prev['pct'] is not None else MISSING}）"
                  f" 量 {prev['amount_yi']:,} 億｜外資 {prev['foreign']:+.0f} 億｜法人 {prev['inst_total']:+.0f}｜外資淨空 {prev['foreign_net_oi']:,}"

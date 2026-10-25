@@ -548,6 +548,8 @@ def describe_premarket(us, night, prev, cfg):
     ok = lambda k: bool(us and us.get(k) and us[k].get("ok"))
     pct = lambda k: us[k]["pct"] if ok(k) else None
     fpct = lambda k: f"{us[k]['name']} {us[k]['pct']:+.2f}%" if ok(k) else None
+    span = next((v.get("span") for v in (us or {}).values() if isinstance(v, dict) and v.get("span")), None)   # 連假:美股漲跌是 N 日累計
+    day = f"的 {span} 天" if span else "的一天"                                                          # 分位數是跟「近 3 年同樣天數」比
 
     # ── 美股:四大指數平均,費半是否領跌 / 領漲
     idx = [k for k in ("dji", "spx", "ixic", "sox") if ok(k)]
@@ -555,12 +557,13 @@ def describe_premarket(us, night, prev, cfg):
         avg = sum(pct(k) for k in idx) / len(idx)
         lab = "美股偏強" if avg >= g("us_flat_pct", .3) else "美股偏弱" if avg <= -g("us_flat_pct", .3) else "美股持平"
         if abs(avg) >= g("us_big_pct", 1.0): lab = lab.replace("偏", "大") if "偏" in lab else lab
+        if span: lab += f"({span}日累計)"
         tone = "bull" if avg >= g("us_flat_pct", .3) else "bear" if avg <= -g("us_flat_pct", .3) else "neutral"
         sox = pct("sox"); parts = [lab]
         if sox is not None and len(idx) >= 2:
             if sox - avg <= -g("sox_lead_pct", .5): parts.append("費半領跌")
             elif sox - avg >= g("sox_lead_pct", .5): parts.append("費半領漲")
-        lines = ["、".join(fpct(k) + _pword(us[k].get("p"), "偏弱的一天", "偏強的一天") for k in idx) + f";四大平均 {avg:+.2f}%"]
+        lines = ["、".join(fpct(k) + _pword(us[k].get("p"), "偏弱" + day, "偏強" + day) for k in idx) + f";四大平均 {avg:+.2f}%"]
         if ok("vix"): lines.append(f"VIX {us['vix']['value']}({us['vix']['pct']:+.2f}%){'' if us['vix']['value'] < 20 else ',偏高' if us['vix']['value'] < 30 else ',恐慌區'}")
         asp("us", "美股", "・".join(parts), tone, lines)
 
@@ -570,7 +573,7 @@ def describe_premarket(us, night, prev, cfg):
         if (t > 0) != (s > 0) and abs(d) >= g("adr_diverge_pct", .8): lab, tone = ("台積 ADR 逆勢強", "bull") if t > 0 else ("台積 ADR 逆勢弱", "bear")
         elif abs(d) >= g("adr_diverge_pct", .8): lab, tone = (f"台積 ADR 比費半{'強' if d > 0 else '弱'}", "bull" if d > 0 else "bear")
         else: lab, tone = ("台積 ADR 與費半同向" + ("強" if t > 0 else "弱" if t < 0 else ""), "bull" if t > 0 else "bear" if t < 0 else "neutral")
-        lines = [f"台積 ADR {t:+.2f}%{_pword(us['tsm'].get('p'), '偏弱的一天', '偏強的一天')} vs 費半 {s:+.2f}%,差 {d:+.2f} 個百分點"]
+        lines = [f"台積 ADR {t:+.2f}%{_pword(us['tsm'].get('p'), '偏弱' + day, '偏強' + day)} vs 費半 {s:+.2f}%,差 {d:+.2f} 個百分點"]
         others = [fpct(k) for k in ("nvda", "aapl", "tsla") if ok(k)]
         if others: lines.append("、".join(others))
         asp("semi", "半導體", lab, tone, lines)
@@ -582,7 +585,7 @@ def describe_premarket(us, night, prev, cfg):
         if bps >= g("yield_bps", 5): parts.append("利率升"); score += 1
         elif bps <= -g("yield_bps", 5): parts.append("利率降"); score -= 1
         else: parts.append("利率平")
-        lines.append(f"美債 10Y {us['us10y']['value']:.2f}%({bps:+.0f}bps){_pword(us['us10y'].get('p'), '大降的一天', '大升的一天')}")
+        lines.append(f"美債 10Y {us['us10y']['value']:.2f}%({bps:+.0f}bps){_pword(us['us10y'].get('p'), '大降' + day, '大升' + day)}")
     if ok("dxy") and not us["dxy"].get("roll_warn"):
         d = pct("dxy")
         if d >= g("dxy_pct", .3): parts.append("美元強"); score += 1
@@ -607,8 +610,9 @@ def describe_premarket(us, night, prev, cfg):
         rng = (night["night_high"] - night["night_low"]) / night["day_close"] * 100 if night.get("night_high") and night.get("day_close") else None
         asp("night", "夜盤", lab, "bull" if n >= f_ else "bear" if n <= -f_ else "neutral",
             [f"{night.get('date', '')} 夜盤收 {night['night_close']:,.0f}({night['night_chg']:+,.0f},{n:+.2f}%),日盤收 {night['day_close']:,.0f}",
-             f"夜盤高 {night['night_high']:,.0f} 低 {night['night_low']:,.0f}" + (f",震幅 {rng:.2f}%" if rng is not None else "")],
-            f"{lab} {n:+.2f}%")
+             f"夜盤高 {night['night_high']:,.0f} 低 {night['night_low']:,.0f}" + (f",震幅 {rng:.2f}%" if rng is not None else ""),
+             (f"⚠ {night['note']}" if night.get("note") else None)],
+            f"{lab} {n:+.2f}%" + (f"(僅 {night.get('date', '')} 那晚,連假後幾天無夜盤)" if night.get("lag") else ""))
     else:
         asp("night", "夜盤", "夜盤【缺】", "neutral", ["期交所盤後時段未取得,不猜"], "夜盤【缺】")
 
@@ -650,7 +654,7 @@ def describe_premarket(us, night, prev, cfg):
     head = "今早:" + "・".join(segs) if segs else "今早:美股資料【缺】"
     if "night" in A: head += ";" + A["night"]["short"]
     if "prev" in A: head += ";昨收 " + A["prev"]["label"]
-    return {"headline": head, "aspects": aspects, "note": "只描述盤前現況,不預測開盤方向、不給倉位;百分位跟各標的近 3 年單日漲跌比。"}
+    return {"headline": head, "aspects": aspects, "note": "只描述盤前現況,不預測開盤方向、不給倉位;百分位跟各標的近 3 年" + (f"同樣 {span} 天的累計" if span else "單日") + "漲跌比。"}
 
 
 def premarket_target_day(now):

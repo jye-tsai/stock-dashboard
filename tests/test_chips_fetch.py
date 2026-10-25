@@ -47,7 +47,7 @@ class FetchParsing(unittest.TestCase):
         self.assertEqual((n["contract"], n["day_close"], n["night_close"], n["night_high"], n["night_low"], n["night_open"], n["night_chg"], n["night_pct"]),
                          ("202610", 48671.0, 49346.0, 49495.0, 48671.0, 48671.0, 675.0, 1.39))
         with open(os.path.join(HERE, "fixtures", "chips", "futData_TX_range.csv"), encoding="utf-8") as f: x = C.parse_tx_night(f.read(), "2026/10/01")
-        self.assertEqual((x["night_date"], x["day_close"], x["night_close"]), ("2026/10/05", 48685.0, 49346.0))   # 區間裡最後一段夜盤
+        self.assertEqual((x["night_date"], x["day_close"], x["night_close"]), ("2026/10/02", 48685.0, 48475.0))   # 緊接在 10/01 日盤之後那段(不是區間裡最後一段)
 
     def test_night_not_yet(self):        # 日盤之後還沒有夜盤 → 丟「尚未公布」,不拿前一晚充數
         with open(os.path.join(HERE, "fixtures", "chips", "futData_TX_range.csv"), encoding="utf-8") as f:
