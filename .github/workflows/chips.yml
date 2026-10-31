@@ -100,7 +100,7 @@ jobs:
         if: ${{ github.event.inputs.premarket == 'true' }}
         run: python chips/scripts/premarket.py
 
-      # 圖卡(1080 寬 PNG,data/card_post|pre_YYYYMMDD.png,留 30 天):LINE 傳圖要公開網址,所以先畫、先 commit,等 Pages 部署完才發 LINE
+      # 圖卡(1080 寬 PNG,data/card_post|pre_YYYYMMDD.png,留 30 天):LINE 傳圖要公開網址,所以先畫、推到 media 分支(不進 main),等 raw 網址拿得到才發 LINE
       - name: 畫圖卡（盤後）
         if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' && github.event.inputs.premarket != 'true' && (github.event.inputs.backfill == '' || github.event.inputs.backfill == '0' || github.event.inputs.backfill == null) }}
         continue-on-error: true
@@ -110,6 +110,12 @@ jobs:
         if: ${{ github.event.inputs.premarket == 'true' }}
         continue-on-error: true
         run: python chips/scripts/render_card.py pre
+
+      # 圖(圖卡、永豐轉圖)推到孤兒分支 media:main 歷史不再每月長 30 MB;push_media.sh 每次重建單一 commit、只留 30 天
+      - name: 推圖到 media 分支
+        if: ${{ github.event.schedule != '0 1 * * 0' && github.event.inputs.weekly != 'true' }}
+        continue-on-error: true
+        run: bash chips/scripts/push_media.sh
 
       - name: Commit
         run: |

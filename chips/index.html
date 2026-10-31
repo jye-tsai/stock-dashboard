@@ -281,10 +281,12 @@ async function loadSeries(idx){
   const rs=await Promise.all(tags.map(tg=>fetch(`data/${tg}.json`).then(r=>r.ok?r.json():null).catch(()=>null)));
   series=rs.filter(Boolean);
 }
-// 圖卡連結:排程畫好的 data/card_{post|pre}_YYYYMMDD.png(留 30 天),檔案在才顯示
+// 圖(圖卡、永豐轉圖)在 media 孤兒分支,不在 main(chips/scripts/push_media.sh);留 30 天
+const MEDIA='https://raw.githubusercontent.com/jye-tsai/stock-dashboard/media/chips/data/';
+// 圖卡連結:排程畫好的 card_{post|pre}_YYYYMMDD.png,檔案在才顯示
 async function setCardLink(id,kind,date){
   const a=$('#'+id); if(!a)return; a.style.display='none';
-  if(!date)return; const url=`data/card_${kind}_${String(date).replace(/\//g,'')}.png`;
+  if(!date)return; const url=MEDIA+`card_${kind}_${String(date).replace(/\//g,'')}.png`;
   try{const r=await fetch(url,{method:'HEAD',cache:'no-cache'}); if(r.ok){a.href=url;a.style.display=''}}catch(e){}
 }
 let pm=null;   // 盤前資料(textContent 寫入,不用 esc)
@@ -372,7 +374,7 @@ function render(t){
   $('#sentGrid').innerHTML=g.join('')||'<span class="mut">—</span>';
   $('#claudeText').textContent=t.claude_text||'—';
   const imgs=Object.values(t.spf||{}).flat();
-  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="data/${fn}" target="_blank"><img src="data/${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（永豐收盤後才放；排程 15:40 抓第一次、16:40 再補一次）</span>';
+  $('#spfImgs').innerHTML=imgs.length?imgs.map(fn=>`<a href="${MEDIA}${fn}" target="_blank"><img src="${MEDIA}${fn}" loading="lazy"></a>`).join(''):'<span class="mut">今日尚未上傳（永豐收盤後才放；排程 15:40 抓第一次、16:40 再補一次）</span>';
   $('#logBox').textContent=(t.log||[]).join('\n')||'—';
   renderIns(t); renderPanghu(t); renderDisc(t); renderLabels(t); renderCharts();
 }
@@ -587,8 +589,7 @@ $('#dateSel').onchange=e=>loadDay(e.target.value);
 $('#btnReload').onclick=()=>loadIndex();
 $('#btnCopy').onclick=async()=>{
   if(!current)return;
-  const base=location.href.replace(/index\.html$/,'').replace(/\/$/,'')+'/data/';
-  const imgs=Object.values(current.spf||{}).flat().map(fn=>base+fn);
+  const imgs=Object.values(current.spf||{}).flat().map(fn=>MEDIA+fn);
   let txt=current.claude_text;
   if(current.prev_summary)txt+='\n── 昨日摘要 ──\n'+current.prev_summary;
   if(imgs.length)txt+='\n永豐圖：\n'+imgs.join('\n');

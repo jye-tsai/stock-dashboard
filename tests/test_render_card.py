@@ -44,6 +44,15 @@ class TestRender(unittest.TestCase):
 
 
 class TestCleanup(unittest.TestCase):
+    def test_media_url(self):
+        self.assertEqual(R.media_url("/x/y/card_post_20261031.png"), R.MEDIA_URL.rstrip("/") + "/card_post_20261031.png")
+        old = R.MEDIA_URL
+        try:
+            R.MEDIA_URL = ""
+            self.assertEqual(R.media_url("card_pre_20261031.png", "https://a.b/chips/"), "https://a.b/chips/data/card_pre_20261031.png")
+        finally:
+            R.MEDIA_URL = old
+
     def test_only_old_cards_removed(self):
         with tempfile.TemporaryDirectory() as d:
             for fn in ("card_post_20260801.png", "card_pre_20260830.png", "card_post_20260929.png", "20260801_spf_a_p1.png", "card_post_latest.png"):

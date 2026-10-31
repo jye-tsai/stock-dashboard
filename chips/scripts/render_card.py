@@ -173,12 +173,20 @@ def cleanup(out_dir=DATA, keep_days=KEEP_DAYS, today=None):
                 os.remove(os.path.join(out_dir, fn)); gone.append(fn)
     return gone
 
+MEDIA_URL = os.getenv("MEDIA_URL", "https://raw.githubusercontent.com/jye-tsai/stock-dashboard/media/chips/data/")   # 圖在 media 孤兒分支(push_media.sh),不在 main / Pages
+
+def media_url(name, site_url=""):
+    """圖的公開網址:預設 media 分支的 raw 網址;MEDIA_URL 設成空字串就退回 Pages 的 data/(舊做法)"""
+    if MEDIA_URL: return MEDIA_URL.rstrip("/") + "/" + os.path.basename(name)
+    return site_url.rstrip("/") + "/data/" + os.path.basename(name)
+
 def card_url_when_live(local_path, site_url, timeout=240, every=10):
-    """等 GitHub Pages 上這張圖的內容跟本機剛畫的一樣(= 部署完成)才回傳網址(帶內容雜湊,LINE 不會拿到舊快取);逾時回 None"""
+    """等公開網址上這張圖的內容跟本機剛畫的一樣(= media 推完 / Pages 部署完)才回傳網址(帶內容雜湊,LINE 不會拿到舊快取);逾時回 None"""
     import time, requests
-    if not (local_path and site_url and os.path.exists(local_path)): return None
+    if not (local_path and os.path.exists(local_path)): return None
+    if not MEDIA_URL and not site_url: return None
     body = open(local_path, "rb").read(); h = hashlib.sha1(body).hexdigest()[:10]
-    url = site_url.rstrip("/") + "/data/" + os.path.basename(local_path)
+    url = media_url(local_path, site_url)
     end = time.time() + timeout
     while True:
         try:
