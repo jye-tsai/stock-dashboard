@@ -36,7 +36,7 @@ jobs:
         with:
           node-version: "24"
  
-      # 抓價 → commit → push;push 被拒(儀表板剛好「儲存」,data.json 是單行加密檔,rebase 必衝突)
+      # 抓價 → commit → push;push 被拒(儀表板剛好「儲存」:data.json v2 的 head 與今天那行 hist 同時被改,rebase 會衝突)
       # → 丟掉這輪,重抓 repo 最新的 data.json 再跑一次腳本,最多 3 輪。使用者的編輯永遠保留,價格用重跑後的新值。
       - name: Fetch prices, commit and push
         env:

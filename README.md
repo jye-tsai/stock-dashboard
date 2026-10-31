@@ -58,11 +58,12 @@
 | 檔案 | 用途 |
 |---|---|
 | `index.html` | 整個儀表板(HTML / CSS / JS 單檔);Chart.js 走 cdnjs 並鎖 `integrity`(SRI),升版要同步換 hash(`https://api.cdnjs.com/libraries/Chart.js/<ver>?fields=sri`) |
-| `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 AES 混淆版,由 Action 寫回) |
+| `data.json` | 資料來源(持股、年度、帳戶、歷史、密碼等);**正本在 repo,本機不放**(repo 上是 v2 混淆版:市價明文、其餘逐筆 AES 確定性加密,由 Action 寫回;編解碼 `scripts/codec.js`) |
 | `styles.css` / `app.js` / `charts.js` | 前端三件套:設計 token(`--fs-* / --fw-* / --r-* / --sp-* / --font-ui / --font-num / --ring`)+ 主題顏色 + 版面。字體:系統堆疊(iPhone / Mac PingFang、Windows Segoe + 微軟正黑),金額用 Google Fonts **Inter**(載不到退回系統字) / 主程式(載入、render、編輯、密碼、GitHub、分享卡、事件委派)/ 八張圖 + 熱圖。**尺寸一律用 token**,主題只改顏色;字重最重 800,880 只給 Hero 大字 |
 | `scripts/calc.js` | **純計算共用模組**(UMD):(1) 損益:成本 / 市值 / 賣出成本 / 未實現 / 總報酬;(2) 時序:history 切片、日變動、回撤、對比線、每日統計、今日損益、sparkline、期間損益。前端 `<script>` 載、Action 用 `createRequire` 載;改費率 / 稅率只改這裡 |
 | `stocks.json` | 股票池(上市 + 上櫃全部代號 / 名稱 / 市場,明碼約 60 KB):持股表單代號欄的智能查詢用;由 `update-prices.mjs` 每日 14:00 那班從證交所 / 櫃買 OpenAPI 更新 |
 | `scripts/update-prices.mjs` | GitHub Action 用:抓市價 + 昨收 + 加權指數、寫回 data.json、記錄 / 回補歷史 |
+| `scripts/codec.js` | data.json 編解碼(UMD,前端 / Action / show-data 共用):讀明文 / v1 / v2,寫 v2。v1 整包一行密文每次隨機 iv,3,433 版吃掉 repo 歷史 57 MB;v2 的 `quotes` 明文、`head` 與 `hist[]`(一行一天)用 HMAC(明文) 當 iv,沒變的列 byte 一樣,每次 commit 只差兩三行。Python 端 `chips/scripts/notify.py` 另有同邏輯的解碼 |
 | `.github/workflows/update-prices.yml` | GitHub Action 設定(備援排程 + 手動 / 外部觸發) |
 | `.github/workflows/check.yml` / `tests/` | push 自動跑語法 + 單元測試(Node 三檔 + Python 三支);本機 `node tests/run.mjs` |
 | `chips/` + `.github/workflows/chips.yml` | 子專案「盤後籌碼站」:期交所 / 證交所 / 永豐盤後資料,15:40 排程後推 LINE(含庫存段,讀本 repo 的 `data.json`);見 `chips/README.md` |
@@ -76,6 +77,8 @@
 ---
 
 ## `data.json` 結構
+
+下面是**解開後**的明文結構;repo 上實際存的是 v2 混淆格式 `{enc:2, updated, priceUpdated, quotes:{代號:{price,prevClose,priceTime,yahooSym,exDiv}}, head:"<加密的其餘欄位>", hist:["<加密的每日一筆>", …]}`(見 `scripts/codec.js` 檔頭)。
 
 ```jsonc
 {
