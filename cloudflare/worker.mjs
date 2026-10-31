@@ -16,7 +16,7 @@
 //   /premarket 觸發盤前(chips.yml 盤前不看 source,一律發 LINE,同日只發一次)。
 // cron-job.org 用(有時段限制,網址公開也不怕被亂打;同一天 LINE 只發一次,跟 Cloudflare cron 兩邊都打也只收一則):
 //   /chips-cron      籌碼站盤後 source=cron,台北週一~五 15:30–17:59 有效
-//   /premarket-cron  籌碼站盤前,台北週一~五 07:00–08:59、週日 11:30–13:59(週一盤前提早發)有效
+//   /premarket-cron  籌碼站盤前,台北週一~五 06:30–08:59、週日 11:30–13:59(週一盤前提早發)有效
 // 來源標記 via:Cloudflare cron = cloudflare;網址觸發看 ?src=(cron-job.org 的 URL 都加 ?src=cronjob),沒帶 = url。
 //   GitHub 執行紀錄標題會顯示它,tools/trigger-report.mjs 據此統計各來源準不準。
 // 其他路徑(favicon.ico)忽略。
@@ -43,7 +43,7 @@ export function route(cron) {
 const WEEKDAYS = [1, 2, 3, 4, 5];
 export const WINDOWS = {
   '/chips-cron':     [{ days: WEEKDAYS, from: 15 * 60 + 30, to: 18 * 60 }],   // 週一~五 15:30–17:59
-  '/premarket-cron': [{ days: WEEKDAYS, from: 7 * 60, to: 9 * 60 },          // 週一~五 07:00–08:59
+  '/premarket-cron': [{ days: WEEKDAYS, from: 6 * 60 + 30, to: 9 * 60 },     // 週一~五 06:30–08:59(2026-10-31 起 cron-job.org 06:40 先打;Cloudflare 07:20 備援)
                       { days: [0], from: 11 * 60 + 30, to: 14 * 60 }],       // 週日 11:30–13:59(週一盤前提早發)
 };
 export function cronWindow(path, now = new Date()) {

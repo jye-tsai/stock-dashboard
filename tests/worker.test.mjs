@@ -18,7 +18,8 @@ assert.equal(W('/chips-cron', '2026-10-02T10:00:00Z'), false);       // 18:00
 assert.equal(W('/chips-cron', '2026-10-03T07:40:00Z'), false);       // 週六
 assert.equal(W('/premarket-cron', '2026-10-01T23:30:00Z'), true);    // 台北週五 07:30(UTC 還是週四)
 assert.equal(W('/premarket-cron', '2026-10-02T01:00:00Z'), false);   // 09:00 開盤後
-assert.equal(W('/premarket-cron', '2026-10-01T22:59:00Z'), false);   // 06:59
+assert.equal(W('/premarket-cron', '2026-10-01T22:40:00Z'), true);    // 06:40(cron-job.org 早班)
+assert.equal(W('/premarket-cron', '2026-10-01T22:29:00Z'), false);   // 06:29
 assert.equal(W('/premarket-cron', '2026-10-04T23:30:00Z'), true);    // 台北週一 07:30(UTC 週日)
 assert.equal(W('/premarket-cron', '2026-10-03T23:30:00Z'), false);   // 台北週日 07:30
 assert.equal(W('/premarket-cron', '2026-10-04T04:00:00Z'), true);    // 台北週日 12:00(週一盤前提早發)

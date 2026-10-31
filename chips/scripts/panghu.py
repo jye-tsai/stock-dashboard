@@ -668,6 +668,16 @@ def premarket_target_day(now):
     return d
 
 
+def premarket_early_hold(now, night, us, end=700):
+    """06:40 早班(cron-job.org)要不要先不發 LINE:台北 HHMM < end(預設 07:00)且夜盤(05:00 收)或美股主要指數還沒抓到
+    → 回傳缺什麼(字串),這班只更新網站、不發 LINE、不記已發,留給 07:20 Cloudflare 備援再抓一次;
+    end 以後照舊(缺也發,附「需手動補」),回傳 None。週日中午那班時間 > end,不受影響。"""
+    if now.hour * 100 + now.minute >= end: return None
+    lack = [] if night else ["台指期夜盤"]
+    lack += [us[k].get("name", k) for k in ("dji", "spx", "sox", "tsm") if k in us and not us[k].get("ok")]
+    return "、".join(lack) or None
+
+
 # 給 Claude 的固定指示(放在 *_claude.txt / claude_text 開頭):這份數據只有數字,時事要 Claude 自己上網查。
 # Claude 沒有跨對話記憶,靠這段文字(與 repo 根目錄 CLAUDE.md)提醒;改流程時兩邊一起改。
 def claude_news_instruction(kind, date):

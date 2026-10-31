@@ -16,6 +16,9 @@ want = premarket_target_day(tw_now()).strftime("%Y/%m/%d")           # 休市日
 if t.get("date") != want: print(f"notify: 盤前資料是 {t.get('date')},今天要發的是 {want}(休市或還沒抓到),略過"); sys.exit(0)
 if mark.get("last") == t["date"]: print(f"notify: {t['date']} 盤前已通知過，略過"); sys.exit(0)
 us, n = t["us"], t.get("night")
+from panghu import premarket_early_hold
+hold = premarket_early_hold(tw_now(), n, us, end=int(os.getenv("PREMARKET_EARLY_END", "700")))
+if hold: print(f"notify: 早班 {tw_now():%H:%M} 還缺 {hold},不發 LINE、不記已發,留給 07:20 那班"); sys.exit(0)
 def s(k): it = us[k]; return f"{it['name']} {it['pct']:+.2f}%" if it["ok"] else f"{it['name']} 缺"
 gen = (t.get("generated_at") or "")[:10].replace("-", "/")              # 週日中午先發週一盤前 → 標明哪天抓的
 lines = [f"🐶 {t['date']} 盤前" + (f"（{gen[5:]} 先發,週一早上不再重發）" if gen and gen != t["date"] else "")]
