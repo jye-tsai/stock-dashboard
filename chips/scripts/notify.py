@@ -69,11 +69,28 @@ def chips_lines():
 def load_data_json():
     p = os.path.join(ROOT, "data.json")
     if not os.path.exists(p): return None
-    raw = read_json(p)
+    return decode_data_json(read_json(p))
+
+def decode_data_json(raw):
+    """明文 / v1({enc:1,iv,ct} 整包一行)/ v2({enc:2,quotes,head,hist[]} 逐筆 iv‖ct,見 scripts/codec.js)都解成同一個明文 dict"""
     if not (isinstance(raw, dict) and raw.get("enc")): return raw
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    iv, ct = base64.b64decode(raw["iv"]), base64.b64decode(raw["ct"])   # ct 尾 16 bytes 是 tag，AESGCM.decrypt 吃的正是這格式
-    return json.loads(AESGCM(OBF_KEY).decrypt(iv, ct, None).decode("utf-8"))
+    aes = AESGCM(OBF_KEY)
+    if raw["enc"] == 1:
+        iv, ct = base64.b64decode(raw["iv"]), base64.b64decode(raw["ct"])   # ct 尾 16 bytes 是 tag，AESGCM.decrypt 吃的正是這格式
+        return json.loads(aes.decrypt(iv, ct, None).decode("utf-8"))
+    def open_(b64):
+        all_ = base64.b64decode(b64)
+        return json.loads(aes.decrypt(all_[:12], all_[12:], None).decode("utf-8"))
+    d = open_(raw["head"])
+    quotes = raw.get("quotes") or {}
+    for h in d.get("holdings") or []:
+        q = quotes.get(h.get("code"))
+        if q: h.update(q)
+    d["history"] = [open_(x) for x in raw.get("hist") or []]
+    for k in ("updated", "priceUpdated"):
+        if k in raw: d[k] = raw[k]
+    return d
 
 def holding_amounts(h, fees):
     f = fees or {}

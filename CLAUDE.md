@@ -9,7 +9,7 @@
 1. **先拿最新數據**(雲端 session 是新 clone,先 `git fetch origin main` 再讀 `origin/main` 的版本)
    - 盤前:`chips/data/premarket_YYYYMMDD_claude.txt`(或 `premarket_latest.json`)。週日中午那班會標成「下週一」。
    - 盤後:`chips/data/YYYYMMDD_claude.txt`(或 `latest.json`)。融資約 21:30 後才補。
-   - 庫存:`node tools/show-data.mjs`(data.json 是加密的,這支會解開印重點;不寫檔)。
+   - 庫存:`node tools/show-data.mjs`(data.json 是 v2 混淆格式:市價明文、其餘加密;這支會解開印重點;不寫檔)。
    - **先檢查日期**:檔案日期不是今天(盤前:今天或下週一)就直說「資料還沒更新到今天」,不要拿舊資料當今天講。
 2. **照檔案開頭「【給 Claude】」那段的指示上網查時事**:盤前查前一交易日收盤後到現在(美股、費半、輝達 / 台積電 ADR、利率、美元台幣、油金、地緣政治、今日將公布的數據);盤後查今天台股、外資、半導體、匯率、盤後公告。整理 3–5 則,每則附來源與時間。
 3. **合併說明**:時事 + 數據對照(哪些數字可能跟哪則消息有關),再帶到使用者的持股(今日損益、今日進出)。
@@ -29,5 +29,5 @@
 
 - 測試:`node tests/run.mjs`、`python3 -m unittest discover -s tests -p "test_*.py"`,都要綠燈才 push。
 - 改了前端(`app.js` / `charts.js` / `styles.css` / `scripts/calc.js` / `index.html`)→ `node tools/bump.mjs` 換版號,不要手改。
-- `data.json` 以 repo 為正本(排程每 5 分鐘在寫),不要拿本機舊檔蓋;真要改資料,先 pull 最新、只動要改的欄位。
+- `data.json` 以 repo 為正本(排程每 5 分鐘在寫),不要拿本機舊檔蓋;真要改資料,先 pull 最新、只動要改的欄位。格式與金鑰只在 `scripts/codec.js`(前端 / Action / show-data 共用)與 `chips/scripts/notify.py`(Python 解碼),改格式兩邊一起改並加版本號,舊格式要繼續讀得開。
 - 使用者在手機 / 網頁操作,說明用繁體中文、白話,給可以直接貼上的東西(程式碼整段、設定值逐欄)。

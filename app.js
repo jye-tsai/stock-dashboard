@@ -464,21 +464,12 @@ const PBKDF2_ITER = 210000;
 const b64enc = arr => btoa(String.fromCharCode(...new Uint8Array(arr)));
 const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
-// data.json 混淆：固定金鑰 AES-256-GCM（與 scripts/update-prices.mjs 相同）。
-// 目的：網站對所有人正常顯示，但 repo 上的 data.json 不是明文。金鑰在公開程式內＝防君子不防小人。
-const OBF_KEY_B64 = '3Nr6TNQZewwC/3wye+lwc60BCeWcaPRmQddHyAbS+uc=';
-let _obfKey = null;
-async function obfKey() { return _obfKey || (_obfKey = await crypto.subtle.importKey('raw', b64dec(OBF_KEY_B64), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])); }
-async function encData(obj) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await obfKey(), new TextEncoder().encode(JSON.stringify(obj)));
-  return { enc: 1, iv: b64enc(iv), ct: b64enc(ct) };
-}
-async function decData(o) {
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64dec(o.iv) }, await obfKey(), b64dec(o.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
-}
-async function decodeMaybe(x) { return (x && x.enc === 1) ? await decData(x) : x; }
+// data.json 混淆:編解碼在 scripts/codec.js(PfCodec,與 scripts/update-prices.mjs 共用同一份)。
+// 目的:網站對所有人正常顯示,但 repo 上的 data.json 不是明文。金鑰在公開程式內=防君子不防小人。
+// 寫出去一律 v2(市價明文、其餘逐筆確定性加密 → 沒變的列 byte 一樣,git 有 delta);讀明文 / v1 / v2 都可以。
+async function encData(obj) { return PfCodec.encode(obj); }
+async function decodeMaybe(x) { return PfCodec.decode(x); }
+const encText = async obj => PfCodec.stringify(await encData(obj));   // 落檔 / 上傳用的字串(hist 一行一筆)
 async function pbkdf2Hash(pwd, saltBytes, iter) {
   const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pwd), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: saltBytes, iterations: iter, hash: 'SHA-256' }, km, 256);
@@ -948,7 +939,7 @@ async function ghSave(c, data) {
       } catch (e) { console.warn('合併遠端市價失敗,照原樣存', e); }
     }
     else if (g.status !== 404) throw ghErr(g.status, await g.json().catch(() => ({})));
-    const json = JSON.stringify(await encData(data));
+    const json = await encText(data);
     const body = {
       message: '更新庫存資料 ' + new Date().toISOString().slice(0, 10),
       content: b64utf8(json),
@@ -1027,7 +1018,7 @@ async function saveFile() {
       return;
     }
   }
-  const json = JSON.stringify(await encData(DATA));
+  const json = await encText(DATA);
   try {
     let h = fsHandle || await idb.get('handle');
     if (!h && window.showSaveFilePicker) {

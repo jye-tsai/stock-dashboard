@@ -1,38 +1,22 @@
-// 在 GitHub Action 的伺服器端執行:抓台股「即時價」→ 寫回 data.json。
+// 在 GitHub Action 的伺服器端執行:抓台股「即時價」→ 寫回 data.json(v2 格式,編解碼在 scripts/codec.js)。
 // 即時來源:Yahoo(regularMarketPrice)優先 → 證交所 MIS(z/pz)補。
 // 時間戳:只要這次有抓到即時價,就更新 priceUpdated 與該檔 priceTime(就算價格沒變),
 //         所以「時間有沒有前進」可用來判斷即時更新是否真的在運作。
 // 防還原:只有即時價能覆蓋現有價格;收盤價(OpenAPI)只用來初始化「完全沒有價格」的新標的。
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 // 與前端共用的損益計算模組(scripts/calc.js,UMD):改費率 / 稅率只改那一份,history 的 un / ret 才會跟畫面一致
 const PfCalc = createRequire(import.meta.url)('./calc.js');
+// 與前端共用的 data.json 編解碼(scripts/codec.js,UMD):v2 格式、確定性加密,沒變的 history 列 byte 相同,git 才有 delta
+const PfCodec = createRequire(import.meta.url)('./codec.js');
 import { scanAlerts, alertText, scheduleGapAlert } from './alerts.mjs';   // 停損 / 目標價 / 排程斷線判斷(純函式,tests/alerts.test.mjs 直接測)
 import { misQuote, misQuery, mergeLive } from './quote.mjs';                 // 即時價取捨:MIS 優先、Yahoo(延遲約 20 分)補(tests/quote.test.mjs)
 
 const FILE = process.env.DATA_FILE || 'data.json';
-// 混淆金鑰（與前端 index.html 相同；AES-256-GCM，防君子不防小人）
-const OBF_KEY = Buffer.from('3Nr6TNQZewwC/3wye+lwc60BCeWcaPRmQddHyAbS+uc=', 'base64');
 
-function readData() {
-  const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-  if (raw && raw.enc) {                       // 加密檔 → 解開
-    const iv = Buffer.from(raw.iv, 'base64');
-    const all = Buffer.from(raw.ct, 'base64');
-    const tag = all.subarray(all.length - 16), ct = all.subarray(0, all.length - 16);
-    const d = crypto.createDecipheriv('aes-256-gcm', OBF_KEY, iv); d.setAuthTag(tag);
-    return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8'));
-  }
-  return raw;                                 // 舊明文檔 → 直接用(下次寫回自動變加密)
-}
-function writeData(data) {
-  const iv = crypto.randomBytes(12);
-  const c = crypto.createCipheriv('aes-256-gcm', OBF_KEY, iv);
-  const ct = Buffer.concat([c.update(JSON.stringify(data), 'utf8'), c.final()]);
-  const all = Buffer.concat([ct, c.getAuthTag()]);
-  fs.writeFileSync(FILE, JSON.stringify({ enc: 1, iv: iv.toString('base64'), ct: all.toString('base64') }));
-}
+// 讀:明文 / v1(整包一行密文)/ v2 都吃;寫:一律 v2(舊檔跑一次就自動升格)
+async function readData() { return PfCodec.decode(JSON.parse(fs.readFileSync(FILE, 'utf8'))); }
+async function writeData(data) { fs.writeFileSync(FILE, PfCodec.stringify(await PfCodec.encode(data))); }
 
 // 台北時間戳(直接 UTC+8 手算,不依賴 runner 時區資料庫;台灣無日光節約,固定 +8),例:2026-06-15 12:16
 function taipeiStamp() {
@@ -261,7 +245,7 @@ async function main() {
   const tpeDow = new Date(Date.now() + 8 * 3600 * 1000).getUTCDay(); // 0=日 .. 6=六(台北)
   if (tpeDow === 0 || tpeDow === 6) { console.log('週末(台北),不更新'); return; }
 
-  const data = readData();
+  const data = await readData();
   const holdings = data.holdings || [];
   const codes = [...new Set(holdings.map(h => h.code).filter(Boolean))];
   if (!codes.length) { console.log('沒有可查詢的代號,結束。'); return; }
@@ -386,7 +370,7 @@ async function main() {
 
     await sendAlerts(data, scanAlerts(data, stamp), stamp);   // 停損 / 目標價提醒(價格都更新完才檢查)
 
-    writeData(data);
+    await writeData(data);
     console.log(`寫回:即時 ${liveHit} 檔、價格變動 ${changed} 檔;總市值 ${tot.mv}、總報酬 ${tot.totalReturn}(${stamp})`);
   } else {
     console.log('沒有「今日」的即時價(休市日或即時來源不通),維持原狀不寫檔;時間戳不前進');
