@@ -18,6 +18,7 @@
 - **`data.json` 的正本在 repo**,不是本機。排程會直接 commit 到 repo。**本機資料夾刻意不放 `data.json`**(舊明文版已搬到 `../股票庫存儀表版_原圖備份/`),要本機測試就從 repo 下載一份,測完刪掉,**不要拿本機蓋 repo**。
 - **改完用 GitHub Desktop push**(本機資料夾已是 git repo,接著 `origin/main`):開 GitHub Desktop → 看 Changes 清單 → 寫一行摘要 → Commit → Push。子資料夾、隱藏資料夾、刪檔全部一次同步,不會再漏。Cloudflare Worker 正本在 `cloudflare/worker.mjs`(沒有 token,可以放 repo);`data.json` 不要勾(排程會自己 commit,你本機那份永遠比較舊)。
 - **上傳前一鍵**:`node tools/bump.mjs` → 先跑測試,綠燈才把 `index.html` 四處 `?v=` 與 `sw.js` 的 `ASSET_VER` / `CACHE` 換成新值(台北日期 + 序號字母),並印出要上傳哪些檔。**不要再手改版號**。
+- **歷史瘦身**:`tools/slim-history.sh`(拿掉 data.json v1 舊版、PNG、result.json 舊版;雲端實測 100 MB → 27 MB,其中 18 MB 是 media 分支的 30 天圖;週末跑、PUSH=1 才推、推完本機重新 clone)。
 - **一鍵檢查**:`node tests/run.mjs`(語法 + `tests/calc.test.mjs` + `tests/sw.test.mjs`);push 到 repo 會由 `.github/workflows/check.yml` 自動跑,紅燈 = 上錯 / 漏檔。改 `calc.js` 順手補測。
 - **畫面卡住 / 看不到新版**:⚙️ 設定 →「🧹 清快取重新載入」(unregister SW + 清 caches + reload)。render 炸掉或 12 秒載不完時頂部也會自動出這條紅色橫幅(`index.html` head 內嵌,不依賴 app.js)。
 - **已知環境雷**:某些沙箱 / 掛載會顯示 `index.html` / `.mjs` 的**殘檔或舊版**(行數不對、node 檢查報怪錯)。這不是檔案壞掉——以編輯器/檔案工具讀到的內容為準,別被殘檔誤導。
