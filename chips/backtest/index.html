@@ -257,7 +257,12 @@ function render(R,S){
 
 (async()=>{
   let S=null;try{S=await (await fetch('fetch_status.json?'+Date.now())).json()}catch(e){}
-  try{const R=await (await fetch('result.json?'+Date.now())).json();render(R,S)}
+  try{const R=await (await fetch('result.json?'+Date.now())).json();
+    // series 拆成 series/<年>.json(backtest.py write_series_files):逐年抓回來接成原本的 R.series;舊版 result.json 自帶 series 就直接用
+    if(!R.series&&R.series_files){const parts=await Promise.all(R.series_files.map(f=>fetch(f+'?'+Date.now()).then(r=>r.json())));
+      const add=(acc,o)=>{if(Array.isArray(o))return (acc||[]).concat(o);if(o&&typeof o==='object'){acc=acc||{};for(const k in o)acc[k]=add(acc[k],o[k]);return acc}return o};
+      R.series=parts.reduce((acc,p)=>add(acc,p),null)}
+    render(R,S)}
   catch(e){$('#hdr').textContent='尚未產生回測結果';$('#app').innerHTML=`<div class="card">還沒有回測結果。到 GitHub → Actions → <b>backtest</b> → Run workflow(預設抓兩年,約 40～80 分鐘;抓不完會存進度,再跑一次接著抓)。${S?`<div class="sm mut" style="margin-top:6px">目前已抓 ${S.ok} / ${S.trading_days} 天</div>`:''}</div>`}
 })();
 </script>

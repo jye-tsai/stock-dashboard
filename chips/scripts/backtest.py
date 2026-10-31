@@ -9,7 +9,7 @@
       改了 panghu.json 只要重跑 eval(不用重抓)。
 
 資料:chips/backtest/raw/YYYYMM.json(一個月一檔,{日期: 當日原始資料})
-結果:chips/backtest/result.json;報告頁 chips/backtest/index.html 讀它。
+結果:chips/backtest/result.json(series 拆在 backtest/series/<年>.json,只有今年那檔每天變);報告頁 chips/backtest/index.html 讀它。
 
 注意:
   - 台指 VIX 官方只留近 3 個月,回測期間大多沒有 → 該項自動不計分(溫度用有資料的項目標準化)。
@@ -52,6 +52,43 @@ def jload(p, d=None):
 def jsave(p, o):
     os.makedirs(os.path.dirname(p), exist_ok=True)
     tmp = p + ".tmp"; json.dump(o, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":")); os.replace(tmp, p)
+
+# ─────────────── series 拆年檔(2026-10-31) ───────────────
+# result.json 285 KB 裡 series(10 年逐日陣列)佔 249 KB,每天重算整檔重寫 → 一天一版 240 KB 進 git 歷史(一個月 7 MB)。
+# 拆成 backtest/series/<年>.json,只有今年那檔每天在變;report 頁(index.html)載入後再接回 R.series,格式對頁面不變。
+def split_series_by_year(series):
+    """{dates, close, temp, pos, v3:{…}, eq:{…}} → {年: 同結構但只含該年}。陣列長度都等於 dates;v3 可為 None。"""
+    dates = series.get("dates") or []
+    years = sorted({d[:4] for d in dates})
+    idx = {y: [i for i, d in enumerate(dates) if d[:4] == y] for y in years}
+    def take(arr, ii): return [arr[i] for i in ii] if isinstance(arr, list) else arr
+    def part(obj, ii):
+        if isinstance(obj, dict): return {k: part(v, ii) for k, v in obj.items()}
+        return take(obj, ii)
+    return {y: part(series, idx[y]) for y in years}
+
+def merge_series_parts(parts):
+    """split_series_by_year 的反向(頁面用 JS 做同樣的事;這裡給測試對拍)。parts 依年排序的 list。"""
+    out = None
+    def add(acc, obj):
+        if isinstance(obj, dict):
+            if acc is None: acc = {}
+            for k, v in obj.items(): acc[k] = add(acc.get(k), v)
+            return acc
+        if isinstance(obj, list): return (acc or []) + obj
+        return obj
+    for p in parts: out = add(out, p)
+    return out
+
+def write_series_files(bt_dir, series):
+    """寫 series/<年>.json、刪掉不在清單裡的舊年檔;回傳相對路徑清單(寫進 result.json 的 series_files)"""
+    d = os.path.join(bt_dir, "series"); os.makedirs(d, exist_ok=True)
+    parts = split_series_by_year(series); files = []
+    for y, part in parts.items():
+        jsave(os.path.join(d, f"{y}.json"), part); files.append(f"series/{y}.json")
+    for fn in os.listdir(d):
+        if fn.endswith(".json") and f"series/{fn}" not in files: os.remove(os.path.join(d, fn))
+    return files
 
 # ─────────────── 證交所月表:交易日清單 + 加權收盤 / 漲跌 / 成交金額(一個月一支請求) ───────────────
 _MT = {}
@@ -689,6 +726,7 @@ def cmd_eval():
         res["events_summary"] = {k: {x: v.get(x) for x in ("name", "n", "n_days", "up20", "down20", "median20", "worst_dd20", "in_bear")} for k, v in evj["events"].items()}
         res["trend_states"] = evj["trend_states"]
         print("  極端事件(獨立):" + "、".join(f"{v['name']} {v['n']} 次({v['up20']} 漲 {v['down20']} 跌)" for v in evj["events"].values()))
+    res["series_files"] = write_series_files(BT, res.pop("series"))   # series 拆年檔,result.json 只留清單(index.html 載入後接回)
     jsave(os.path.join(BT, "result.json"), res)
     L = strategy["all"]
     print(f"回測 {dates[0]} ~ {dates[-1]},{N} 天(計算 {time.time() - t0:.0f} 秒);溫度與 20 日報酬等級相關 {ic.get('fwd20')}")
