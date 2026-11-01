@@ -48,10 +48,23 @@ def num(x, default=0):
 
 def ymd(d): return d.replace("/", "")
 
+# 期交所偶爾很慢(2026-10-30 16:40 futContractsDateDown 讀取逾時 30 秒,整班失敗):逾時 / 連線錯 / 5xx 等一下重試,共 3 次
+def taifex_post(path, data, tries=3, wait=8):
+    for a in range(tries):
+        try:
+            r = requests.post(TAIFEX + path, data=data, headers=H, timeout=45)
+            if r.status_code < 500: return r
+            why = f"HTTP {r.status_code}"
+        except (requests.Timeout, requests.ConnectionError) as e:
+            why = e.__class__.__name__
+            if a == tries - 1: raise
+        log(f"  期交所 {path}:{why},第 {a + 1}/{tries} 次,{wait * (a + 1)} 秒後重試")
+        time.sleep(wait * (a + 1))
+    return r
+
 # ─────────────── 期交所：三大法人期貨 OI ───────────────
 def taifex_fut(date):
-    r = requests.post(TAIFEX + "futContractsDateDown",
-                      data={"queryStartDate": date, "queryEndDate": date, "commodityId": ""}, headers=H, timeout=30)
+    r = taifex_post("futContractsDateDown", {"queryStartDate": date, "queryEndDate": date, "commodityId": ""})
     txt = decode(r.content)
     if "商品名稱" not in txt: return None
     df = read_csv_text(txt)
@@ -76,9 +89,7 @@ def fut_ready(df):
 
 # ─────────────── 期交所：全市場 OI（小台／微台 → 散戶多空比） ───────────────
 def taifex_market_oi(date, code):
-    r = requests.post(TAIFEX + "futDataDown",
-                      data={"down_type": "1", "commodity_id": code, "queryStartDate": date, "queryEndDate": date},
-                      headers=H, timeout=30)
+    r = taifex_post("futDataDown", {"down_type": "1", "commodity_id": code, "queryStartDate": date, "queryEndDate": date})
     txt = decode(r.content)
     if "未沖銷" not in txt: log(f"  {code} 全市場OI：回應非預期（前 80 字）{txt[:80]!r}"); return None
     df = read_csv_text(txt, dtype=str)
@@ -99,9 +110,7 @@ def taifex_market_oi(date, code):
 
 def taifex_tx_close(date):
     """臺股期貨近月：一般時段收盤、盤後（夜盤）收盤(解析在 common.parse_tx,盤前的夜盤也用同一支)"""
-    r = requests.post(TAIFEX + "futDataDown",
-                      data={"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date},
-                      headers=H, timeout=30)
+    r = taifex_post("futDataDown", {"down_type": "1", "commodity_id": "TX", "queryStartDate": date, "queryEndDate": date})
     txt = decode(r.content)
     if "收盤價" not in txt: log("  TX 收盤：CSV 無收盤價欄"); return None
     x = parse_tx(txt)
@@ -117,8 +126,7 @@ def retail_ratio(market_oi, inst):
 
 # ─────────────── 期交所：選擇權 買賣權分計（外資買/賣權淨OI） ───────────────
 def taifex_opt(date):
-    r = requests.post(TAIFEX + "callsAndPutsDateDown",
-                      data={"queryStartDate": date, "queryEndDate": date, "commodityId": "TXO"}, headers=H, timeout=30)
+    r = taifex_post("callsAndPutsDateDown", {"queryStartDate": date, "queryEndDate": date, "commodityId": "TXO"})
     txt = decode(r.content)
     if "身份別" not in txt: log("  選擇權：CSV 無身份別欄"); return None
     df = read_csv_text(txt)
@@ -139,7 +147,7 @@ def taifex_opt(date):
 
 # ─────────────── 期交所：P/C ratio ───────────────
 def taifex_pc(date):
-    r = requests.post(TAIFEX + "pcRatioDown", data={"queryStartDate": date, "queryEndDate": date}, headers=H, timeout=30)
+    r = taifex_post("pcRatioDown", {"queryStartDate": date, "queryEndDate": date})
     txt = decode(r.content)
     if "買賣權" not in txt: log(f"  P/C：回應非預期（前 80 字）{txt[:80]!r}"); return None
     df = read_csv_text(txt, dtype=str)
