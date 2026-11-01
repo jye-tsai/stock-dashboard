@@ -44,6 +44,10 @@ def main():
     tok, uid = os.getenv("LINE_CHANNEL_TOKEN"), os.getenv("LINE_USER_ID")
     if DRY or not tok or not uid: return
     import requests
+    from common import line_quota, LINE_SOFT_LIMIT
+    used, limit = line_quota(requests.get, tok)
+    if used is not None and used >= LINE_SOFT_LIMIT:                  # 額度快用完:失敗通知先停,留給盤前 / 盤後
+        print(f"notify_failure: LINE 本月已用 {used}/{limit},超過 {LINE_SOFT_LIMIT} 不發"); return
     r = requests.post("https://api.line.me/v2/bot/message/push",
                       headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
                       json={"to": uid, "messages": [{"type": "text", "text": text[:4900]}]}, timeout=20)

@@ -36,3 +36,11 @@ assert.deepEqual([early['盤中股價・Cloudflare'].expected, early['盤中股�
 assert.equal(early['盤後・Cloudflare'].expected, 0);
 assert.equal(early['週日先發週一盤前・Cloudflare'].expected, 1);                          // 前一天的照算
 console.log('trigger-stats.test: 17 項通過');
+import { premarketSenders, sendersMarkdown } from '../scripts/trigger-stats.mjs';
+{
+  const s = premarketSenders([{ date: '2026/11/02', at: '2026-11-02 06:41', via: 'cronjob' }, { date: '2026/11/03', at: '2026-11-03 07:21', via: 'cloudflare' },
+    { date: '2026/11/04', at: '2026-11-04 06:42', via: 'cronjob' }, { date: '2026/10/01', at: '2026-10-01 06:40', via: 'cronjob' }], '2026-11-01', '2026-11-07');
+  if (s.total !== 3 || s.by.cronjob.length !== 2 || !/早班\(06:40\):2 天\(06:41 ~ 06:42\)/.test(sendersMarkdown(s))) throw new Error('premarketSenders');
+  if (sendersMarkdown(premarketSenders([], '2026-11-01', '2026-11-07')) !== '') throw new Error('empty senders');
+  console.log('trigger-stats.test: 盤前發送者 2 項通過');
+}

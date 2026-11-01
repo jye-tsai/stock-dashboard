@@ -1276,7 +1276,15 @@ async function shareCard(previewOnly) {
 
 /* ==================== §15. 主題 / 圖表風格切換 ==================== */
 // ⚙️ 設定視窗(主題 / 圖表 / GitHub / 載入 / 密碼 的收納處)
-function openSettingsModal() { document.getElementById('settings-modal').classList.remove('hidden'); }
+function openSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('hidden');
+  // LINE 本月用量(盤前 / 盤後推播成功後由 Action 寫 chips/data/line_usage.json;免費 200 則,≥180 提醒類自動暫停)
+  fetch('chips/data/line_usage.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(u => {
+    const el = document.getElementById('line-usage'); if (!el || !u) return;
+    const stale = u.month !== tpeNow().date.slice(0, 7);
+    el.textContent = stale ? `📮 LINE 用量:本月還沒有紀錄(上次 ${u.month} 用了 ${u.used} 則)` : `📮 LINE 本月已用 ${u.used} / ${u.limit || '∞'} 則${u.used >= 180 ? '(≥180,提醒類已暫停,只發盤前 / 盤後)' : ''}・${String(u.at).slice(5, 16).replace('T', ' ')} 更新`;
+  }).catch(() => {});
+}
 function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
 function applyTheme(t) {
   if (!THEME_KEYS.includes(t)) t = 'ocean';

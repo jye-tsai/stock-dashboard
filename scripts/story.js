@@ -165,6 +165,8 @@
       var arr = input[p[0]]; if (arr && arr.length) add(p[0] === 'stops' ? 'warn' : 'event', p[1], { list: arr.join('、') });
     });
     if (R() < 0.6) lines.push({ k: 'misc', t: '※ ' + expand(pick(B.事件)) });
+    var gags = opts.gags || [];                                    // chips/story.json「胖虎語錄」:使用者自己的口頭禪
+    if (gags.length && R() < 0.7) lines.push({ k: 'misc', t: '胖虎:「' + gags[Math.floor(R() * gags.length)] + '」' });
     add('hint', tp > 0.001 ? '提示好' : tp < -0.001 ? '提示壞' : '提示平');
     var opening = title.replace(/^第 \d+ 回　/, '') + '・' + v.天氣;
     return { world: world, title: title, lines: lines, used: used, opening: opening };

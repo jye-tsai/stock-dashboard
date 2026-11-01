@@ -59,6 +59,14 @@ G = {
     },
 }
 
+def gags(cfg_path=CONFIG):
+    """chips/story.json 的「胖虎語錄」(使用者自己的口頭禪);沒填回 []"""
+    try:
+        with open(cfg_path, encoding="utf-8") as f: g = (json.load(f) or {}).get("胖虎語錄") or []
+        return [str(x).strip() for x in g if str(x).strip()]
+    except (OSError, ValueError):
+        return []
+
 def _rng(date_str, world, salt=""):
     return random.Random(int(hashlib.md5(f"{date_str}|{world}|{salt}".encode()).hexdigest(), 16))
 
@@ -93,6 +101,8 @@ def chips_story(t, world):
     pc = (t.get("pc") or {}).get("oi_ratio_pct")
     if isinstance(pc, (int, float)) and (pc < 80 or pc > 130):
         L.append(_fill(r, world, "PC低" if pc < 80 else "PC高", pc=f"{pc:.1f}"))
+    g = gags()
+    if g and r.random() < 0.7: L.append(f"胖虎:「{r.choice(g)}」")
     L.append(_fill(r, world, "收尾"))
     return L
 

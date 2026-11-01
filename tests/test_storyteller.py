@@ -32,6 +32,13 @@ class TestStoryteller(unittest.TestCase):
             self.assertIn(S.world_for("2026/10/16", p), S.WORLDS)
             self.assertIn(S.world_for("x", os.path.join(d, "nope.json")), S.WORLDS)   # 沒設定檔 = 隨機
 
+    def test_gags(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "story.json")
+            with open(p, "w", encoding="utf-8") as f: json.dump({"胖虎語錄": ["我的就是我的", " ", 3]}, f, ensure_ascii=False)
+            self.assertEqual(S.gags(p), ["我的就是我的", "3"])
+            self.assertEqual(S.gags(os.path.join(d, "nope.json")), [])
+
     def test_fail_lines(self):
         self.assertTrue(S.fail_lines("奇幻", "d")[0].startswith("☠"))
         self.assertEqual(S.fail_lines(None), [])

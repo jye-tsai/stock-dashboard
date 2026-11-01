@@ -224,6 +224,10 @@ async function pushLine(text) {
   const tok = process.env.LINE_CHANNEL_TOKEN, uid = process.env.LINE_USER_ID;
   if (!tok || !uid) { console.log('沒有 LINE secrets,提醒只寫 log'); return false; }
   if (process.env.LINE_RETRY) { console.log('push 衝突重跑輪:上一輪已送過,不重送'); return true; }
+  try {   // 免費額度每月 200 則:本月已用 ≥180 → 提醒先停,留給盤前 / 盤後推播(跟 chips/scripts/common.py LINE_SOFT_LIMIT 一致)
+    const used = (await (await fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers: { Authorization: 'Bearer ' + tok } })).json()).totalUsage;
+    if (used >= 180) { console.log(`LINE 本月已用 ${used} 則,超過 180,提醒只寫 log`); return true; }
+  } catch (e) { console.log('查 LINE 用量失敗(照常發):', e.message); }
   try {
     const r = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },

@@ -3,7 +3,7 @@
 // token 不要寫在這裡,用 Cloudflare 的 Secret(名稱:GH_TOKEN;fine-grained PAT,Actions: Read and write)。
 //
 // 一支 Worker 管兩個 workflow,依觸發的 cron 字串分流(Cloudflare Triggers 全用 UTC):
-//   */10 1-5 * * *   台北 09:00–13:50 每 10 分       → update-prices.yml(盤中股價)
+//   */10 1-5 * * 2-6 台北週一~五 09:00–13:50 每 10 分 → update-prices.yml(盤中股價;ROUTES 只比「分 時」,星期欄怎麼寫都會分對)
 //   20 23 * * 1-5    台北 07:20 盤前(週一~五)        → chips.yml(premarket=true,source=cron → 盤前 LINE)
 //   0 4 * * 1        台北週日 12:00 先發週一盤前      → chips.yml(同上;premarket.py 週末跑會標成下週一,週一 07:20 同日已發 → 略過)
 //   40 7 * * 2-6     台北 15:40 盤後(週一~五)        → chips.yml(source=cron → 盤後 LINE)

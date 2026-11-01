@@ -139,6 +139,7 @@ jobs:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           SITE_URL: https://jye-tsai.github.io/stock-dashboard/chips/
+          VIA: ${{ github.event.inputs.via || github.event_name }}     # 記在 premarket_log.json:LINE 是早班還是備援發的
         run: python chips/scripts/notify_premarket.py || true
 
       - name: Commit（通知標記）

@@ -928,7 +928,14 @@ function renderStory(ctx) {
   try { roll = JSON.parse(store.get('pf-story-roll') || '{}') || {}; } catch (e) { roll = {}; }
   try { log = JSON.parse(store.get('pf-story-log') || '{}') || {}; } catch (e) { log = {}; }
   const avoid = Object.keys(log).filter(d => d !== today).sort().slice(-7).flatMap(d => log[d] || []);   // 前 7 天用過的句子
-  const st = PfStory.tell(storyInput(ctx), { world, roll: roll.date === today ? roll.n || 0 : 0, avoid });
+  if (!renderStory._gags) {   // 胖虎語錄(chips/story.json,跟 LINE 共用一份);抓到後重畫一次
+    renderStory._gags = [];
+    fetch('chips/story.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => {
+      const g = ((j && j['胖虎語錄']) || []).map(String).filter(x => x.trim());
+      if (g.length) { renderStory._gags = g; if (DATA) render(); }
+    }).catch(() => {});
+  }
+  const st = PfStory.tell(storyInput(ctx), { world, roll: roll.date === today ? roll.n || 0 : 0, avoid, gags: renderStory._gags });
   log[today] = st.used;
   const keep = Object.keys(log).sort().slice(-10); store.set('pf-story-log', JSON.stringify(Object.fromEntries(keep.map(d => [d, log[d]]))));
   STORY_OPENING = st.opening;

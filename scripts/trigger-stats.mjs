@@ -75,3 +75,18 @@ export function statsMarkdown(st, generatedAt) {
   L.push('', '來源標記:cloudflare = Cloudflare Worker cron;cronjob = cron-job.org(URL 帶 `?src=cronjob`);web = 網頁補觸發;button = 「📈 更新市價」;url = 瀏覽器開 Worker 網址;schedule = GitHub 內建排程;manual = GitHub 網頁手動 Run。');
   return L.join('\n') + '\n';
 }
+
+// 盤前 LINE 由誰發出(chips/data/premarket_log.json:[{date:'YYYY/MM/DD', at:'YYYY-MM-DD HH:MM', via}]);from / to 是台北 YYYY-MM-DD
+export function premarketSenders(log, from, to) {
+  const rows = (log || []).filter(x => x && x.at && x.at.slice(0, 10) >= from && x.at.slice(0, 10) <= to);
+  const by = {};
+  for (const x of rows) { const k = x.via || '?'; (by[k] = by[k] || []).push(x.at.slice(11, 16)); }
+  return { total: rows.length, by };
+}
+export function sendersMarkdown(s) {
+  if (!s.total) return '';
+  const name = { cronjob: 'cron-job.org 早班(06:40)', cloudflare: 'Cloudflare 備援(07:20)' };
+  return ['', '## 盤前 LINE 由誰發出', '', ...Object.entries(s.by).sort((a, b) => b[1].length - a[1].length)
+    .map(([k, t]) => `- ${name[k] || k}:${t.length} 天(${t.sort()[0]} ~ ${t.sort().at(-1)})`),
+    '', '早班 07:00 前缺夜盤或美股主指就不發、留給 07:20;早班天數越多代表 06:40 越值得。', ''].join('\n');
+}

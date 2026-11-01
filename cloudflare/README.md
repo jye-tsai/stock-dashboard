@@ -7,7 +7,7 @@ GitHub 內建 schedule 常延遲數小時或漏跑,所以盤中股價與籌碼�
 
 | Cron(UTC) | 台北時間 | 觸發 |
 |---|---|---|
-| `*/10 1-5 * * *` | 每天 09:00–13:50 每 10 分(週末由腳本擋) | `update-prices.yml` 盤中股價 |
+| `*/10 1-5 * * 2-6` | 週一~五 09:00–13:50 每 10 分(2026-11-01 前是每天 `*/10 1-5 * * *`,週末空跑) | `update-prices.yml` 盤中股價 |
 | `20 23 * * 1-5` | 週一~五 07:20 | `chips.yml` 盤前(備援;早班 06:40 走 cron-job.org) |
 | `0 4 * * 1` | **週日 12:00**(Cloudflare 星期 1 = 日) | `chips.yml` 盤前:先發週一的盤前 |
 | `40 7 * * 2-6` | 週一~五 15:40 | `chips.yml` 盤後 |
@@ -69,7 +69,7 @@ Cloudflare cron 會整段不觸發(log 完全沒紀錄),所以另外用 cron-job
 
 ## 出事怎麼查
 
-- **股價沒自動更新**:Worker → Logs 看有沒有 `cron */10 1-5 * * * → update-prices.yml`
+- **股價沒自動更新**:Worker → Logs 看有沒有 `cron */10 1-5 * * 2-6 → update-prices.yml`
   - 完全沒有紀錄 → Cron Triggers 那條不見 / 被改(2026-10-02 就是被換成 `*/30 * * * *`)
   - 有紀錄但 `dispatch failed 401` → `GH_TOKEN` 過期,重產 PAT 更新 Secret
   - Cloudflare 那邊沒紀錄,但 cron-job.org History 有 200 → 正常,cron-job.org 頂著;有空再修 Cloudflare

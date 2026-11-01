@@ -211,6 +211,12 @@ def main():
     story = (read_json(os.path.join(DATA_DIR, "latest.json"), {}) or {}).get("story") or {}
     if story.get("lines"):                                          # 說書人(chips/story.json 關閉就沒有這段)
         lines += [f"── 📜 說書人({story.get('world', '')})──"] + story["lines"]
+    quota = (None, None)
+    if not DRY:                                                     # LINE 本月用量(免費 200 則);這則也算進去所以 +1
+        import requests
+        from common import line_quota
+        quota = line_quota(requests.get, tok)
+        if quota[0] is not None: lines.append(f"📮 LINE 本月 {quota[0] + 1}/{quota[1] or '∞'}")
     site = os.getenv("SITE_URL", "")
     if site: lines.append(site)
     text = "\n".join(lines)
@@ -228,6 +234,9 @@ def main():
                       headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
                       json={"to": uid, "messages": msgs}, timeout=20)
     print("notify:", r.status_code, r.text[:120])
+    if r.status_code == 200 and quota[0] is not None:
+        from common import save_line_usage
+        save_line_usage(os.path.join(DATA_DIR, "line_usage.json"), quota[0] + 1, quota[1])
     if r.status_code == 200 and chip_date:
         write_json(MARK, {"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")})   # 原子寫入
 

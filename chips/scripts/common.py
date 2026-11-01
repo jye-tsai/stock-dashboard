@@ -69,6 +69,22 @@ def get_json(get, url, params=None, headers=None, tries=3, wait=4, log=print, la
         if a < tries - 1: time.sleep(wait * (a + 1))
     return None
 
+# ─────────────── LINE 免費額度(每月 200 則)───────────────
+LINE_SOFT_LIMIT = 180           # 本月用到這個數,提醒類(停損 / 目標 / 排程斷線 / 失敗通知)先停,留額度給盤前 / 盤後
+def line_quota(get, tok):
+    """本月已用則數與上限 (used, limit);查不到回 (None, None)。get = requests.get"""
+    try:
+        h = {"Authorization": f"Bearer {tok}"}
+        used = get("https://api.line.me/v2/bot/message/quota/consumption", headers=h, timeout=15).json().get("totalUsage")
+        q = get("https://api.line.me/v2/bot/message/quota", headers=h, timeout=15).json()
+        return (int(used), int(q.get("value") or 200) if q.get("type") != "none" else None)
+    except Exception:
+        return (None, None)
+
+def save_line_usage(path, used, limit):
+    """chips/data/line_usage.json:儀表板 ⚙️ 設定顯示「LINE 本月 N / 200」用"""
+    write_json(path, {"month": tw_now().strftime("%Y-%m"), "used": used, "limit": limit, "at": tw_now().isoformat(timespec="minutes")})
+
 # ─────────────── 期交所 CSV ───────────────
 def decode(raw: bytes) -> str:
     for enc in ("utf-8-sig", "cp950", "big5"):

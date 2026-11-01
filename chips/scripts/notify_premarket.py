@@ -48,3 +48,10 @@ print("notify:", r.status_code, r.text[:100])
 if r.status_code == 200:
     import datetime as dt
     write_json(MARK, {"last": t["date"], "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")})   # 原子寫入
+    # 誰發的(早班 cron-job.org 06:40 還是 Cloudflare 07:20 備援):排程報表統計早班值不值得;留 90 筆
+    LOG = os.path.join(d, "premarket_log.json")
+    log = (read_json(LOG, []) or [])[-89:] + [{"date": t["date"], "at": tw_now().strftime("%Y-%m-%d %H:%M"), "via": os.getenv("VIA", "")}]
+    write_json(LOG, log, indent=0)
+    from common import line_quota, save_line_usage                    # 順便更新本月 LINE 用量(儀表板 ⚙️ 設定看得到)
+    used, limit = line_quota(requests.get, tok)
+    if used is not None: save_line_usage(os.path.join(d, "line_usage.json"), used, limit)

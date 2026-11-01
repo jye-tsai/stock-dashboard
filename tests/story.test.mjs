@@ -26,4 +26,7 @@ assert.notEqual(d.lines[0].t, a.lines[0].t);
 const up = S.tell({ ...inp, taiexPct: 0.02, todayChg: 150000, todayPct: 0.013, ath: true, exDiv: ['0050 每股 1.5 元'], ach: [], buys: [] }, { world: '奇幻' });
 const ut = up.lines.map(l => l.t).join('\n');
 assert.match(ut, /\+15\.0萬\(\+1\.30%\)/); assert.match(ut, /新高/); assert.match(ut, /0050 每股 1\.5 元/);
-console.log('story.test: 18 項通過');
+// 胖虎語錄:有填就有機會出現,換幾則一定碰得到
+const gagHit = [0, 1, 2, 3, 4, 5].some(n => S.tell(inp, { world: '奇幻', roll: n, gags: ['我的就是我的'] }).lines.some(l => l.t === '胖虎:「我的就是我的」'));
+assert.ok(gagHit, '胖虎語錄');
+console.log('story.test: 19 項通過');

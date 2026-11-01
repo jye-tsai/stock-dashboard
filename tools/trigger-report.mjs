@@ -1,7 +1,7 @@
 // 排程可靠度報表:抓 GitHub Actions 的 update-prices / chips 執行紀錄 → scripts/trigger-stats.mjs 統計 → reports/triggers.md
 // 用法(GitHub Action trigger-report.yml 每週六跑,也可手動):GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/repo node tools/trigger-report.mjs [天數,預設 14]
 import fs from 'node:fs';
-import { triggerStats, statsMarkdown } from '../scripts/trigger-stats.mjs';
+import { triggerStats, statsMarkdown, premarketSenders, sendersMarkdown } from '../scripts/trigger-stats.mjs';
 
 const repo = process.env.GITHUB_REPOSITORY || 'jye-tsai/stock-dashboard';
 const token = process.env.GITHUB_TOKEN;
@@ -27,7 +27,9 @@ async function runs(workflow) {
 }
 
 const all = [...await runs('update-prices.yml'), ...await runs('chips.yml')];
-const md = statsMarkdown(triggerStats(all, from, to, tpe.toISOString().slice(0, 16).replace('T', ' ')), tpe.toISOString().slice(0, 16).replace('T', ' '));
+let md = statsMarkdown(triggerStats(all, from, to, tpe.toISOString().slice(0, 16).replace('T', ' ')), tpe.toISOString().slice(0, 16).replace('T', ' '));
+let pmLog = []; try { pmLog = JSON.parse(fs.readFileSync('chips/data/premarket_log.json', 'utf8')); } catch (e) { /* 還沒有紀錄 */ }
+md += sendersMarkdown(premarketSenders(pmLog, from, to));
 fs.mkdirSync('reports', { recursive: true });
 fs.writeFileSync('reports/triggers.md', md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
