@@ -17,6 +17,7 @@ class TestStoryteller(unittest.TestCase):
         for s in ("461 億", "連 8 日賣", "+25.7%", "3,907", "-93,675", "131", "67.6"):
             self.assertIn(s, txt)
         self.assertIn("靈石", "\n".join(S.chips_story(T, "修仙")))
+        self.assertIn("官銀", "\n".join(S.chips_story(T, "萬妖")))
 
     def test_missing_fields(self):
         self.assertGreaterEqual(len(S.chips_story({"date": "2026/10/16"}, "奇幻")), 2)   # 只剩開場 + 收尾

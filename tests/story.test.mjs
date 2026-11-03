@@ -29,4 +29,9 @@ assert.match(ut, /\+15\.0萬\(\+1\.30%\)/); assert.match(ut, /新高/); assert.m
 // 胖虎語錄:有填就有機會出現,換幾則一定碰得到
 const gagHit = [0, 1, 2, 3, 4, 5].some(n => S.tell(inp, { world: '奇幻', roll: n, gags: ['我的就是我的'] }).lines.some(l => l.t === '胖虎:「我的就是我的」'));
 assert.ok(gagHit, '胖虎語錄');
-console.log('story.test: 19 項通過');
+// 萬妖世界:名詞、十一境
+const y = S.tell(inp, { world: '萬妖' });
+assert.match(y.lines.map(l => l.t).join(''), /今日斬妖/);
+assert.equal(S.TERMS['萬妖'].lv(22), '觀山境・22重'); assert.equal(S.TERMS['萬妖'].lv(1), '凡境・1重');
+assert.ok(!/\{[^}]+\}/.test(y.lines.map(l => l.t).join('') + y.title));
+console.log('story.test: 23 項通過');

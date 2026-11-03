@@ -11,13 +11,13 @@
 const THEME_KEYS = ['ocean', 'coral', 'matcha', 'midnight', 'cute', 'sailor', 'agent', 'rpg'];
 // ⚔️ 冒險主題:整頁 RPG 化(角色狀態欄、標題改名、持股損益裝備欄、成就牆);數字與功能完全不變
 const isRpg = () => document.documentElement.dataset.theme === 'rpg';
-const rpgLabel = (normal, rpg, xian) => isRpg() ? (xian && isXian() ? xian : rpg) : normal;   // 一般 / 冒險奇幻 / 冒險修仙 三種名稱
+const rpgLabel = (normal, rpg, xian, yao) => !isRpg() ? normal : rpgWorld() === '修仙' && xian ? xian : rpgWorld() === '萬妖' && yao ? yao : rpg;   // 一般 / 奇幻 / 修仙 / 萬妖
 // 冒險世界(⚙️ 設定:奇幻 / 修仙 / 每天隨機)→ 名詞表 scripts/story.js 的 TERMS;隨機 = 依日期固定一個
 function rpgWorld() {
-  const v = store.get('pf-rpg-world') || '奇幻';
-  if (v !== '隨機') return v === '修仙' ? '修仙' : '奇幻';
+  const v = store.get('pf-rpg-world') || '奇幻', all = ['奇幻', '修仙', '萬妖'];
+  if (v !== '隨機') return all.includes(v) ? v : '奇幻';
   const d = tpeNow().date; let h = 0; for (const ch of d) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h % 2 ? '修仙' : '奇幻';
+  return all[h % all.length];
 }
 const rpgT = () => (window.PfStory ? PfStory.TERMS[rpgWorld()] : null) || { rarity: {}, slots: [], vaults: [], chapters: [], lv: lv => 'Lv.' + lv };
 const isXian = () => rpgWorld() === '修仙';
@@ -751,9 +751,9 @@ function rpgStatusHtml(total, { unreal, T, compact } = {}) {
       <div class="rpg-vault">${pxSvg(RPG_SPRITES[vSprite], compact ? 52 : vSize, vOver ? RPG_OVERLAY[vOver] : null)}</div>
       <div class="rpg-hero-main">
         <div class="rpg-lv">胖虎 <b>${W.lv(lv)}</b> <span class="mut">・${vName}</span></div>
-        ${compact ? '' : `<div class="rpg-gold"><span class="mut">${W.total || '總報酬'}</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">${W.coin || '元寶'} ${ingots} ${isXian() ? '枚' : '錠'}</span>` : `<span class="mut">${W.vaultWord || '寶庫'}破洞中…</span>`}</div>`}
+        ${compact ? '' : `<div class="rpg-gold"><span class="mut">${W.total || '總報酬'}</span> <b class="${total >= 0 ? 'up' : 'down'}">${rpgWan(total)}</b> ${total >= 0 ? `<span class="mut">${W.coin || '元寶'} ${ingots} ${W.coinUnit || '錠'}</span>` : `<span class="mut">${W.vaultWord || '寶庫'}破洞中…</span>`}</div>`}
         ${!compact && T ? `<div class="rpg-src mut">${W.item} ${rpgWan(unreal)}・${W.loot}(已實現)${rpgWan(T.realized)}・${W.salary}(股息)${rpgWan(T.dividend)}</div>` : ''}
-        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一${isXian() ? '枚' : '錠'}${W.coin || '元寶'}(總報酬 ${rpgWan(total)})">${ingotRow}</div>` : ''}
+        ${ingotRow ? `<div class="rpg-ingots" title="每 10 萬一${W.coinUnit || '錠'}${W.coin || '元寶'}(總報酬 ${rpgWan(total)})">${ingotRow}</div>` : ''}
         <div class="rpg-exp" title="下一級:總報酬 ${rpgWan(next)}"><i style="width:${Math.round(exp * 100)}%"></i><span>EXP ${Math.round(exp * 100)}% → ${W.lv(lv + 1)}(${rpgWan(next)})</span></div>
       </div>
     </div>`;
@@ -767,7 +767,8 @@ function applyRpgLabels() {
     if (!node) return;
     if (el.dataset.orig == null) el.dataset.orig = node.textContent;
     const lead = el.dataset.orig.match(/^\s*/)[0], tail = el.dataset.orig.match(/\s*$/)[0];
-    node.textContent = on ? lead + (isXian() && el.dataset.xian ? el.dataset.xian : el.dataset.rpg) + tail : el.dataset.orig;
+    const alt = { '修仙': el.dataset.xian, '萬妖': el.dataset.yao }[rpgWorld()];   // data-xian / data-yao:該世界的名稱,沒寫就用奇幻(data-rpg)
+    node.textContent = on ? lead + (alt || el.dataset.rpg) + tail : el.dataset.orig;
   });
 }
 
@@ -971,7 +972,7 @@ function drawPlRpg(held) {
   }).join('');
   box.innerHTML = `${rpgStatusHtml(total, { unreal, T })}
     <div class="rpg-items">${items}</div>
-    <div class="rpg-legend mut">${(() => { const W = rpgT(), R = W.rarity; return `等級 / ${W.vaultWord} / ${W.coin}看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:${R.legend} ≥50%・${R.epic} ≥20%・${R.rare} ≥5%・${R.common} ≥0・${R.broken} >-10%・${R.cursed} ≤-10%;+N ${W.enhance} = 報酬率每 10% 一級;${W.coin}每 10 萬一${isXian() ? '枚' : '錠'}`; })()}</div>`;
+    <div class="rpg-legend mut">${(() => { const W = rpgT(), R = W.rarity; return `等級 / ${W.vaultWord} / ${W.coin}看總報酬(未實現 + 已實現 + 股息);稀有度看各檔報酬率:${R.legend} ≥50%・${R.epic} ≥20%・${R.rare} ≥5%・${R.common} ≥0・${R.broken} >-10%・${R.cursed} ≤-10%;+N ${W.enhance} = 報酬率每 10% 一級;${W.coin}每 10 萬一${W.coinUnit || '錠'}`; })()}</div>`;
 }
 
 // 4.4 年度損益(資本利得 + 股息堆疊;鎖住時容器隱藏就不畫)
@@ -1304,7 +1305,7 @@ function drawCharts(held, ys) {
   document.getElementById('pl-chart-box')?.classList.toggle('hidden', rpg);
   document.getElementById('pl-rpg')?.classList.toggle('hidden', !rpg);
   const sub = document.getElementById('pl-subtitle');
-  if (sub) sub.textContent = rpg ? (isXian() ? '賺越多法寶品階越高、洞府越大;賠錢的法寶會裂紋、被魔化（未實現損益，已扣賣出稅費）' : '賺越多裝備越強、寶庫越大;賠錢的裝備會破損、被詛咒（未實現損益，已扣賣出稅費）') : '各持股未實現損益（已扣賣出稅費）';
+  if (sub) sub.textContent = rpg ? `${rpgT().plSub}（未實現損益，已扣賣出稅費）` : '各持股未實現損益（已扣賣出稅費）';
   if (rpg) drawPlRpg(held); else drawPl(T, held);
   if (DATA) renderAchievements(DATA, held);
   drawYearly(T, ys);
