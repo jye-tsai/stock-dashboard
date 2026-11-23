@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "zone_lo": 39546,
+  "zone_hi": 40991,
+  "near_pct": 2.0,
+  "k_hot": 80,
+  "cross_min": 70,
+  "recent_days": 5
+}

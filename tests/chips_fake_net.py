@@ -34,4 +34,6 @@ class FakeNet:
                 self.blocked -= 1
                 return Resp("<html>請稍後再試</html>")
             return Resp(_file(f"twse_{name}.json"))
+        if name == "MI_5MINS_HIST":
+            return Resp(_file("twse_MI_5MINS_HIST.json") if (params or {}).get("date", "").startswith("202610") else '{"stat":"很抱歉，沒有符合條件的資料!"}')
         raise AssertionError("未預期的 GET " + url)

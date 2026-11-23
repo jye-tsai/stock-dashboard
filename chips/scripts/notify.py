@@ -48,6 +48,9 @@ def chips_lines():
     if f: L.append(f"外資期貨淨 {f['net']:+,}" + (f"（{f.get('day_net', 0):+,}）" if f.get("day_net") is not None else ""))
     if mr and tr: L.append(f"小台 {mr['ratio_pct']:+.2f}%　微台 {tr['ratio_pct']:+.2f}%")
     if t.get("pc"): L.append(f"P/C(OI) {t['pc'].get('oi_ratio_pct')}%")
+    kd = t.get("kd") or {}                                            # 大盤日 KD;反彈提醒成立時放在最上面(門檻在 chips/kd_alert.json)
+    if kd.get("alert"): L.insert(1, kd["alert"])
+    if kd.get("text"): L.append(kd["text"])
     MISS = {"inst": "外資現貨", "margin": "融資餘額", "opt": "選擇權", "pc": "P/C", "index": "加權指數",
             "mtx_retail": "小台散戶", "tmf_retail": "微台散戶", "txf.外資": "外資台指期"}
     miss = t.get("missing") or []; core = [MISS.get(k, k) for k in miss if k != "margin"]
@@ -201,7 +204,18 @@ def main():
         print("notify: 無 LINE secrets，略過"); return
     lines, chip_date = chips_lines()
     mark = read_json(MARK, {})
+    kd_alert = ((read_json(os.path.join(DATA_DIR, "latest.json"), {}) or {}).get("kd") or {}).get("alert")
     if not DRY and chip_date and mark.get("last") == chip_date:
+        # 當天已發過:只有「反彈提醒是後面班次才算出來」(早班高低月表還沒更新)時補發一則短訊,其餘照舊略過
+        if kd_alert and mark.get("kd") != chip_date:
+            import requests
+            r = requests.post("https://api.line.me/v2/bot/message/push",
+                              headers={"Authorization": f"Bearer {tok}", "Content-Type": "application/json"},
+                              json={"to": uid, "messages": [{"type": "text", "text": f"🐶 {chip_date} 盤後補充\n{kd_alert}"}]}, timeout=20)
+            print("notify: KD 提醒補發", r.status_code, r.text[:120])
+            if r.status_code == 200:
+                mark["kd"] = chip_date; write_json(MARK, mark)
+            return
         print(f"notify: {chip_date} 已通知過，略過"); return
     try:
         d = load_data_json()
@@ -238,7 +252,8 @@ def main():
         from common import save_line_usage
         save_line_usage(os.path.join(DATA_DIR, "line_usage.json"), quota[0] + 1, quota[1])
     if r.status_code == 200 and chip_date:
-        write_json(MARK, {"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")})   # 原子寫入
+        write_json(MARK, {"last": chip_date, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                          **({"kd": chip_date} if kd_alert else {})})   # 原子寫入
 
 if __name__ == "__main__":
     main()

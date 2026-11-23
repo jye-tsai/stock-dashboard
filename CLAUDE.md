@@ -23,6 +23,7 @@
 - 連假後的盤前:美股 / ADR / 債匯漲跌自動改成「台股前收以來 N 個美股交易日累計」並列逐日(文字表有 ⚠ 連假那行);夜盤只取緊接在台股前收那天之後的一段,連假後幾晚沒有夜盤會註明「只反映第一天」。期貨 / 外匯取美股收盤那天的價,07:20 的盤中即時價不採用(存在 `live` 欄位)。
 - 每個觸發都帶來源(GitHub 執行紀錄標題如「股價 cloudflare」「籌碼 盤後 cronjob」);可靠度報表 `reports/triggers.md`(每週六)。
 - 圖卡與永豐轉圖(PNG)只在孤兒分支 `media`(`chips/scripts/push_media.sh` 每班重建、留 30 天),main 與本機 clone 看不到 PNG 是正常的;籌碼站與 LINE 用 raw.githubusercontent.com 的 media 網址。
+- 大盤反彈提醒(使用者 2026-11-23 要求,**成立時一定要提醒**):盤後 `fetch_all.kd_live` 抓證交所高低月表算日 KD(9,3,3),結果在當日 json 的 `kd` 與 claude.txt 的「【KD 追蹤】」。門檻在 `chips/kd_alert.json`(滿足區 39,546～40,991、離下緣 2% 內算接近)。①接近滿足區且 K≥80、②高檔死亡交叉 → LINE 盤後訊息最上面加「🔔 反彈提醒」;早班沒算到、後面班次才成立會補發一則短訊。盤後分析時看到「🔔」要在回覆第一句講。目的是使用者想趁反彈把弱勢 ETF 換到強勢 ETF。
 - 說書人(LINE / 籌碼站的奇幻・修仙・萬妖劇情)開關:`chips/story.json` 的 world(奇幻 / 修仙 / 萬妖 / 隨機 / 關閉);儀表板冒險主題的說書在 ⚙️ 設定。故事只包裝真實數字,看盤分析仍以數字為準。
 - 細節、Cron 清單、出事怎麼查:`cloudflare/README.md`。Worker 正本是 `cloudflare/worker.mjs`,改完要使用者自己貼到 Cloudflare。
 

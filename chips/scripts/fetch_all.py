@@ -517,6 +517,44 @@ def index_history(date, n=130):
     ds = sorted(d for d in got if d <= date)[-n:]
     return [got[d][0] for d in ds], [got[d][1] for d in ds], ds
 
+# ─────────────── 大盤日 KD 與反彈滿足區提醒(chips/kd_alert.json) ───────────────
+_OH = {}
+def _month_ohlc(y, m, tries=3):
+    """證交所「發行量加權股價指數歷史資料」月表 → {日期: (最高, 最低, 收盤)};抓成功才快取。"""
+    key = (y, m)
+    if _OH.get(key): return _OH[key]
+    out = {}
+    j = get_json(requests.get, TWSE + "TAIEX/MI_5MINS_HIST", params={"date": f"{y}{m:02d}01", "response": "json"}, headers=H,
+                 tries=tries, wait=3, log=log, label=f"加權高低月表 {y}/{m:02d}")
+    if j and j.get("stat") == "OK":
+        for row in j.get("data") or []:                            # 日期, 開盤, 最高, 最低, 收盤
+            yy, mm, dd = row[0].strip().split("/")
+            hi, lo, cl = num(row[2]), num(row[3]), num(row[4])
+            if hi and lo and cl: out[f"{int(yy) + 1911}/{mm}/{dd}"] = (hi, lo, cl)
+    elif j: log(f"  加權高低月表 {y}/{m:02d}:證交所回 {j.get('stat')}")
+    if out: _OH[key] = out
+    time.sleep(1.2)
+    return out
+
+def kd_live(t, months=4):
+    """當天的大盤日 KD 與反彈提醒狀態;月表沒更新到當天、或中間缺月份 → 回 None(寧可不寫,也不拿舊資料當今天)。"""
+    import kd as KD
+    cfg = KD.load_cfg(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "kd_alert.json"))
+    if not cfg.get("enabled", True): return None
+    date = t["date"]; y, m = int(date[:4]), int(date[5:7]); got = {}
+    for k in range(months):
+        mt = _month_ohlc(y, m)
+        if not mt:
+            log(f"  加權高低月表 {y}/{m:02d} 抓不到,今天不算 KD"); return None
+        got.update(mt); m -= 1
+        if m == 0: y, m = y - 1, 12
+    ds = sorted(d for d in got if d <= date)
+    if not ds or ds[-1] != date:
+        log(f"  加權高低月表還沒更新到 {date}(最新 {ds[-1] if ds else '無'}),今天先不算 KD,後續班次再補"); return None
+    r = KD.evaluate([got[d][0] for d in ds], [got[d][1] for d in ds], [got[d][2] for d in ds], cfg)
+    if r: r["high"], r["low"] = got[date][0], got[date][1]
+    return r
+
 def fx_history(date, n=40):
     """date(含)之前最近 n 筆匯率日線(Yahoo),由舊到新"""
     out = {}
@@ -560,7 +598,7 @@ def describe_live(t, p, hist, cfg):
     return pg
 
 # ─────────────── 收尾 / 寫檔(單日與回補共用) ───────────────
-DERIVED = ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at", "spf", "story")
+DERIVED = ("prev", "log", "claude_text", "insight", "panghu", "prev_summary", "generated_at", "spf", "story", "kd")
 def raw_fields(x):
     """只留 collect() 抓到的原始欄位(拿掉衍生 / 疊加的欄位)"""
     return {k: v for k, v in x.items() if k not in DERIVED}
@@ -588,8 +626,14 @@ def finish_day(t, p):
         w = world_for(t["date"])
         if w: t["story"] = {"world": w, "lines": chips_story(t, w)}
     except Exception as e: log(f"  說書人失敗(不影響數據):{e.__class__.__name__}: {e}")
+    try:                                                                  # 大盤日 KD 與反彈滿足區提醒(門檻在 chips/kd_alert.json)
+        kdr = kd_live(t)
+        if kdr: t["kd"] = kdr
+    except Exception as e: log(f"  KD 計算失敗(不影響數據):{e.__class__.__name__}: {e}")
     t["generated_at"] = tw_now().isoformat(timespec="seconds")
     t["claude_text"] = claude_text(t, p)
+    if t.get("kd"):
+        t["claude_text"] += "\n【KD 追蹤】" + t["kd"]["text"] + ("\n" + t["kd"]["alert"] if t["kd"].get("alert") else ";提醒條件未成立")
     if (t.get("insight") or {}).get("lines"):
         t["claude_text"] += "\n【價量 / 籌碼解讀】\n" + "\n".join("・" + x for x in t["insight"]["lines"])
     pg = t.get("panghu") or {}
